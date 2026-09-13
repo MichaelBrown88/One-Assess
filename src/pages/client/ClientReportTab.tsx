@@ -108,7 +108,6 @@ export default function ClientReportTab() {
           previousScores={previousScores ?? undefined}
           previousFormData={previousFormData ?? undefined}
           standalone={true}
-          organizationId={profile?.organizationId}
         />
       </Suspense>
 

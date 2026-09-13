@@ -64,7 +64,7 @@ const PATTERNS: Pattern[] = [
 /**
  * Derive tight/weak muscle sets from a list of movement-quality finding
  * strings (typically the `weaknesses` / "focus areas" produced by the
- * MovementPostureMobility scoring). `strengths` (positive findings) are
+ * movement scoring). `strengths` (positive findings) are
  * intentionally ignored — movement-quality "strong" is rarely actionable
  * for muscle highlight; the value is in surfacing what to address.
  */

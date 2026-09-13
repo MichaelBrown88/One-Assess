@@ -325,7 +325,6 @@ const AssessmentReport = () => {
                 previousScores={versionSelector.previousScores ?? previousScores}
                 previousFormData={(versionSelector.previousFormData ?? previousFormData) ?? undefined}
                 standalone={true}
-                organizationId={profile?.organizationId}
                 coachActions={{
                   onShare: () => setShareModalOpen(true),
                   onSendToClient: () => setShareModalOpen(true),

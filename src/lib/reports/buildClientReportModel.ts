@@ -82,11 +82,6 @@ export interface ClientReportPillarModel {
   pillarRole: PillarRole;
 }
 
-export interface ClientReportPlanStep {
-  title: string;
-  body: string;
-}
-
 export interface ClientReportPostureModel {
   findings: PostureFindingRecord[];
   postureResults: Partial<Record<PostureFindingViewId, PostureAnalysisResult>>;

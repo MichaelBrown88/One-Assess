@@ -63,5 +63,3 @@ export const SECTION_META: Record<
 export function scoringIdForSection(sectionId: SectionId): ScoringPillarId {
   return SECTION_TO_SCORING[sectionId];
 }
-
-export const DEFAULT_OPEN: SectionId[] = [];

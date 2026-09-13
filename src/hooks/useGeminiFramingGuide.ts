@@ -847,7 +847,7 @@ export function useGeminiFramingGuide({
       try {
         // Backend selection: see CONFIG.AI.GEMINI.LIVE_BACKEND for rationale.
         // Default 'vertex' matches the backend used elsewhere in the app
-        // (postureAnalysis, BodyCompCompanionModal, ocrEngine, narratives).
+        // (postureAnalysis, ocrEngine, narratives).
         // Using GoogleAIBackend on a Vertex-only project causes the Live
         // WebSocket handshake to fail with "did not respond with a setupComplete
         // message" because the Gemini Developer API key is not provisioned.

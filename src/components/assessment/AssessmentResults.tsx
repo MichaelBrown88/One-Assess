@@ -17,7 +17,6 @@ import {
   User,
 } from 'lucide-react';
 const ClientReport = lazy(() => import('@/components/reports/ClientReport'));
-import { useAuth } from '@/hooks/useAuth';
 import { type FormData } from '@/contexts/FormContext';
 import { type ScoreSummary } from '@/lib/scoring';
 import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
@@ -56,7 +55,6 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   shareLoading,
 }) => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
   const [shared, setShared] = React.useState(false);
 
   const wrapShare = (fn: (v: 'client' | 'coach') => void) => () => {
@@ -189,7 +187,6 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({
           goals={Array.isArray(formData.clientGoals) ? formData.clientGoals : []}
           formData={formData}
           standalone
-          organizationId={profile?.organizationId}
         />
       </Suspense>
     </div>

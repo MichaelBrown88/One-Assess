@@ -207,11 +207,13 @@ const App = () => (
                       element={<RequestErasure />}
                     />
 
-                    {/* Legacy share routes — feature removed */}
+                    {/* Legacy share / milestone routes — features removed */}
                     <Route
                       path="/share/*"
                       element={<Navigate to="/" replace />}
                     />
+                    <Route path="/achievements" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+                    <Route path="/compare" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
                     {/* Protected routes (auth required) */}
                     <Route path="/dashboard" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
                       <Route index element={<Navigate to="clients" replace />} />

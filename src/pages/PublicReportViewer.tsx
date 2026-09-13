@@ -493,7 +493,6 @@ const PublicReportViewer = () => {
             previousScores={displayPrevScores}
             previousFormData={displayPrevFormData}
             standalone={true}
-            showBaselineNarrative={!changeNarrative && snapshotSummaries.length <= 1}
           />
         </Suspense>
       </div>

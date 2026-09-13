@@ -2,7 +2,6 @@
  * Types for Companion Modal Callbacks
  */
 
-import type { FormData } from '@/contexts/FormContext';
 import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 
 /**
@@ -18,11 +17,4 @@ export interface PostureCompanionData {
   postureBackOverall?: string[];
 }
 
-/**
- * Data structure returned by BodyCompCompanionModal.onComplete
- */
-export interface BodyCompCompanionData extends Partial<FormData> {
-  /** Data or storage URL for the uploaded body-composition report image (OCR source). */
-  bodyCompReportImageUrl?: string;
-}
 

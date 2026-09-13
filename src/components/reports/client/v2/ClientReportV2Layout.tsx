@@ -13,7 +13,6 @@ interface ClientReportV2LayoutProps {
   model: ClientReportModel;
   orgName?: string;
   showPartialAssessmentBanner?: boolean;
-  baselineNarrative?: string;
   showActions?: boolean;
   onDownloadPdf?: () => void;
   onShare?: () => void;

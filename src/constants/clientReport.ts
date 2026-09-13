@@ -33,9 +33,6 @@ export const CLIENT_REPORT_COPY = {
     'Your coach has a clear picture of where you are today — and a plan to help you reach your goals.',
   v2AxisScoreLabel: 'AXIS Score™',
   v2AxisScoreGloss: 'your overall picture',
-  v2HeroFocusLabel: 'Focus this block',
-  v2HeroFocusCaption: 'The area that most moves your goals over the next 12 weeks.',
-  v2PlanHeading: 'Your path forward',
   v2RoadmapHeading: 'Your 12-week roadmap',
   v2RoadmapSubheading: 'What to start this week.',
   /** 12-week target strip */
@@ -71,8 +68,6 @@ export const CLIENT_REPORT_COPY = {
   v2MovementPostureHint: 'Your posture photos are further down this report.',
   v2LifestyleStoryHeading: 'Daily habits',
   v2LifestyleFactorsHeading: 'Your daily habits',
-  v2NarrativePlanHeading: "What we're building toward",
-  v2TakeawayLabel: 'Takeaway',
   v2PostureWhatItMeans: 'What this means',
   v2PostureWhatWeDo: "What we'll work on",
   v2DocumentTitle: 'AXIS Assessment Report',
