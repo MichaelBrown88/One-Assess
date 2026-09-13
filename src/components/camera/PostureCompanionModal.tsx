@@ -7,7 +7,8 @@
  * the live-session layer for a future companion pass).
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ export const PostureCompanionModal: React.FC<PostureCompanionModalProps> = ({
     onComplete,
     onClose,
     onRequestDeviceCapture: () => setDeviceCaptureOpen(true),
+    autoApplyWhenReady: !deviceCaptureOpen,
   });
 
   // Helper to get processing status label with user-friendly copy
@@ -89,8 +91,20 @@ export const PostureCompanionModal: React.FC<PostureCompanionModalProps> = ({
 
   const sessionReady = Boolean(session?.id && profile?.organizationId);
 
+  // Open coach capture as soon as the live session exists — skip the options hub
+  // until they close the camera (upload remains on that hub as the fallback).
+  useEffect(() => {
+    if (isOpen && sessionReady) {
+      setDeviceCaptureOpen(true);
+    }
+    if (!isOpen) {
+      setDeviceCaptureOpen(false);
+    }
+  }, [isOpen, sessionReady]);
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <>
+    <Dialog open={isOpen && !deviceCaptureOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl p-0 border-none bg-background">
         <DialogHeader className="sr-only">
           <DialogTitle>{COPY.TITLE}</DialogTitle>
@@ -180,7 +194,7 @@ export const PostureCompanionModal: React.FC<PostureCompanionModalProps> = ({
                       {imageUrl ? (
                           <img
                             src={imageUrl}
-                            className="w-full h-full object-cover animate-in fade-in zoom-in duration-500 cursor-pointer hover:opacity-90 transition-opacity"
+                            className="w-full h-full object-contain bg-background animate-in fade-in zoom-in duration-500 cursor-pointer hover:opacity-90 transition-opacity"
                             alt={view}
                             title="Click to view full image"
                             onClick={() => setPreviewImage({ url: imageUrl, view })}
@@ -245,13 +259,20 @@ export const PostureCompanionModal: React.FC<PostureCompanionModalProps> = ({
 
         </div>
       </DialogContent>
-      {deviceCaptureOpen && session?.id && profile?.organizationId && (
+    </Dialog>
+      {deviceCaptureOpen && session?.id && profile?.organizationId && createPortal(
         <CoachPostureCapturePanel
           sessionId={session.id}
           organizationId={profile.organizationId}
           profile={profile}
           onClose={() => setDeviceCaptureOpen(false)}
-        />
+          onCommitted={(data) => {
+            onComplete(data);
+            setDeviceCaptureOpen(false);
+            onClose();
+          }}
+        />,
+        document.body,
       )}
       {previewImage && (
         <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
@@ -279,6 +300,6 @@ export const PostureCompanionModal: React.FC<PostureCompanionModalProps> = ({
           </DialogContent>
         </Dialog>
       )}
-    </Dialog>
+    </>
   );
 };

@@ -63,7 +63,7 @@ export function shouldShowField(
   ];
   const manualMeasurementFields = [
     'shouldersCm', 'chestCm', 'armLeftCm', 'armRightCm', 
-    'waistCm', 'neckCm', 'hipsCm', 'thighLeftCm', 'thighRightCm', 
+    'waistCm', 'hipsCm', 'thighLeftCm', 'thighRightCm', 
     'calfLeftCm', 'calfRightCm'
   ];
   // Note: Skinfold fields are removed - not needed for basic body composition

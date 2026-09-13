@@ -5,8 +5,18 @@ import { PostureCompanionModal } from '@/components/camera/PostureCompanionModal
 import { OcrReviewDialog } from './OcrReviewDialog';
 import { Loader2, AlertTriangle, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { BODY_COMP_OCR_COPY as OCR_COPY } from '@/constants/bodyCompOcrCopy';
 import type { FormData } from '@/contexts/FormContext';
 import type { PostureCompanionData } from '@/lib/types/companion';
+import type { OcrFailReason } from '@/lib/ai/ocrFailure';
 
 const OCR_TIPS = [
   'Extracting skeletal muscle mass…',
@@ -43,6 +53,9 @@ interface AssessmentModalsProps {
   ocrReviewData: Partial<FormData> | null;
   setOcrReviewData: React.Dispatch<React.SetStateAction<Partial<FormData> | null>>;
   applyOcrData: () => void;
+  ocrFailReason: OcrFailReason | null;
+  dismissOcrFail: () => void;
+  retryOcrCapture: () => void;
 }
 
 export const AssessmentModals = ({
@@ -58,7 +71,10 @@ export const AssessmentModals = ({
   clearPostureRetakeWarning,
   ocrReviewData,
   setOcrReviewData,
-  applyOcrData
+  applyOcrData,
+  ocrFailReason,
+  dismissOcrFail,
+  retryOcrCapture,
 }: AssessmentModalsProps) => {
   const [tipIndex, setTipIndex] = useState(0);
   const tips = processingMode === 'posture' ? POSTURE_TIPS : OCR_TIPS;
@@ -165,6 +181,22 @@ export const AssessmentModals = ({
           </div>
         </div>
       )}
+
+      {/* OCR fail: retake or type — credit/kill-switch stay toasts */}
+      <Dialog open={ocrFailReason === 'unreadable'} onOpenChange={(open) => !open && dismissOcrFail()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{OCR_COPY.UNREADABLE_TITLE}</DialogTitle>
+            <DialogDescription>{OCR_COPY.UNREADABLE_BODY}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={dismissOcrFail}>
+              {OCR_COPY.ENTER_MANUAL}
+            </Button>
+            <Button onClick={retryOcrCapture}>{OCR_COPY.RETAKE}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* OCR Review Dialog */}
       <OcrReviewDialog 

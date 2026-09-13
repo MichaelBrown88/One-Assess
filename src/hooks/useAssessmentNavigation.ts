@@ -163,11 +163,16 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
 
     if (hasRemotePostureCaptureComplete(formData)) {
       phases = phases.map((phase) => {
-        if (phase.id !== 'P4' || !phase.sections) return phase;
+        if (phase.id !== 'P2' || !phase.sections) return phase;
         const filteredSections = phase.sections.filter((s) => s.id !== 'posture');
         if (filteredSections.length === 0) return null;
         return { ...phase, sections: filteredSections };
       }).filter((p): p is NonNullable<typeof p> => p !== null);
+    }
+
+    if (!isPartialAssessment) {
+      const order = sortStudioPhaseIds(phases.map((p) => p.id));
+      phases = [...phases].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
     }
 
     // Filter further if in partial assessment mode
@@ -181,7 +186,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
         sectionIds: ['basic-client-info', 'parq', 'body-comp'] 
       },
       'posture': { 
-        phaseIds: ['P0', 'P4', 'P7'], 
+        phaseIds: ['P0', 'P2', 'P7'], 
         sectionIds: ['basic-client-info', 'parq', 'posture'] 
       },
       'fitness': { 

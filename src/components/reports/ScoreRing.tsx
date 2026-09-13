@@ -1,9 +1,10 @@
 import React from 'react';
+import { scoreGrade, type ScoreGrade } from '@/lib/scoring/scoreColor';
 import { cn } from '@/lib/utils';
 
 /**
  * Partial-arc score gauge — the AXIS Score™ visual. A 260° arc with the
- * bottom open, brand-accent fill scaled by score, large numeral inside.
+ * bottom open, score-tinted fill, large numeral inside.
  *
  * Inspired by the original `StartingPointSection` gauge; extracted so any
  * surface (hero, side cards, etc.) can drop in a consistent score visual.
@@ -18,11 +19,19 @@ interface ScoreRingProps {
   /** Display label below the score. Default "AXIS Score™". */
   label?: string;
   className?: string;
+  /** Stroke follows the score band (green / amber / red). Defaults to true. */
+  scoreTinted?: boolean;
 }
 
 const ARC_LENGTH = 190; // out of 264 (2π·42) ≈ 72% sweep, leaves ~100° bottom gap
 const CIRCUMFERENCE = 264;
 const ARC_ROTATION_DEG = 140;
+
+const GRADE_STROKE: Record<ScoreGrade, string> = {
+  green: 'hsl(var(--score-green))',
+  amber: 'hsl(var(--score-amber))',
+  red: 'hsl(var(--score-red))',
+};
 
 export function ScoreRing({
   score,
@@ -30,10 +39,12 @@ export function ScoreRing({
   strokeWidth = 7,
   label = 'AXIS Score™',
   className,
+  scoreTinted = true,
 }: ScoreRingProps) {
   const pct = Math.max(0, Math.min(100, score));
   const dash = (pct / 100) * ARC_LENGTH;
   const compactNumerals = size <= 130;
+  const stroke = scoreTinted ? GRADE_STROKE[scoreGrade(score)] : 'hsl(var(--foreground))';
 
   return (
     <div className={cn('inline-flex flex-col items-center', className)} style={{ width: size }}>
@@ -57,7 +68,7 @@ export function ScoreRing({
             cy="50"
             r="42"
             fill="transparent"
-            stroke="hsl(var(--brand-accent))"
+            stroke={stroke}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${CIRCUMFERENCE}`}

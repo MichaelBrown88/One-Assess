@@ -12,6 +12,7 @@ import { Navbar } from '@/components/landing';
 import { Footer } from '@/components/landing';
 import { Seo } from '@/components/seo/Seo';
 import { requireSeoForPath, SEO_PATH } from '@/constants/seo';
+import { LEGAL_PAGES_UPDATED_LABEL } from '@/constants/legalPages';
 
 const privacySeo = requireSeoForPath(SEO_PATH.PRIVACY);
 
@@ -44,7 +45,7 @@ export default function Privacy() {
           </h1>
           
           <p className="text-sm text-foreground-secondary mb-8">
-            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            Last updated: {LEGAL_PAGES_UPDATED_LABEL}
           </p>
 
           <section className="mb-8">

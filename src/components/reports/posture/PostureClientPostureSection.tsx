@@ -4,6 +4,7 @@ import type { PostureFindingRecord, PostureFindingSeverity, PostureFindingViewId
 import { cn } from '@/lib/utils';
 import { PostureViewExpandedSheet } from './PostureViewExpandedSheet';
 import { viewLabelUpper } from '@/lib/posture/aggregatePostureInsights';
+import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
 
 const VIEWS: PostureFindingViewId[] = ['front', 'side-left', 'back', 'side-right'];
 
@@ -34,34 +35,53 @@ function severityDotClass(sev: PostureFindingSeverity | undefined): string {
 interface PostureClientPostureSectionProps {
   postureResults: Partial<Record<PostureFindingViewId, PostureAnalysisResult>>;
   postureImages: Record<string, string>;
+  /** Shorter tiles for the AXIS report filmstrip. */
+  compact?: boolean;
 }
 
 /**
- * Compact posture row: just the four view tiles. Severity dot per view
- * surfaces the worst finding at a glance. Click a tile to open the full
- * detail in the expanded modal. All elaborate per-view inline copy has
- * been intentionally removed — the pillar card's bullets and the expanded
- * modal carry the detail.
+ * Compact posture row: always four view tiles so a missing right-side
+ * (or any view) is obvious. Severity dot per captured view.
  */
-export function PostureClientPostureSection({ postureResults, postureImages }: PostureClientPostureSectionProps) {
+export function PostureClientPostureSection({
+  postureResults,
+  postureImages,
+  compact = false,
+}: PostureClientPostureSectionProps) {
   const [expandedView, setExpandedView] = useState<PostureFindingViewId | null>(null);
 
-  const availableViews = VIEWS.filter((v) => postureResults[v] && getImageUrl(postureImages, v));
-  if (availableViews.length === 0) return null;
+  const hasAny = VIEWS.some((v) => getImageUrl(postureImages, v) || postureResults[v]);
+  if (!hasAny) return null;
 
   const findingsByView: Partial<Record<PostureFindingViewId, PostureFindingRecord[]>> = {};
-  for (const view of availableViews) {
+  for (const view of VIEWS) {
     const list = (postureResults[view]?.structuredFindings ?? []).filter((f) => f.severity !== 'aligned');
     findingsByView[view] = [...list].sort((a, b) => SEV_ORDER[b.severity] - SEV_ORDER[a.severity]);
   }
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-2">
-        {availableViews.map((view) => {
+      <div className={cn('grid grid-cols-4', compact ? 'gap-1.5' : 'gap-2')}>
+        {VIEWS.map((view) => {
           const url = getImageUrl(postureImages, view);
           const findings = findingsByView[view] ?? [];
           const worstSeverity = findings[0]?.severity;
+          const frameClass = compact ? 'h-36 w-full sm:h-44' : 'aspect-[3/5] w-full';
+          if (!url) {
+            return (
+              <div
+                key={view}
+                className="relative overflow-hidden rounded-lg border border-dashed border-border/80 bg-muted/30"
+              >
+                <div className={cn('flex items-end bg-muted/20 p-1.5', frameClass)}>
+                  <span className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    {viewLabelUpper(view)}
+                  </span>
+                </div>
+                <p className="sr-only">{CLIENT_REPORT_COPY.v2PostureViewMissing}</p>
+              </div>
+            );
+          }
           return (
             <button
               key={view}
@@ -69,7 +89,7 @@ export function PostureClientPostureSection({ postureResults, postureImages }: P
               onClick={() => setExpandedView(view)}
               className="group relative overflow-hidden rounded-lg border border-border/60 bg-white text-left dark:bg-white"
             >
-              <div className="aspect-[3/5] w-full overflow-hidden bg-white">
+              <div className={cn('overflow-hidden bg-white', frameClass)}>
                 <img
                   src={url}
                   alt=""
@@ -80,10 +100,12 @@ export function PostureClientPostureSection({ postureResults, postureImages }: P
                 <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white drop-shadow">
                   {viewLabelUpper(view)}
                 </span>
-                <span
-                  className={cn('h-2 w-2 rounded-full ring-2 ring-black/40', severityDotClass(worstSeverity))}
-                  aria-hidden
-                />
+                {postureResults[view] ? (
+                  <span
+                    className={cn('h-2 w-2 rounded-full ring-2 ring-black/40', severityDotClass(worstSeverity))}
+                    aria-hidden
+                  />
+                ) : null}
               </div>
             </button>
           );

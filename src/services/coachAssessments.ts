@@ -9,6 +9,7 @@ import { COLLECTIONS } from '@/constants/collections';
 import { ORGANIZATION } from '@/lib/database/paths';
 import { generateClientSlug } from '@/services/clientProfiles';
 import { sanitizeForFirestore } from '@/lib/utils/firebaseUtils';
+import { prepareFormDataForPersistence } from '@/lib/assessment/prepareFormDataForPersistence';
 import { logger } from '@/lib/utils/logger';
 
 const MAX_ASSESSMENTS_LIMIT = 200;
@@ -127,7 +128,7 @@ export async function saveDraftAssessment(
   const draftRef = doc(getDb(), ORGANIZATION.clients.draft(organizationId, slug));
   const payload: Record<string, unknown> = {
     clientName: clientName.trim(),
-    formData: sanitizeForFirestore(formData),
+    formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
     updatedAt: serverTimestamp(),
     organizationId,
   };

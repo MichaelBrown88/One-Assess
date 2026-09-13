@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Play, Square, Timer } from 'lucide-react';
 import { ASSESSMENT_OPTIONS } from '@/constants/assessment';
 import { CARDIO_RUN_SHEET_COPY as COPY } from '@/constants/phaseFormCopy';
+import { calculateAge } from '@/lib/scoring';
+import { safeParse } from '@/lib/utils/numbers';
 import { useCountdown, useStopwatch, formatCountdown } from './useCountdown';
-import { CardioTimerBlock } from './CardioTimerBlock';
+import { CardioTimerBlock, shouldShowRecoveryStart } from './CardioTimerBlock';
+import { CardioHrField } from './CardioHrField';
 
 const RECOVERY_SECONDS = 60;
 
@@ -14,34 +17,6 @@ interface CardioRunSheetProps {
   sectionTitle: string;
   onComplete: () => void;
   onBack?: () => void;
-}
-
-function HrInput({
-  id,
-  value,
-  onChange,
-  onCommit,
-}: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  onCommit: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        placeholder="—"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onCommit}
-        className="h-12 w-28 rounded-lg border border-border bg-background px-4 text-xl font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      />
-      <span className="text-sm font-semibold text-muted-foreground">{COPY.BPM_UNIT}</span>
-    </div>
-  );
 }
 
 /**
@@ -84,6 +59,15 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
   const commit = (patch: Partial<FormData>) => updateFormData(patch);
   const isNum = (v: string) => v.trim() !== '' && !Number.isNaN(Number(v));
   const canComplete = Boolean(protocol) && isNum(restingHr) && isNum(peakHr) && isNum(recoveryHr);
+  const age = formData.dateOfBirth ? calculateAge(formData.dateOfBirth) : 0;
+  const gender = (formData.gender || 'male').toLowerCase() === 'female' ? 'female' : 'male';
+  const hrBandProps = {
+    age,
+    gender,
+    restingHr: safeParse(restingHr),
+    peakHr: safeParse(peakHr),
+    recoveryHr: safeParse(recoveryHr),
+  } as const;
 
   const handleStartTest = () => {
     setTestCompleted(false);
@@ -130,11 +114,13 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
             {step(1, COPY.RESTING_LABEL)}
             <p className="pl-9 text-xs text-muted-foreground">{COPY.RESTING_HINT}</p>
             <div className="pl-9">
-              <HrInput
+              <CardioHrField
                 id="cardioRestingHr"
+                metricId="rhr"
                 value={restingHr}
                 onChange={setRestingHr}
                 onCommit={() => commit({ cardioRestingHr: restingHr.trim() })}
+                {...hrBandProps}
               />
             </div>
           </section>
@@ -213,11 +199,13 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
           <section className="space-y-3">
             {step(4, COPY.PEAK_LABEL)}
             <div className="pl-9">
-              <HrInput
+              <CardioHrField
                 id="cardioPeakHr"
+                metricId="peak"
                 value={peakHr}
                 onChange={setPeakHr}
                 onCommit={() => commit({ cardioPeakHr: peakHr.trim() })}
+                {...hrBandProps}
               />
             </div>
           </section>
@@ -231,14 +219,17 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
                 startLabel={COPY.RECOVERY_START}
                 runningHint={COPY.RECOVERY_RUNNING}
                 doneHint={COPY.RECOVERY_DONE}
+                showStart={shouldShowRecoveryStart(testCompleted, recoveryTimer.running)}
               />
               <div className="space-y-2">
                 <p className="text-sm font-bold text-foreground">{COPY.RECOVERY_LABEL}</p>
-                <HrInput
+                <CardioHrField
                   id="cardioPost1MinHr"
+                  metricId="hrr"
                   value={recoveryHr}
                   onChange={setRecoveryHr}
                   onCommit={() => commit({ cardioPost1MinHr: recoveryHr.trim() })}
+                  {...hrBandProps}
                 />
               </div>
             </div>

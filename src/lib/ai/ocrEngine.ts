@@ -3,83 +3,18 @@ import { getApp } from "firebase/app";
 import { FormData } from '../../contexts/FormContext';
 import { CONFIG } from '@/config';
 import { logAIUsage } from '@/services/aiUsage';
-import { getFirebaseFunctions, auth, db } from '@/services/firebase';
-import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '@/services/firebase';
 import { logger } from '@/lib/utils/logger';
-import { COLLECTIONS } from '@/constants/collections';
 import { isFeatureEnabled } from '@/services/platform/platformConfig';
 import { FeatureDisabledError } from './postureAnalysis';
 import { checkAndDecrementAICredit, AICreditExhaustedError } from '@/lib/ai/creditGate';
+import { downscaleBodyCompImage } from './ocrImagePrep';
 
 export interface OcrResult {
   fields: Partial<FormData>;
   rawText: string;
   confidence: number;
   provider: 'local' | 'gemini' | 'pattern';
-}
-
-const MIN_PATTERN_HITS = 3; // Minimum successful uses before trusting a cached pattern
-
-/**
- * Check if we've seen this report layout before.
- * Returns cached fields only when the pattern has been confirmed >= MIN_PATTERN_HITS times.
- */
-async function checkLearnedPatterns(layoutSignature: string): Promise<Partial<FormData> | null> {
-  try {
-    const patternsRef = collection(db, COLLECTIONS.LEARNED_OCR_PATTERNS);
-    const q = query(patternsRef, where('signature', '==', layoutSignature), limit(1));
-    const snap = await getDocs(q);
-
-    if (!snap.empty) {
-      const doc = snap.docs[0];
-      const data = doc.data();
-      const hitCount: number = typeof data.hitCount === 'number' ? data.hitCount : 0;
-
-      if (hitCount >= MIN_PATTERN_HITS) {
-        // Trusted pattern — return cached fields and update usage stats
-        await import('firebase/firestore').then(({ updateDoc, increment }) =>
-          updateDoc(doc.ref, {
-            hitCount: increment(1),
-            lastUsedAt: serverTimestamp(),
-          })
-        );
-        return data.fields as Partial<FormData>;
-      }
-
-      // Pattern exists but not yet trusted — increment but don't use as cache
-      await import('firebase/firestore').then(({ updateDoc, increment }) =>
-        updateDoc(doc.ref, { hitCount: increment(1) })
-      );
-    }
-  } catch (err) {
-    logger.warn('[OCR] Pattern check failed (non-critical):', err);
-  }
-  return null;
-}
-
-/**
- * Save a successful Gemini result as a candidate pattern.
- * Patterns are trusted after MIN_PATTERN_HITS confirmed uses.
- */
-async function learnPattern(layoutSignature: string, fields: Partial<FormData>) {
-  try {
-    const patternsRef = collection(db, COLLECTIONS.LEARNED_OCR_PATTERNS);
-
-    // Check if this signature already exists — if so, don't add a duplicate
-    const q = query(patternsRef, where('signature', '==', layoutSignature), limit(1));
-    const existing = await getDocs(q);
-    if (!existing.empty) return; // Already tracked; hitCount incremented by checkLearnedPatterns
-
-    await addDoc(patternsRef, {
-      signature: layoutSignature,
-      fields,
-      hitCount: 1,
-      lastUsedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    });
-  } catch (err) {
-    logger.warn('[OCR] Pattern learning failed (non-critical):', err);
-  }
 }
 
 export const REQUIRED_SCAN_FIELDS: (keyof FormData)[] = [
@@ -90,81 +25,10 @@ export const REQUIRED_SCAN_FIELDS: (keyof FormData)[] = [
   'inbodyScore'
 ];
 
-const OCR_MAX_WIDTH = 1200;
-const OCR_JPEG_QUALITY = 0.85;
-
 /**
- * Pre-crop and downscale body composition report image.
- * Crops to data table area (removes logo/footer), then caps width at 1200px.
- * Reduces multimodal token usage by ~50% without affecting text extraction.
+ * Fast Gemini-only OCR.
  */
-async function cropBodyCompImage(imageSrc: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        if (!ctx) {
-          resolve(imageSrc);
-          return;
-        }
-        
-        const cropX = Math.floor(img.width * 0.05);
-        const cropY = Math.floor(img.height * 0.10);
-        const cropWidth = Math.floor(img.width * 0.90);
-        const cropHeight = Math.floor(img.height * 0.75);
-        
-        let outWidth = cropWidth;
-        let outHeight = cropHeight;
-        if (outWidth > OCR_MAX_WIDTH) {
-          const scale = OCR_MAX_WIDTH / outWidth;
-          outWidth = OCR_MAX_WIDTH;
-          outHeight = Math.floor(outHeight * scale);
-        }
-        
-        canvas.width = outWidth;
-        canvas.height = outHeight;
-        
-        ctx.drawImage(
-          img,
-          cropX, cropY, cropWidth, cropHeight,
-          0, 0, outWidth, outHeight
-        );
-        
-        const croppedImage = canvas.toDataURL('image/jpeg', OCR_JPEG_QUALITY);
-        logger.debug(`[OCR] Cropped+resized: ${img.width}x${img.height} -> ${outWidth}x${outHeight}`);
-        resolve(croppedImage);
-      } catch (error) {
-        logger.warn('[OCR] Crop failed, using original:', error);
-        resolve(imageSrc);
-      }
-    };
-    
-    img.onerror = () => {
-      logger.warn('[OCR] Image load failed for cropping, using original');
-      resolve(imageSrc);
-    };
-    
-    if (imageSrc.startsWith('data:')) {
-      img.src = imageSrc;
-    } else if (imageSrc.startsWith('http')) {
-      img.src = imageSrc;
-    } else {
-      img.src = `data:image/jpeg;base64,${imageSrc}`;
-    }
-  });
-}
-
-/**
- * Fast Gemini-only OCR (primary path now for speed).
- * Also asks Gemini for a `_layout` field — a structural fingerprint of the
- * report's non-numeric labels — used to cache patterns for future local reuse.
- */
-async function runGeminiOcr(imageSrc: string): Promise<OcrResult & { layoutSignature: string }> {
+async function runGeminiOcr(imageSrc: string): Promise<OcrResult> {
   const coachUid = auth.currentUser?.uid || 'anonymous';
 
   const firebaseApp = getApp();
@@ -196,13 +60,10 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult & { layoutSigna
     - visceralFatLevel: Visceral Fat Level (VFL)
     - bmrKcal: Basal Metabolic Rate (BMR)
     - segmentalTrunkKg, segmentalArmLeftKg, segmentalArmRightKg, segmentalLegLeftKg, segmentalLegRightKg: Segmental Lean Analysis in KG
-    - _layout: The first 300 visible non-numeric characters from the report (labels, headings, section names only — NO numbers). Used to identify the report template format.
-    
     RULES:
     1. Return ONLY the JSON object.
     2. If a value is not found, use null.
     3. Numbers only for numeric fields (no units like "kg").
-    4. Always include _layout.
   `;
 
   const base64Data = imageSrc.split(',')[1] || imageSrc;
@@ -224,7 +85,7 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult & { layoutSigna
   const endIdx = aiText.lastIndexOf('}');
   if (startIdx === -1) throw new Error('No JSON found in AI response');
   
-  const data = JSON.parse(aiText.substring(startIdx, endIdx + 1));
+  const data = JSON.parse(aiText.substring(startIdx, endIdx + 1)) as Record<string, unknown>;
   const cleanFields: Partial<FormData> = {};
   
   const validBodyCompFields = [
@@ -240,19 +101,13 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult & { layoutSigna
     }
   }
 
-  // Build a structural signature from the layout text — digits stripped so it
-  // identifies the template, not the specific values on this scan.
-  const rawLayout: string = typeof data._layout === 'string' ? data._layout : '';
-  const layoutSignature = rawLayout.replace(/\d+/g, '').replace(/\s+/g, ' ').trim().substring(0, 300);
-
   await logAIUsage(coachUid, 'ocr_body_comp', 'ai_success', 'gemini');
 
   return {
     fields: cleanFields,
-    rawText: rawLayout,
+    rawText: '',
     confidence: 1.0,
     provider: 'gemini',
-    layoutSignature,
   };
 }
 
@@ -263,7 +118,7 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult & { layoutSigna
  * to load and often failed. We can revisit local OCR later with a pre-loaded
  * web worker if needed.
  * 
- * Optimization: Pre-crop image to focus on data table, reducing token usage
+ * Downscale only — never crop, never reuse another client’s cached numbers.
  */
 export async function processBodyCompScan(imageSrc: string, organizationId?: string): Promise<OcrResult> {
   const coachUid = auth.currentUser?.uid || 'anonymous';
@@ -275,38 +130,20 @@ export async function processBodyCompScan(imageSrc: string, organizationId?: str
   }
 
   try {
-    logger.debug('[OCR] Pre-cropping body composition image...');
-    const croppedImage = await cropBodyCompImage(imageSrc);
+    const preparedImage = await downscaleBodyCompImage(imageSrc);
 
-    // Build a lightweight image-level signature to do a quick cache lookup
-    // before spending tokens on a Gemini call. The signature combines image
-    // size (correlates with report resolution) with a sparse visual sample.
-    const base64Body = croppedImage.split(',')[1] ?? croppedImage;
-    const imageSignature = `${base64Body.length}:${[0, 500, 2000, 5000].map(i => base64Body[i] ?? '').join('')}`;
-
-    const cachedFields = await checkLearnedPatterns(imageSignature);
-    if (cachedFields && Object.keys(cachedFields).length > 0) {
-      logger.debug('[OCR] Cache hit — returning learned pattern (Gemini skipped)');
-      await logAIUsage(coachUid, 'ocr_body_comp', 'ai_success', 'pattern');
-      return { fields: cachedFields, rawText: '', confidence: 0.9, provider: 'pattern' };
-    }
-
-    // Gate: check and atomically decrement credit balance before spending tokens
     if (organizationId) {
       await checkAndDecrementAICredit(organizationId);
     }
 
-    const geminiResult = await runGeminiOcr(croppedImage);
+    const geminiResult = await runGeminiOcr(preparedImage);
 
-    // Persist the result as a candidate pattern for future cache hits.
-    // Uses the layout signature from Gemini (structural labels, not values)
-    // as the stable key so the same report template is recognised next time.
-    const patternKey = geminiResult.layoutSignature || imageSignature;
-    if (patternKey && Object.keys(geminiResult.fields).length > 0) {
-      void learnPattern(patternKey, geminiResult.fields);
-    }
-
-    return { fields: geminiResult.fields, rawText: geminiResult.rawText, confidence: geminiResult.confidence, provider: geminiResult.provider };
+    return {
+      fields: geminiResult.fields,
+      rawText: geminiResult.rawText,
+      confidence: geminiResult.confidence,
+      provider: geminiResult.provider,
+    };
     
   } catch (err: unknown) {
     // Config gates must surface to the coach as-is — a swallowed credit error

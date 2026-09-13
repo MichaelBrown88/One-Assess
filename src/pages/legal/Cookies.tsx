@@ -5,6 +5,7 @@ import { Navbar, Footer } from '@/components/landing';
 import { Seo } from '@/components/seo/Seo';
 import { ROUTES } from '@/constants/routes';
 import { requireSeoForPath } from '@/constants/seo';
+import { LEGAL_PAGES_UPDATED_LABEL } from '@/constants/legalPages';
 
 const cookiesSeo = requireSeoForPath(ROUTES.COOKIES);
 
@@ -31,12 +32,7 @@ export default function Cookies() {
           <h1 className="text-4xl font-bold text-foreground mb-4">Cookie Policy</h1>
 
           <p className="text-sm text-foreground-secondary mb-8">
-            Last updated:{' '}
-            {new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            Last updated: {LEGAL_PAGES_UPDATED_LABEL}
           </p>
 
           <section className="mb-8">

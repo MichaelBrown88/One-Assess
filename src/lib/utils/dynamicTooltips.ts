@@ -79,7 +79,6 @@ export function getDynamicTooltip(
     'armLeftCm',
     'armRightCm',
     'waistCm',
-    'neckCm',
     'hipsCm',
     'thighLeftCm',
     'thighRightCm',
@@ -135,7 +134,7 @@ export function getDynamicTooltip(
   // ========================================
   const bodyMeasurementFields = [
     'shouldersCm', 'chestCm', 'armLeftCm', 'armRightCm', 
-    'waistCm', 'neckCm', 'hipsCm', 'thighLeftCm', 'thighRightCm', 
+    'waistCm', 'hipsCm', 'thighLeftCm', 'thighRightCm', 
     'calfLeftCm', 'calfRightCm'
   ];
   

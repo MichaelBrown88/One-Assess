@@ -1,10 +1,8 @@
 /**
- * Achievable 90-day body-weight target + daily macro guidance for the
- * client roadmap (lead-magnet). Deterministic and consistent with the rest
- * of the report: the target weight is capped by the same realistic rates
- * used for projections (`rates.ts`) and the full-goal endpoint
- * (`computeBodyCompTargets`), and macros come from a Mifflin-St Jeor TDEE
- * with a goal-appropriate calorie adjustment. No AI, no exact programming.
+ * Achievable 12-week body-weight target + daily macro guidance for the
+ * client roadmap (lead-magnet). Weight uses the same 12-week engine as the
+ * hero and scorecard. Macros come from a Mifflin-St Jeor TDEE with a
+ * goal-appropriate calorie adjustment. Protein is from body weight.
  */
 
 import type { FormData } from '@/contexts/FormContext';
@@ -12,9 +10,8 @@ import type { ScoreSummary } from '@/lib/scoring/types';
 import type { ClientGoalContext } from '@/lib/goals/goalContext';
 import { buildClientProfile } from '@/lib/physiology/profile';
 import { weeklyWeightLossKg, monthlyMuscleGainKg } from '@/lib/physiology/rates';
-import { computeBodyCompTargets } from '@/lib/goals/bodyCompTargets';
+import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
 
-const HORIZON_WEEKS = 13; // ~90 days
 const KCAL_PER_KG_FAT = 7700;
 
 export type TargetDirection = 'lose' | 'gain' | 'maintain';
@@ -57,34 +54,19 @@ function activityFactor(freq: number): number {
 }
 
 function targetWeight(
-  current: number,
+  formData: FormData,
+  scores: ScoreSummary | undefined,
   ctx: ClientGoalContext,
-  fullTarget: number | null,
-  lossRatePerWeek: number,
+  current: number,
   muscleGainPerMonth: number,
 ): number {
-  const hasLoss = ctx.hasWeightLoss;
-  const hasMuscle = ctx.hasBuildMuscle;
-
-  if (hasLoss && !hasMuscle) {
-    const projected = current - lossRatePerWeek * HORIZON_WEEKS;
-    // Don't project past the sensible endpoint.
-    return fullTarget != null && fullTarget < current
-      ? Math.max(projected, fullTarget)
-      : projected;
+  if (ctx.hasWeightLoss) {
+    const projected = projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals, current);
+    return projected?.endWeightKg ?? current;
   }
-  if (hasMuscle && !hasLoss) {
-    const projected = current + muscleGainPerMonth * 3;
-    return fullTarget != null && fullTarget > current
-      ? Math.min(projected, fullTarget)
-      : projected;
+  if (ctx.hasBuildMuscle) {
+    return current + muscleGainPerMonth * 3;
   }
-  if (hasMuscle && hasLoss) {
-    // Recomp: small net loss over the window (muscle offsets some fat loss).
-    return current - lossRatePerWeek * HORIZON_WEEKS * 0.6;
-  }
-  // General / maintenance: drift ~40% toward the endpoint if one exists.
-  if (fullTarget != null) return current + (fullTarget - current) * 0.4;
   return current;
 }
 
@@ -114,14 +96,14 @@ export function buildClientNinetyDayTarget(
   if (current <= 0) return null;
 
   const profile = buildClientProfile(formData, scores);
-  const fullTarget = computeBodyCompTargets(formData, scores)?.targetWeightKg ?? null;
-  const lossRate = weeklyWeightLossKg(profile, 10).rate;
+  const twelveWeekLoss = projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals, current);
+  const lossRate = twelveWeekLoss?.weeklyRateKg ?? weeklyWeightLossKg(profile, 10).rate;
   const muscleGain = monthlyMuscleGainKg(profile, {
     concurrentFatLoss: ctx.hasWeightLoss && ctx.hasBuildMuscle,
   }).rate;
 
-  const rawTarget = targetWeight(current, ctx, fullTarget, lossRate, muscleGain);
-  const targetKg = roundTo(rawTarget, 0.5);
+  const rawTarget = targetWeight(formData, scores, ctx, current, muscleGain);
+  const targetKg = Math.round(rawTarget * 10) / 10;
   const deltaKg = Math.round((targetKg - current) * 10) / 10;
   const direction: TargetDirection =
     deltaKg <= -0.3 ? 'lose' : deltaKg >= 0.3 ? 'gain' : 'maintain';
@@ -145,9 +127,7 @@ export function buildClientNinetyDayTarget(
     const rawCalories = calorieTarget(tdee, direction, lossRate);
 
     const proteinPerKg = direction === 'lose' ? 2.0 : 1.8;
-    const smm = num(formData.skeletalMuscleMassKg);
-    const proteinRaw = smm > 0 ? smm * 2.2 : current * proteinPerKg;
-    proteinG = roundTo(proteinRaw, 5);
+    proteinG = roundTo(current * proteinPerKg, 5);
 
     fatG = roundTo(current * 0.8, 5);
 

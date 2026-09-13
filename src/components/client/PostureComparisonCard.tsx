@@ -69,16 +69,7 @@ export function PostureComparisonCard({ snapshots }: PostureComparisonCardProps)
   }, [leftSession, rightSession]);
 
   if (sessionsWithImages.length < 2) {
-    return (
-      <div className="rounded-xl bg-muted/50 px-5 py-8 text-center space-y-1">
-        <p className="text-sm font-semibold text-foreground-secondary">Posture comparison available after 2 sessions</p>
-        <p className="text-xs text-muted-foreground">
-          {sessionsWithImages.length === 0
-            ? 'No posture photos captured yet. Use Companion Mode during an assessment.'
-            : 'One session captured. Complete another assessment with posture to compare.'}
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (

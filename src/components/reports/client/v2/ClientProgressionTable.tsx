@@ -4,7 +4,7 @@ import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
 import { cn } from '@/lib/utils';
 
 const PROGRESSION_GRID =
-  'grid grid-cols-[minmax(0,1.15fr)_4.5rem_4.5rem_4.5rem] items-center gap-x-3 sm:grid-cols-[minmax(0,1.25fr)_5.25rem_5.25rem_5.25rem] sm:gap-x-4';
+  'grid grid-cols-[minmax(0,1.4fr)_4.5rem_5.25rem] items-center gap-x-3 sm:grid-cols-[minmax(0,1.5fr)_5.5rem_6rem] sm:gap-x-4';
 
 interface ClientProgressionTableProps {
   rows: ClientReportProgressionRow[];
@@ -28,8 +28,7 @@ export function ClientProgressionTable({ rows, className }: ClientProgressionTab
       >
         <span>{CLIENT_REPORT_COPY.progressionMetricCol}</span>
         <span className="text-right">{CLIENT_REPORT_COPY.progressionNowCol}</span>
-        <span className="text-right">{CLIENT_REPORT_COPY.progressionFourMonthCol}</span>
-        <span className="text-right">{CLIENT_REPORT_COPY.progressionOneYearCol}</span>
+        <span className="text-right">{CLIENT_REPORT_COPY.progressionTwelveWeekCol}</span>
       </div>
       {rows.map((row, index) => (
         <div
@@ -42,8 +41,7 @@ export function ClientProgressionTable({ rows, className }: ClientProgressionTab
         >
           <span className="truncate pr-2 text-sm font-medium text-foreground">{row.name}</span>
           <ProgressionCell value={row.current} unit={row.unit} />
-          <ProgressionCell value={row.fourMonths} unit={row.unit} emphasis />
-          <ProgressionCell value={row.oneYear} unit={row.unit} emphasis />
+          <ProgressionCell value={row.twelveWeeks} unit={row.unit} emphasis />
         </div>
       ))}
     </div>

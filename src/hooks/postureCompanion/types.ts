@@ -32,6 +32,8 @@ export interface UsePostureCompanionOptions {
   onClose: () => void;
   /** Open guided capture on the coach’s device (Gemini Live + same session sync). */
   onRequestDeviceCapture?: () => void;
+  /** Apply to the assessment as soon as all four views have Storage URLs (upload hub). */
+  autoApplyWhenReady?: boolean;
 }
 
 export interface UsePostureCompanionResult {

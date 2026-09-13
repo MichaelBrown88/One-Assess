@@ -34,6 +34,7 @@ import { ROUTES } from '@/constants/routes';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
 import { ASSESSMENT_SETUP_COPY } from '@/constants/assessmentSetupCopy';
+import type { PostureCompanionData } from '@/lib/types/companion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -190,9 +191,24 @@ export const PhaseFormContent = ({
     ensureShareArtifacts,
   } = saveHook;
 
+  const orgId = profile?.organizationId;
+  const persistPosture = useCallback(
+    async (data: PostureCompanionData) => {
+      if (!user || !orgId || !activeClientName) return;
+      const { persistCommittedPosture } = await import('@/services/persistPostureCapture');
+      await persistCommittedPosture({
+        organizationId: orgId,
+        clientName: activeClientName,
+        coachUid: user.uid,
+        posture: data,
+      });
+    },
+    [user, orgId, activeClientName],
+  );
   const cameraHook = useCameraHandler({
     updateFormData,
-    organizationId: profile?.organizationId,
+    organizationId: orgId,
+    persistPosture,
   });
   const {
     showCamera,
@@ -201,6 +217,9 @@ export const PhaseFormContent = ({
     setShowPostureCompanion,
     ocrReviewData,
     setOcrReviewData,
+    ocrFailReason,
+    dismissOcrFail,
+    retryOcrCapture,
     isProcessingOcr,
     processingMode,
     postureRetakeWarning,
@@ -294,6 +313,13 @@ export const PhaseFormContent = ({
       void runDemoSequential();
     }
   }, [demoTrigger, isDemoAssessment, runDemoSequential]);
+
+  // Warm the report chunk before the coach hits results so the debrief is one wait, not two.
+  useEffect(() => {
+    if (activePhase.id !== 'P2' && activePhase.id !== 'P7') return;
+    void import('@/components/assessment/AssessmentResults');
+    void import('@/components/reports/ClientReport');
+  }, [activePhase.id]);
 
   // Filter optional lifestyle fields based on org config.
   // Fields with no orgConfigKey are always shown. Fields with orgConfigKey are shown
@@ -457,6 +483,9 @@ export const PhaseFormContent = ({
         ocrReviewData={ocrReviewData}
         setOcrReviewData={setOcrReviewData}
         applyOcrData={applyOcrData}
+        ocrFailReason={ocrFailReason}
+        dismissOcrFail={dismissOcrFail}
+        retryOcrCapture={retryOcrCapture}
       />
     </>
   );

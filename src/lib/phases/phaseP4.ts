@@ -1,5 +1,6 @@
 /**
- * Phase P4: Movement & Posture Assessment
+ * Phase P4: Movement Quality — gym-floor patterns only.
+ * Posture photos live on P2 with tape (private room, last).
  */
 
 import type { FormData } from '@/contexts/FormContext';
@@ -20,8 +21,6 @@ export const phaseP4: PhaseDefinition = {
   summary: PHASE_SUMMARIES.P4,
   gateHint: PHASE_GATE_HINTS.P4,
   sections: [
-    // Movement patterns first (gym floor); posture photos are the last section
-    // so they lead straight into the tape + analyzer station block in P2.
     {
       id: 'overhead-squat',
       title: SECTION_TITLES.P4['overhead-squat'],
@@ -61,59 +60,6 @@ export const phaseP4: PhaseDefinition = {
         // Pain — shared
         { id: 'lungeHasPain' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P4.lungeHasPain, tooltip: ASSESSMENT_TOOLTIPS.P4.lungeHasPain, options: ASSESSMENT_OPTIONS.lungeHasPain },
       ]
-    },
-    {
-      id: 'posture',
-      title: SECTION_TITLES.P4.posture,
-      fields: [
-        {
-          id: 'postureInputMode' as keyof FormData,
-          type: 'select' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureInputMode,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureInputMode,
-          options: ASSESSMENT_OPTIONS.postureInputMode,
-        },
-        {
-          id: 'postureHeadOverall' as keyof FormData,
-          type: 'multiselect' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureHeadOverall,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureHeadOverall,
-          conditional: { showWhen: { field: 'postureInputMode', value: 'manual' } },
-          options: ASSESSMENT_OPTIONS.postureHeadOverall,
-        },
-        {
-          id: 'postureShouldersOverall' as keyof FormData,
-          type: 'multiselect' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureShouldersOverall,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureShouldersOverall,
-          conditional: { showWhen: { field: 'postureInputMode', value: 'manual' } },
-          options: ASSESSMENT_OPTIONS.postureShouldersOverall,
-        },
-        {
-          id: 'postureBackOverall' as keyof FormData,
-          type: 'multiselect' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureBackOverall,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureBackOverall,
-          conditional: { showWhen: { field: 'postureInputMode', value: 'manual' } },
-          options: ASSESSMENT_OPTIONS.postureBackOverall,
-        },
-        {
-          id: 'postureHipsOverall' as keyof FormData,
-          type: 'multiselect' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureHipsOverall,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureHipsOverall,
-          conditional: { showWhen: { field: 'postureInputMode', value: 'manual' } },
-          options: ASSESSMENT_OPTIONS.postureHipsOverall,
-        },
-        {
-          id: 'postureKneesOverall' as keyof FormData,
-          type: 'multiselect' as FieldType,
-          label: ASSESSMENT_LABELS.P4.postureKneesOverall,
-          tooltip: ASSESSMENT_TOOLTIPS.P4.postureKneesOverall,
-          conditional: { showWhen: { field: 'postureInputMode', value: 'manual' } },
-          options: ASSESSMENT_OPTIONS.postureKneesOverall,
-        },
-      ],
     },
   ],
 };

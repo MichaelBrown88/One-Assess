@@ -94,7 +94,7 @@ export interface OrgSettings {
     parq: boolean; // P0 - PAR-Q health screening
     bodycomp: boolean; // P2 - Body composition scan (section: 'body-comp')
     fitness: boolean; // P3 - Metabolic fitness assessment (section: 'fitness-assessment')
-    posture: boolean; // P4 - Posture analysis (section: 'posture')
+    posture: boolean; // P2 - Posture photos (section: 'posture')
     overheadSquat: boolean; // P4 - Overhead squat assessment (section: 'overhead-squat')
     hinge: boolean; // P4 - Hinge assessment (section: 'hinge-assessment')
     lunge: boolean; // P4 - Lunge assessment (section: 'lunge-assessment')

@@ -1,22 +1,12 @@
 import React from 'react';
 import ParQQuestionnaire from '@/components/ParQQuestionnaire';
-import { Check, Camera, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@/components/ui/radio-group';
-
-// Hook
 import { useFieldControl } from './hooks/useFieldControl';
-
-// Sub-components
 import { FieldLabel } from './fields/FieldLabel';
 import { FieldTextArea } from './fields/FieldTextArea';
 import { FieldSelect } from './fields/FieldSelect';
 import { FieldMultiSelect } from './fields/FieldMultiSelect';
 import { FieldInput } from './fields/FieldInput';
-
+import { PosturePhotoModePanel } from './fields/PosturePhotoModePanel';
 import type { PhaseField } from '@/lib/phaseConfig';
 
 interface FieldControlProps {
@@ -55,74 +45,11 @@ export function FieldControl({
     // Special UI for AI Posture Scan choice
     if (field.id === 'postureInputMode' && value === 'ai') {
       return (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {fieldOptions?.map((option, idx) => {
-              const isSelected = value === option.value;
-              const colorClass = idx === 0 ? 'hover:border-border hover:bg-muted/50 text-foreground-secondary border-border' : 'hover:border-primary/20 hover:bg-muted hover:text-foreground-secondary text-foreground-secondary border-border';
-              const inputId = `${field.id}-${option.value}`;
-              
-              return (
-                <label
-                  key={option.value}
-                  htmlFor={inputId}
-                  className={`flex h-11 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 text-left transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                      : `bg-background text-foreground-secondary ${colorClass}`
-                  }`}
-                >
-                  <input 
-                    type="radio" 
-                    id={inputId} 
-                    name={field.id} 
-                    value={option.value} 
-                    checked={isSelected}
-                    onChange={() => handleChange(option.value)}
-                    className="sr-only"
-                  />
-                  <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                    isSelected ? 'bg-background/20 border-white/20 text-white' : 'border-border bg-background'
-                  }`}>
-                    {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                  </div>
-                  <span className="font-bold text-xs leading-tight">{option.label}</span>
-                </label>
-              );
-            })}
-          </div>
-
-          <div className="p-8 bg-muted rounded-3xl border-2 border-dashed border-primary/20 flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
-            <div className="bg-background p-4 rounded-3xl shadow-sm">
-              <Camera className="h-10 w-10 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-xl font-bold text-foreground">Posture photos</h4>
-              <p className="text-foreground-secondary text-sm font-medium max-w-xs mx-auto">
-                {formData.postureAiResults
-                  ? "Photos captured — retake if needed or continue to the next step."
-                  : "Capture the four views with this device, or upload photos. Analysis runs automatically."}
-              </p>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-              <Button 
-                onClick={onShowPostureCompanion}
-                className="h-14 flex-1 gap-3 rounded-lg bg-primary text-xs font-bold text-primary-foreground shadow-sm"
-              >
-                <Camera className="h-5 w-5" />
-                Take posture photos
-              </Button>
-            </div>
-
-            {formData.postureAiResults && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-emerald-700">AI Results Active</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <PosturePhotoModePanel
+          hasResults={Boolean(formData.postureAiResults)}
+          onCapture={() => onShowPostureCompanion?.()}
+          onSwitchToManual={() => handleChange('manual')}
+        />
       );
     }
 
@@ -178,8 +105,8 @@ export function FieldControl({
     }
   };
 
-  // PAR-Q renders its own full sub-flow — skip the wrapper label
-  if (field.type === 'parq') {
+  // PAR-Q and photo posture render their own titles
+  if (field.type === 'parq' || (field.id === 'postureInputMode' && formData.postureInputMode === 'ai')) {
     return <>{renderInput()}</>;
   }
 

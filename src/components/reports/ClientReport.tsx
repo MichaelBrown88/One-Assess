@@ -248,6 +248,7 @@ export default function ClientReport({
                 <ClientRoadmapSection
                   cards={reportModel.roadmapCards}
                   target={reportModel.roadmapTarget}
+                  selfGuidedHabits={reportModel.selfGuidedHabits}
                 />
               </div>
             )}

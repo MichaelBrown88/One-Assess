@@ -1,14 +1,4 @@
 import React from 'react';
-import {
-  Activity,
-  Armchair,
-  Coffee,
-  Droplet,
-  Moon,
-  Salad,
-  Wine,
-  Zap,
-} from 'lucide-react';
 import type { FormData } from '@/contexts/FormContext';
 
 interface LifestyleFactorsCardProps {
@@ -22,17 +12,11 @@ interface Factor {
   label: string;
   value: string;
   tone: Tone;
-  icon: React.ComponentType<{ className?: string }>;
 }
 
 /**
- * Lifestyle factor grid — replaces the old thin LifestyleFactorsBar.
- * Eight rows covering sleep, stress, nutrition, hydration, activity,
- * sedentary time, caffeine and alcohol. Each row carries a tonal chip
- * (good / concern / critical) so the coach reads health at a glance.
- *
- * Designed to live inside PillarCard's children slot — no outer card
- * chrome, just rows.
+ * Lifestyle factor grid for the AXIS report — label, value, and status chip.
+ * Alcohol is collected in assessment but not shown here.
  */
 export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ formData }) => {
   if (!formData) {
@@ -45,7 +29,6 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
 
   const factors: Factor[] = [];
 
-  // ─── Sleep ────────────────────────────────────────────────────
   const sleepArch = (formData.sleepArchetype || '').toLowerCase();
   const sleepQ = (formData.sleepQuality || '').toLowerCase();
   const sleepC = (formData.sleepConsistency || '').toLowerCase();
@@ -60,37 +43,33 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
     } else if (sleepArch.includes('fragmented') || sleepQ === 'fair' || sleepC.includes('inconsistent')) {
       tone = 'concern';
     }
-    factors.push({ id: 'sleep', label: 'Sleep', value: sleepLabel || '—', tone, icon: Moon });
+    factors.push({ id: 'sleep', label: 'Sleep', value: sleepLabel || '—', tone });
   }
 
-  // ─── Stress ───────────────────────────────────────────────────
   const stress = (formData.stressLevel || '').toLowerCase();
   if (stress) {
     let tone: Tone = 'good';
     if (stress === 'very-high' || stress === 'high') tone = 'critical';
     else if (stress === 'moderate' || stress.includes('moderate')) tone = 'concern';
-    factors.push({ id: 'stress', label: 'Stress', value: capitalise(stress.replace(/-/g, ' ')), tone, icon: Zap });
+    factors.push({ id: 'stress', label: 'Stress', value: capitalise(stress.replace(/-/g, ' ')), tone });
   }
 
-  // ─── Nutrition ────────────────────────────────────────────────
   const nutrition = (formData.nutritionHabits || '').toLowerCase();
   if (nutrition) {
     let tone: Tone = 'good';
     if (nutrition === 'poor') tone = 'critical';
     else if (nutrition === 'fair') tone = 'concern';
-    factors.push({ id: 'nutrition', label: 'Nutrition', value: capitalise(nutrition), tone, icon: Salad });
+    factors.push({ id: 'nutrition', label: 'Nutrition', value: capitalise(nutrition), tone });
   }
 
-  // ─── Hydration ────────────────────────────────────────────────
   const hydration = (formData.hydrationHabits || '').toLowerCase();
   if (hydration) {
     let tone: Tone = 'good';
     if (hydration === 'poor') tone = 'critical';
     else if (hydration === 'fair') tone = 'concern';
-    factors.push({ id: 'hydration', label: 'Hydration', value: capitalise(hydration), tone, icon: Droplet });
+    factors.push({ id: 'hydration', label: 'Hydration', value: capitalise(hydration), tone });
   }
 
-  // ─── Activity (steps) ─────────────────────────────────────────
   const steps = parseFloat(formData.stepsPerDay || '0');
   if (steps > 0) {
     let tone: Tone = 'good';
@@ -101,7 +80,6 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
       label: 'Activity',
       value: `${formatThousands(steps)} steps / day`,
       tone,
-      icon: Activity,
     });
   } else if (formData.activityLevel) {
     factors.push({
@@ -109,11 +87,9 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
       label: 'Activity level',
       value: capitalise((formData.activityLevel || '').replace(/-/g, ' ')),
       tone: 'good',
-      icon: Activity,
     });
   }
 
-  // ─── Sedentary ────────────────────────────────────────────────
   const sedentary = parseFloat(formData.sedentaryHours || '0');
   if (sedentary > 0) {
     let tone: Tone = 'good';
@@ -124,11 +100,9 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
       label: 'Sedentary',
       value: `${sedentary.toFixed(sedentary % 1 === 0 ? 0 : 1)} h / day`,
       tone,
-      icon: Armchair,
     });
   }
 
-  // ─── Caffeine ─────────────────────────────────────────────────
   const cups = parseFloat(formData.caffeineCupsPerDay || '0');
   const lastCaffeine = formData.lastCaffeineIntake || '';
   if (cups > 0 || lastCaffeine) {
@@ -139,16 +113,7 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
     const parts = [];
     if (cups > 0) parts.push(`${cups} cup${cups === 1 ? '' : 's'}`);
     if (lastCaffeine) parts.push(`last ${formatTime(lastCaffeine)}`);
-    factors.push({ id: 'caffeine', label: 'Caffeine', value: parts.join(' · '), tone, icon: Coffee });
-  }
-
-  // ─── Alcohol ──────────────────────────────────────────────────
-  const alcohol = (formData.alcoholFrequency || '').toLowerCase();
-  if (alcohol) {
-    let tone: Tone = 'good';
-    if (alcohol.includes('daily') || alcohol.includes('most')) tone = 'critical';
-    else if (alcohol.includes('week')) tone = 'concern';
-    factors.push({ id: 'alcohol', label: 'Alcohol', value: capitalise(alcohol.replace(/-/g, ' ')), tone, icon: Wine });
+    factors.push({ id: 'caffeine', label: 'Caffeine', value: parts.join(' · '), tone });
   }
 
   if (factors.length === 0) {
@@ -160,7 +125,7 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
   }
 
   return (
-    <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+    <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
       {factors.map((f) => (
         <FactorRow key={f.id} factor={f} />
       ))}
@@ -168,22 +133,9 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
   );
 };
 
-function iconToneClasses(tone: Tone): string {
-  if (tone === 'good') return 'bg-score-green-light text-score-green-fg';
-  if (tone === 'concern') return 'bg-score-amber-light text-score-amber-fg';
-  if (tone === 'critical') return 'bg-score-red-light text-score-red-fg';
-  return 'bg-card-elevated text-foreground-secondary';
-}
-
 function FactorRow({ factor }: { factor: Factor }) {
-  const Icon = factor.icon;
   return (
-    <div className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border py-2.5 last:border-b-0">
-      <span
-        className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconToneClasses(factor.tone)}`}
-      >
-        <Icon className="h-4 w-4" aria-hidden />
-      </span>
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
       <span className="flex min-w-0 flex-col gap-px">
         <span className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
           {factor.label}

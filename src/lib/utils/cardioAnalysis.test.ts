@@ -57,6 +57,33 @@ describe('calculateCardioAnalysis', () => {
     expect(result.vo2.gap).toBeLessThan(12);
   });
 
+  it('does not pin strenuous tests to a 50.0 VO2 regardless of resting HR', () => {
+    const higherRhr = calculateCardioAnalysis(
+      31,
+      'male',
+      'active',
+      75,
+      152,
+      121,
+      undefined,
+      { pillarRole: 'supporting' },
+    );
+    const lowerRhr = calculateCardioAnalysis(
+      31,
+      'male',
+      'active',
+      58,
+      152,
+      110,
+      undefined,
+      { pillarRole: 'supporting' },
+    );
+
+    expect(higherRhr.vo2.current).not.toBe(50);
+    expect(lowerRhr.vo2.current).not.toBe(higherRhr.vo2.current);
+    expect(lowerRhr.vo2.current).toBeGreaterThan(higherRhr.vo2.current);
+  });
+
   it('still allows ambitious VO2 gap when fitness is a primary goal', () => {
     const result = calculateCardioAnalysis(
       SALEM_AGE,

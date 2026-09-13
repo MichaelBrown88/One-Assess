@@ -8,10 +8,23 @@ interface CardioTimerBlockProps {
   startLabel: string;
   runningHint: string;
   doneHint: string;
+  /** Hide Start until the coach needs a manual restart (recovery auto-starts on test stop). */
+  showStart?: boolean;
+}
+
+/** Recovery Start is redundant while the 60s clock is already running after test stop. */
+export function shouldShowRecoveryStart(testCompleted: boolean, recoveryRunning: boolean): boolean {
+  return testCompleted && !recoveryRunning;
 }
 
 /** Timer row for the cardio run sheet: big countdown + start/reset controls. */
-export function CardioTimerBlock({ countdown, startLabel, runningHint, doneHint }: CardioTimerBlockProps) {
+export function CardioTimerBlock({
+  countdown,
+  startLabel,
+  runningHint,
+  doneHint,
+  showStart = true,
+}: CardioTimerBlockProps) {
   const { secondsLeft, running, finished, start, reset } = countdown;
 
   return (
@@ -31,12 +44,12 @@ export function CardioTimerBlock({ countdown, startLabel, runningHint, doneHint 
         {formatCountdown(secondsLeft)}
       </div>
 
-      {!running ? (
+      {!running && showStart ? (
         <Button type="button" onClick={start} className="h-11 gap-2 rounded-lg px-5 font-bold">
           <Play className="h-4 w-4" />
           {startLabel}
         </Button>
-      ) : (
+      ) : running ? (
         <Button
           type="button"
           variant="ghost"
@@ -46,7 +59,7 @@ export function CardioTimerBlock({ countdown, startLabel, runningHint, doneHint 
           <RotateCcw className="h-4 w-4" />
           {COPY.RESET_TIMER}
         </Button>
-      )}
+      ) : null}
 
       {running ? (
         <p className="text-sm font-medium text-muted-foreground">{runningHint}</p>

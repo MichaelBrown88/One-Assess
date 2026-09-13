@@ -21,6 +21,7 @@ import { buildGoalHorizons } from '@/lib/goals/goalHorizons';
 import { mergeEffectiveGoalLevels } from '@/lib/goals/systemGoalTargets';
 import { ASSESSMENT_OPTIONS } from '@/constants/assessment';
 import type { ClientReportPlanStep } from '@/lib/reports/buildClientReportModel';
+import { formatKg1, projectWeightLossKg, WEIGHT_LOSS_WEEKS } from '@/lib/reports/weightLossProjection';
 
 function goalLabel(goalId: string): string {
   return ASSESSMENT_OPTIONS.clientGoals.find((g) => g.value === goalId)?.label ?? goalId;
@@ -42,27 +43,52 @@ function buildWeightLossPhases(
   formData: FormData,
   scores: ScoreSummary,
   goals: string[] | undefined,
+  ctx: ClientGoalContext,
 ): ClientReportPlanStep[] {
   const profile = buildClientProfile(formData, scores);
   const { levels } = mergeEffectiveGoalLevels(formData, goals, scores);
   const targetKg = weightLossTargetKg(profile, levels);
   const rate = weeklyWeightLossKg(profile, targetKg);
-  const kg4 = (rate.rate * 16).toFixed(1);
-  const kg12 = (rate.rate * 52).toFixed(1);
+  const protectMuscle = ctx.hasBuildMuscle || ctx.hasBodyRecomp;
+  const m4 = projectWeightLossKg({
+    currentWeightKg: profile.bodyWeightKg,
+    weeklyRateKg: rate.rate,
+    weeks: WEIGHT_LOSS_WEEKS.fourMonths,
+    bodyFatPct: profile.bodyFatPct,
+    heightCm: profile.heightCm,
+    sex: profile.sex,
+    protectMuscle,
+  });
+  const y1 = projectWeightLossKg({
+    currentWeightKg: profile.bodyWeightKg,
+    weeklyRateKg: rate.rate,
+    weeks: WEIGHT_LOSS_WEEKS.oneYear,
+    bodyFatPct: profile.bodyFatPct,
+    heightCm: profile.heightCm,
+    sex: profile.sex,
+    protectMuscle,
+  });
+  const kg4 = formatKg1(m4.lossKg);
+  const kg12 = formatKg1(y1.lossKg);
+  const weekly = y1.weeklyRateKg.toFixed(2);
   const label = goalLabel(GOAL_WEIGHT_LOSS).toLowerCase();
 
   return [
     {
       title: 'Phase 1 — Foundation',
-      body: `Lock in nutrition, protein, and steps; train strength 2–3×/week to protect muscle while we set up ${label}. Expect the first visible scale shift within a few weeks.`,
+      body: `Lock in nutrition, protein, and steps; train strength 2–3×/week to ${protectMuscle ? 'add' : 'protect'} muscle while we set up ${label}. Expect the first visible scale shift within a few weeks.`,
     },
     {
       title: 'Phase 2 — Build momentum',
-      body: `Turn up training consistency and conditioning. Target roughly ${kg4} kg fat loss over the next four months at about ${rate.rate.toFixed(2)} kg/week — sustainable, not crash dieting.`,
+      body: protectMuscle
+        ? `Keep lifting while the scale comes down slowly — about ${kg4} kg over four months at ${weekly} kg/week, so muscle can still move up.`
+        : `Turn up training consistency and conditioning. Target roughly ${kg4} kg fat loss over the next four months at about ${weekly} kg/week — sustainable, not crash dieting.`,
     },
     {
       title: 'Phase 3 — Refine & arrive',
-      body: `Fine-tune calories, deload when needed, and keep strength high so metabolism stays on your side. At this pace, up to ~${kg12} kg over a full year is realistic if habits hold.`,
+      body: protectMuscle
+        ? `Hold the leaner look and keep adding strength. About ${kg12} kg of fat over the year is the ceiling — not a race to the lowest possible weight.`
+        : `Fine-tune calories, deload when needed, and keep strength high so metabolism stays on your side. At this pace, about ${kg12} kg over a full year is realistic if habits hold.`,
     },
   ];
 }
@@ -240,7 +266,7 @@ export function buildClientGoalPhases(
 
   switch (ctx.primaryGoal) {
     case GOAL_WEIGHT_LOSS:
-      return buildWeightLossPhases(formData, scores, goals);
+      return buildWeightLossPhases(formData, scores, goals, ctx);
     case GOAL_BUILD_MUSCLE:
       return buildMusclePhases(formData, scores, goals, ctx);
     case GOAL_IMPROVE_FITNESS:

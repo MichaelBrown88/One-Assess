@@ -38,18 +38,16 @@ function parseDoc(
 } {
   const fd = data.formData;
   const s = computeScores(fd);
-  let previousFormData: FormData | undefined;
-  let previousScores: ScoreSummary | null = null;
-  if (data.previousFormData) {
-    try {
-      previousScores = computeScores(data.previousFormData);
-      previousFormData = data.previousFormData;
-    } catch {
-      logger.debug('[usePublicReport] Could not compute previous scores');
-    }
-  }
-  const snapshotSummaries = data.snapshotSummaries ?? [];
-  return { formData: fd, scores: s, previousFormData, previousScores, snapshotSummaries };
+  // previousFormData on this doc is often a re-save of the same assessment.
+  // AXIS "vs last" copy must only come from a real prior assessment, which
+  // public tokens do not carry — each assessment has its own share token.
+  return {
+    formData: fd,
+    scores: s,
+    previousFormData: undefined,
+    previousScores: null,
+    snapshotSummaries: data.snapshotSummaries ?? [],
+  };
 }
 
 export function usePublicReport(token: string | undefined): UsePublicReportResult {

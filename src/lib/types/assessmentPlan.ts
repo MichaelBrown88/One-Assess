@@ -8,8 +8,8 @@ export const STUDIO_BASELINE_INCLUDED_PHASE_IDS: PhaseId[] = [
   'P0',
   'P1',
   'P3',
-  'P5',
   'P4',
+  'P5',
   'P2',
   'P7',
 ];

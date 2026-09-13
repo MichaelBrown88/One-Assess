@@ -78,6 +78,19 @@ export function viewLabelUpper(view: PostureFindingViewId): string {
   }
 }
 
+export function viewLabelTitle(view: PostureFindingViewId): string {
+  switch (view) {
+    case 'side-left':
+      return 'Side left';
+    case 'side-right':
+      return 'Side right';
+    case 'front':
+      return 'Front';
+    case 'back':
+      return 'Back';
+  }
+}
+
 function stripLegacyPlaceholderPrefix(text: string): string {
   return text.replace(/^Placeholder:\s*/i, '').replace(/\bPlaceholder:\s*/gi, '').trim();
 }

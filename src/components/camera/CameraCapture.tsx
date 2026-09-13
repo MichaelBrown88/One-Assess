@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { X, AlertCircle, Smartphone, Camera, RefreshCcw, Maximize2, Minimize2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/utils/logger';
+import { captureVideoFrame } from '@/lib/camera/captureVideoFrame';
 
 /**
  * MANUAL SNAP VERSION
@@ -87,7 +88,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       return;
     }
 
-    const imageSrc = webcamRef.current?.getScreenshot();
+    const imageSrc =
+      captureVideoFrame(webcamRef.current?.video ?? null, 0.92) ?? webcamRef.current?.getScreenshot();
     if (!imageSrc) {
       toast({ title: "Couldn't capture image", description: "Try again or close and reopen the camera.", variant: "destructive" });
       return;
@@ -192,9 +194,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             ref={webcamRef}
             screenshotFormat="image/jpeg"
             videoConstraints={{
-              facingMode: facingMode,
-              width: { ideal: 4096 },
-              height: { ideal: 2160 },
+              facingMode: { ideal: facingMode },
             }}
             onUserMedia={() => setIsCameraReady(true)}
             onUserMediaError={handleUserMediaError}

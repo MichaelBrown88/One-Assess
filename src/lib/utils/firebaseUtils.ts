@@ -34,10 +34,11 @@ export function sanitizeForFirestore(obj: unknown): unknown {
     if (value === '' || value === null || value === undefined) continue;
     if (Array.isArray(value) && value.length === 0) continue;
 
-    // OPTIMIZATION: Strip large base64 strings to prevent Firestore 1MB limit errors
-    // These should be stored in Firebase Storage instead.
-    if (typeof value === 'string' && value.startsWith('data:image/') && value.length > 10000) {
-      sanitized[key] = '(base64_removed_for_storage_limit)';
+    // Skip camera JPEGs — four data URLs blow past Firestore's 1MB document cap.
+    if (
+      (typeof value === 'string' && value.startsWith('data:image/')) ||
+      value === '(base64_removed_for_storage_limit)'
+    ) {
       continue;
     }
 

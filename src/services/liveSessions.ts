@@ -9,7 +9,7 @@ import {
   DocumentReference
 } from 'firebase/firestore';
 import { compressImageForDisplay } from '@/lib/utils/imageCompression';
-import { PostureAnalysisResult, type PostureAiContext } from '@/lib/ai/postureAnalysis';
+import { type PostureAnalysisResult, type PostureAiContext } from '@/lib/ai/postureAnalysis';
 import { sanitizeForFirestore } from '@/lib/utils/firebaseUtils';
 import { LandmarkResult } from '@/lib/ai/postureLandmarks';
 import type { PostureFramingMetadata } from '@/lib/utils/postureFramingMetadata';
@@ -21,6 +21,11 @@ import {
   BODY_COMP_SCAN_FIRESTORE,
   normalizeLiveSessionFromFirestore,
 } from '@/lib/utils/liveSessionBodyComp';
+
+export interface PostureImageCommitResult {
+  storageUrl: string;
+  analysis: PostureAnalysisResult;
+}
 
 export interface LiveSession {
   id: string;
@@ -183,7 +188,7 @@ export const updatePostureImage = async (
   organizationId?: string,
   profile?: UserProfile | null,
   framingMetadata?: PostureFramingMetadata | null
-) => {
+): Promise<PostureImageCommitResult> => {
   try {
     // Validate image data first
     if (!imageData || (!imageData.startsWith('data:image') && !imageData.startsWith('http'))) {
@@ -230,7 +235,6 @@ export const updatePostureImage = async (
         ? { organizationId: validateOrganizationId(organizationId, profile), profile }
         : undefined;
     
-    // Use unified processing system (ONE FLOW FOR ALL SOURCES)
     const { processPostureImage } = await import('@/services/postureProcessing');
     
     let processed;
@@ -240,33 +244,7 @@ export const updatePostureImage = async (
         view as 'front' | 'side-right' | 'side-left' | 'back',
         providedLandmarks,
         source,
-        // Progress callback - update Firestore with intermediate results
-        async (progress) => {
-          try {
-            // When wireframe is ready, show it immediately in the UI
-            if (progress.stage === 'wireframe' && typeof progress.wireframeImage === 'string' && progress.wireframeImage.length > 0) {
-              logger.debug(`Storing wireframe for ${view} (intermediate)`, 'LIVE_SESSIONS');
-              let wireframePreview = progress.wireframeImage;
-              try {
-                const compressed = await compressImageForDisplay(progress.wireframeImage, 800, 0.75);
-                wireframePreview = compressed.compressed;
-              } catch (compressError) {
-                logger.warn(`Wireframe compression failed for ${view}, using original`, 'LIVE_SESSIONS', compressError);
-              }
-              await updateDocWithRetry(
-                sessionRef,
-                { [`postureImages.${view}`]: wireframePreview },
-                3,
-                `wireframe update for ${view}`
-              );
-              // Give UI time to render the wireframe (reduced from 1.5s to 0.75s to improve total processing time)
-              await new Promise(resolve => setTimeout(resolve, 750));
-            }
-          } catch (progressError) {
-            // Non-critical - don't fail the whole process
-            logger.warn(`Failed to update progress for ${view}`, 'LIVE_SESSIONS', progressError);
-          }
-        },
+        undefined,
         postureAiContext
       );
       logger.debug(`Successfully processed ${view} image`, 'LIVE_SESSIONS');
@@ -275,29 +253,22 @@ export const updatePostureImage = async (
       throw new Error(`Failed to process ${view} image: ${processError instanceof Error ? processError.message : 'Unknown processing error'}`);
     }
 
-    // Compress image with deviations for display (fast Firestore sync)
-    let compressedImage = processed.imageWithDeviations;
-    let fullSizeImage = processed.imageWithDeviations;
-    
-    try {
-      const compressed = await compressImageForDisplay(processed.imageWithDeviations, 800, 0.8);
-      compressedImage = compressed.compressed;
-      fullSizeImage = compressed.fullSize;
-      // Compressed image with deviations for display
-    } catch (compressError) {
-      logger.warn(`Compression failed for ${view}, using original`, 'LIVE_SESSIONS', compressError);
-      fullSizeImage = processed.imageWithDeviations;
-    }
+    const clientId = sessionData.clientId || 'unknown';
+    const orgId = sessionData.organizationId || 'default';
 
-    // Store everything in Firestore
-    // Storing processed image and analysis
-    
+    const storageUrl = await uploadPostureImageFullSize({
+      sessionRef,
+      sessionId,
+      view: view as 'front' | 'back' | 'side-left' | 'side-right',
+      fullSizeImage: processed.imageWithDeviations,
+      clientId,
+      organizationId: orgId,
+    });
+
     const updatePayload: Record<string, unknown> = {
-      [`postureImages.${view}`]: compressedImage, // Compressed version with green + red lines
-      [`analysis.${view}`]: sanitizeForFirestore(processed.analysis), // Complete analysis
+      [`analysis.${view}`]: sanitizeForFirestore(processed.analysis),
     };
     
-    // Store landmarks for future reference
     if (processed.landmarks) {
       updatePayload[`landmarks_${view}`] = sanitizeForFirestore(processed.landmarks) as Record<string, unknown>;
     }
@@ -306,23 +277,9 @@ export const updatePostureImage = async (
       updatePayload[`postureFraming_${view}`] = sanitizeForFirestore(framingMetadata) as Record<string, unknown>;
     }
     
-    await updateDocWithRetry(sessionRef, updatePayload, 3, `final image update for ${view}`);
+    await updateDocWithRetry(sessionRef, updatePayload, 3, `analysis update for ${view}`);
 
-    // Upload FULL-SIZE image with green + red lines to Storage (for reports/comparisons)
-    // sessionData already fetched above
-    const clientId = sessionData.clientId || 'unknown';
-    const orgId = sessionData.organizationId || 'default';
-
-    void uploadPostureImageFullSize({
-      sessionRef,
-      sessionId,
-      view: view as 'front' | 'back' | 'side-left' | 'side-right',
-      fullSizeImage,
-      clientId,
-      organizationId: orgId
-    });
-
-    return true;
+    return { storageUrl, analysis: processed.analysis };
   } catch (err) {
     logger.error('Posture processing error', 'LIVE_SESSIONS', err);
     throw err;

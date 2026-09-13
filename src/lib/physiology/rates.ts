@@ -30,6 +30,8 @@ export interface ClientProfile {
   age: number;
   /** Body weight in kg — drives weight-loss rate (% of BW/week). */
   bodyWeightKg: number;
+  /** Height in cm — used to floor weight-loss projections at a healthy BMI. */
+  heightCm?: number;
   /** Body-fat % when known — gates how aggressive weight loss can be. */
   bodyFatPct?: number;
   /** Self-reported training experience tier. */

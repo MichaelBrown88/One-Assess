@@ -30,8 +30,17 @@ describe('buildClientNinetyDayTarget', () => {
     expect(target).not.toBeNull();
     expect(target!.direction).toBe('lose');
     expect(target!.targetWeightKg!).toBeLessThan(90);
-    // Should not vaporise more than ~10% of bodyweight in 90 days.
+    // Should not vaporise more than ~10% of bodyweight in 12 weeks.
     expect(target!.targetWeightKg!).toBeGreaterThan(81);
+  });
+
+  it('sets protein from body weight, not skeletal muscle mass', () => {
+    const target = buildClientNinetyDayTarget(
+      form({ inbodyWeightKg: '81.2', skeletalMuscleMassKg: '31.5' }),
+      undefined,
+      weightLossCtx,
+    );
+    expect(target!.proteinG).toBe(160);
   });
 
   it('computes daily calories and macros from height + age', () => {
@@ -63,5 +72,16 @@ describe('buildClientNinetyDayTarget', () => {
   it('holds steady for a general-health client with no directional goal', () => {
     const target = buildClientNinetyDayTarget(form({}), undefined, generalCtx);
     expect(target!.direction).toBe('maintain');
+  });
+
+  it('does not crash 12-week weight when muscle-building is also a goal', () => {
+    const both = parseClientGoals(undefined, ['weight-loss', 'build-muscle']);
+    const target = buildClientNinetyDayTarget(
+      form({ inbodyWeightKg: '81.2', inbodyBodyFatPct: '31.2' }),
+      undefined,
+      both,
+    );
+    expect(target!.direction).toBe('lose');
+    expect(target!.targetWeightKg!).toBeGreaterThan(74);
   });
 });

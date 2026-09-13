@@ -122,7 +122,10 @@ export function calculateCardioAnalysis(
         // Extrapolate to max only when the test was strenuous enough; low peak HR
         // (submax test) previously used 1/effort and inflated VO2 (e.g. 68+).
         if (effortUsed >= 0.52) {
-          currentVO2 = 3.5 + (vo2AtPeak - 3.5) / effortUsed;
+          // Uth–Sørensen (HRmax / HRrest). Do not divide the %HRR estimate by
+          // effortUsed — that algebraically equals vo2Ceiling (50) for every
+          // strenuous test and freezes Fitness level at 50.0.
+          currentVO2 = 15.3 * (maxHREstimate / restingHR);
         } else {
           currentVO2 = vo2AtPeak;
         }

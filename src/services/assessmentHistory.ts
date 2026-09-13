@@ -15,6 +15,7 @@ import {
 import { getDb } from "@/services/firebase";
 import type { FormData } from "@/contexts/FormContext";
 import { sanitizeForFirestore } from "@/lib/utils/firebaseUtils";
+import { prepareFormDataForPersistence } from "@/lib/assessment/prepareFormDataForPersistence";
 import { PostureAnalysisResult } from "@/lib/ai/postureAnalysis";
 import { logger } from "@/lib/utils/logger";
 import { ORGANIZATION, sessionIdFromDate } from "@/lib/database/paths";
@@ -239,12 +240,14 @@ export async function updateCurrentAssessment(
 
   if (!hasFormDataChanged(oldData, formData)) return false;
 
+  const persistable = prepareFormDataForPersistence(formData);
+
   const currentRef = getCurrentStateDoc(organizationId, clientName);
   try {
     await setDoc(
       currentRef,
       {
-        formData: sanitizeForFirestore(formData),
+        formData: sanitizeForFirestore(persistable),
         overallScore: overallScore ?? 0,
         lastUpdated: serverTimestamp(),
         clientName: clientName || "Unnamed client",
@@ -341,7 +344,7 @@ export async function createSnapshot(
     type: snapshotType,
     assessmentType: derivedAssessmentType,
     ...(derivedPillar ? { pillar: derivedPillar } : {}),
-    formData: sanitizeForFirestore(formData),
+    formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
     overallScore: overallScore ?? 0,
     notes: notes ?? null,
     organizationId,
@@ -540,7 +543,7 @@ export async function updateSnapshotInPlace(
   }
 
   await updateDoc(snapRef, {
-    formData: sanitizeForFirestore(formData),
+    formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
     overallScore: typeof overallScore === "number" ? overallScore : 0,
     lastUpdated: serverTimestamp(),
   });
@@ -553,7 +556,7 @@ export async function updateSnapshotInPlace(
     await setDoc(
       currentRef,
       {
-        formData: sanitizeForFirestore(formData),
+        formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
         overallScore: typeof overallScore === "number" ? overallScore : 0,
         lastUpdated: serverTimestamp(),
         clientName: clientName || "Unnamed client",
@@ -570,7 +573,7 @@ export async function updateSnapshotInPlace(
     if (clientSnap.exists()) {
       const prevScore = snapshots.length >= 2 ? snapshots[1].overallScore : 0;
       await updateDoc(clientRef, {
-        formData: sanitizeForFirestore(formData),
+        formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
         overallScore: typeof overallScore === "number" ? overallScore : 0,
         scoresSummary: summary,
         previousScore: prevScore,
@@ -607,11 +610,12 @@ export async function updateSnapshotWithCascade(
   const { computeScores, summarizeScores } = await import("@/lib/scoring");
   const originalFormDatas = snapshots.map((s) => s.formData);
 
-  const editedScore = computeScores(newFormData).overall;
-  const editedSummary = summarizeScores(newFormData);
+  const persistable = prepareFormDataForPersistence(newFormData);
+  const editedScore = computeScores(persistable).overall;
+  const editedSummary = summarizeScores(persistable);
   const editedRef = doc(db, ORGANIZATION.clients.sessions.doc(organizationId, clientSlug, snapshotId));
   await updateDoc(editedRef, {
-    formData: sanitizeForFirestore(newFormData),
+    formData: sanitizeForFirestore(persistable),
     overallScore: editedScore,
     scoresSummary: editedSummary,
     lastUpdated: serverTimestamp(),
@@ -655,7 +659,7 @@ export async function updateSnapshotWithCascade(
 
     const snapRef = doc(db, ORGANIZATION.clients.sessions.doc(organizationId, clientSlug, snapshot.id));
     await updateDoc(snapRef, {
-      formData: sanitizeForFirestore(cascadedFormData),
+      formData: sanitizeForFirestore(prepareFormDataForPersistence(cascadedFormData)),
       overallScore: score,
       scoresSummary: summary,
       lastUpdated: serverTimestamp(),
@@ -671,7 +675,7 @@ export async function updateSnapshotWithCascade(
   await setDoc(
     currentRef,
     {
-      formData: sanitizeForFirestore(latestFormData),
+      formData: sanitizeForFirestore(prepareFormDataForPersistence(latestFormData)),
       overallScore: latestScore,
       lastUpdated: serverTimestamp(),
       clientName: clientName || "Unnamed client",
@@ -688,7 +692,7 @@ export async function updateSnapshotWithCascade(
     const secondLatest = snapshots.length > 1 ? snapshots[1] : null;
     const prevScore = secondLatest?.overallScore ?? 0;
     await updateDoc(clientRef, {
-      formData: sanitizeForFirestore(latestFormData),
+      formData: sanitizeForFirestore(prepareFormDataForPersistence(latestFormData)),
       overallScore: latestScore,
       scoresSummary: latestSummary,
       previousScore: prevScore,
@@ -871,7 +875,7 @@ export async function restoreFromSnapshot(
     await setDoc(
       currentRef,
       {
-        formData: sanitizeForFirestore(snapshotToRestore.formData),
+        formData: sanitizeForFirestore(prepareFormDataForPersistence(snapshotToRestore.formData)),
         overallScore: snapshotToRestore.overallScore ?? 0,
         lastUpdated: serverTimestamp(),
         clientName,

@@ -193,7 +193,7 @@ One Assess implements and maintains the following measures:
 **Access control**
 - Role-based access controls: coaches access only their own clients' data; org admins access only their organisation's data; platform administrators require explicit `dataAccessPermission` flags
 - Firebase Authentication with email/password and Google OAuth; session tokens not stored in a manner accessible to the application layer
-- Multi-factor authentication available for coach accounts **[REVIEW: confirm MFA is implemented or note as roadmap item]**
+- Multi-factor authentication is not implemented. Coach sign-in is email/password or Google OAuth. Treat MFA as a roadmap item before enterprise gym contracts that require it.
 
 **Data in transit**
 - All data transmitted over TLS 1.2 or higher

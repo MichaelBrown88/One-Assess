@@ -17,9 +17,9 @@ const completeIntake = {
 } as FormData;
 
 describe('studioSessionSteps', () => {
-  it('sortStudioPhaseIds orders studio baseline phases (fitness first, body comp before review)', () => {
+  it('sortStudioPhaseIds orders studio baseline phases (fitness first, private room last)', () => {
     expect(sortStudioPhaseIds(['P7', 'P3', 'P0', 'P2'])).toEqual(['P0', 'P3', 'P2', 'P7']);
-    expect(sortStudioPhaseIds(['P2', 'P4', 'P5', 'P3'])).toEqual(['P3', 'P5', 'P4', 'P2']);
+    expect(sortStudioPhaseIds(['P2', 'P4', 'P5', 'P3'])).toEqual(['P3', 'P4', 'P5', 'P2']);
   });
 
   it('isRemoteIntakeFormComplete requires core intake fields', () => {

@@ -58,27 +58,26 @@ export const uploadPostureImageFullSize = async ({
   fullSizeImage: string;
   clientId: string;
   organizationId: string;
-}): Promise<void> => {
+}): Promise<string> => {
   const storagePath = `organizations/${organizationId}/clients/${clientId}/sessions/${sessionId}/${view}_full.jpg`;
   const storageRef = ref(storage, storagePath);
   const fullSizeBase64 = fullSizeImage.split(',')[1] || fullSizeImage;
 
-  try {
-    const snapshot = await uploadString(storageRef, fullSizeBase64, 'base64', { contentType: 'image/jpeg' });
-    const downloadUrl = await getDownloadURL(snapshot.ref);
+  const snapshot = await uploadString(storageRef, fullSizeBase64, 'base64', { contentType: 'image/jpeg' });
+  const downloadUrl = await getDownloadURL(snapshot.ref);
 
-    await updateDocWithRetry(
-      sessionRef,
-      {
-        [`postureImagesFull_${view}`]: downloadUrl,
-        [`postureImagesStorage_${view}`]: downloadUrl
-      },
-      3,
-      `storage URL update for ${view}`
-    );
-  } catch (storageError) {
-    logger.error(`Failed to upload ${view} to Storage`, 'LIVE_SESSIONS', storageError);
-  }
+  await updateDocWithRetry(
+    sessionRef,
+    {
+      [`postureImages.${view}`]: downloadUrl,
+      [`postureImagesFull_${view}`]: downloadUrl,
+      [`postureImagesStorage_${view}`]: downloadUrl,
+    },
+    3,
+    `storage URL update for ${view}`
+  );
+
+  return downloadUrl;
 };
 
 export const uploadBodyCompScanFullSize = async ({

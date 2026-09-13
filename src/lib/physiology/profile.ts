@@ -15,6 +15,7 @@ export function buildClientProfile(formData: FormData, scores?: ScoreSummary): C
     age: parseAge(formData.dateOfBirth),
     bodyWeightKg: parseFloatSafe(formData.inbodyWeightKg) ?? 80,
     bodyFatPct: parseFloatSafe(formData.inbodyBodyFatPct),
+    heightCm: parseFloatSafe(formData.heightCm),
     trainingExperience: parseExperience(formData.trainingExperience, formData.trainingHistory),
     trainingFrequency: parseFrequency(formData.trainingFrequency, formData.activityLevel),
     sleepScore: scoreFromCategory(scores, 'lifestyle', 'sleep'),

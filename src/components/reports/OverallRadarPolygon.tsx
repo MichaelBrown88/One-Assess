@@ -9,6 +9,8 @@ interface OverallRadarPolygonProps {
   data: RadarData[];
   previousData?: RadarData[];
   compact?: boolean;
+  /** Moderate plot beside the AXIS score ring. */
+  hero?: boolean;
   onPillarSelect?: (sectionId: string) => void;
   className?: string;
   /** Use short plain-language pillar labels on public client reports. */
@@ -56,6 +58,7 @@ export default function OverallRadarPolygon({
   data,
   previousData,
   compact = false,
+  hero = false,
   onPillarSelect,
   className,
   clientFacingLabels = false,
@@ -68,11 +71,11 @@ export default function OverallRadarPolygon({
     overallScore ?? data.reduce((sum, d) => sum + Math.max(0, Math.min(100, d.value)), 0) / n;
   const hullColor = GRADE_HEX[scoreGrade(scoreForColor)];
 
-  const size = compact ? 400 : 480;
+  const size = hero ? 400 : compact ? 400 : 480;
   const cx = size / 2;
   const cy = size / 2;
-  const baseR = compact ? 108 : 130;
-  const labelR = compact ? baseR + 28 : baseR + 38;
+  const baseR = hero ? 108 : compact ? 108 : 130;
+  const labelR = hero ? baseR + 30 : compact ? baseR + 28 : baseR + 38;
   const ang = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
 
   const vertices = data.map((d, i) => {
@@ -105,13 +108,16 @@ export default function OverallRadarPolygon({
     <div
       className={cn(
         'flex w-full items-center justify-center',
-        compact ? 'min-h-[220px]' : 'min-h-[260px]',
+        compact ? 'min-h-[220px]' : hero ? 'min-h-[200px]' : 'min-h-[260px]',
         className,
       )}
     >
       <svg
         viewBox={`0 0 ${size} ${size}`}
-        className="h-full w-full max-h-[320px] max-w-full"
+        className={cn(
+          'h-full w-full max-w-full',
+          hero ? 'max-h-[220px]' : 'max-h-[320px]',
+        )}
         role="img"
         aria-label="Five-pillar score radar"
       >
@@ -153,7 +159,7 @@ export default function OverallRadarPolygon({
         <polygon
           points={hullPts}
           fill={hullColor}
-          fillOpacity={0.16}
+          fillOpacity={hero ? 0.2 : 0.16}
           stroke={hullColor}
           strokeWidth={2}
           strokeLinejoin="round"
@@ -164,7 +170,7 @@ export default function OverallRadarPolygon({
             key={`dot-${i}`}
             cx={v.x}
             cy={v.y}
-            r={compact ? 4.5 : 5.5}
+            r={hero ? 5.5 : compact ? 4.5 : 5.5}
             fill={hullColor}
             stroke="hsl(var(--card))"
             strokeWidth={2.5}

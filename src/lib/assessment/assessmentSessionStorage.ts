@@ -5,6 +5,8 @@
 
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import type { PartialCategory } from '@/lib/assessmentCompleteness';
+import { prepareFormDataForPersistence } from '@/lib/assessment/prepareFormDataForPersistence';
+import type { FormData } from '@/contexts/FormContext';
 import {
   clearBaselineSessionFlags,
   markBaselineAssessmentSession,
@@ -342,10 +344,14 @@ export function writeSessionDraftAssessmentJson(json: string): void {
 }
 
 export function writeSessionDraftAssessmentBundle(formData: unknown, clientName: string): void {
+  const persistable =
+    formData && typeof formData === 'object'
+      ? prepareFormDataForPersistence(formData as FormData)
+      : formData;
   safeSetItem(
     STORAGE_KEYS.DRAFT_ASSESSMENT,
     JSON.stringify({
-      formData,
+      formData: persistable,
       timestamp: Date.now(),
       clientName,
     }),

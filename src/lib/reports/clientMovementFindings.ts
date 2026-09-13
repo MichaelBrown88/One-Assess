@@ -186,3 +186,22 @@ export function buildMovementFindings(
 
   return { groups, hasPostureScan };
 }
+
+/** Concern and critical cues only — the client page should not list every observed field. */
+export function movementWorkOns(model: ClientMovementFindingsModel): Array<{
+  pattern: string;
+  detail: string;
+  tone: MovementFindingTone;
+}> {
+  return model.groups
+    .map((group) => {
+      const flags = group.rows.filter((r) => r.tone !== 'good');
+      if (flags.length === 0) return null;
+      return {
+        pattern: group.title,
+        detail: flags.map((r) => `${r.label}: ${r.value}`).join(' · '),
+        tone: worstTone(flags.map((r) => r.tone)),
+      };
+    })
+    .filter((row): row is { pattern: string; detail: string; tone: MovementFindingTone } => row != null);
+}

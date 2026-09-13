@@ -12,8 +12,7 @@ export interface ClientReportProgressionRow {
   name: string;
   unit?: string;
   current: string;
-  fourMonths: string;
-  oneYear: string;
+  twelveWeeks: string;
 }
 
 export function buildClientProgressionRows(

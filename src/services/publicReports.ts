@@ -11,11 +11,13 @@ import {
   limit,
   getDocs,
   onSnapshot,
+  deleteField,
 } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import type { FormData } from '@/contexts/FormContext';
 import { getDb, getFirebaseAuth } from '@/services/firebase';
 import { sanitizeForFirestore } from '@/lib/utils/firebaseUtils';
+import { prepareFormDataForPersistence } from '@/lib/assessment/prepareFormDataForPersistence';
 import { COLLECTIONS } from '@/constants/collections';
 import { logger } from '@/lib/utils/logger';
 import { validateOrganizationId } from '@/lib/utils/validateOrganizationId';
@@ -73,7 +75,7 @@ function generateShareToken(): string {
  * Strictly whitelists fields and removes PII (Email, Phone)
  */
 function sanitizeFormDataForPublic(formData: FormData): FormData {
-  const sanitized = { ...formData };
+  const sanitized = { ...prepareFormDataForPersistence(formData) };
   // Remove PII not needed for the client report view
   sanitized.email = '';
   sanitized.phone = '';
@@ -134,14 +136,16 @@ export async function publishPublicReport(params: {
   const safeFormData = sanitizeFormDataForPublic(formData);
   const latestOverallScore = computeScores(safeFormData).overall;
 
-  // Capture previous formData for score change animations on the client viewer
-  let previousFormData: FormData | undefined;
-  if (snapshot.exists()) {
-    const existingData = snapshot.data();
-    if (existingData?.formData) {
-      previousFormData = existingData.formData as FormData;
-    }
-  }
+  // Never treat a re-save of the same assessment as a "previous" one —
+  // that leaked "improved since last time" onto first-assessment AXIS reports.
+  const existingAssessmentId =
+    snapshot.exists() ? (snapshot.data()?.assessmentId as string | undefined) : undefined;
+  const priorFormData =
+    snapshot.exists() &&
+    existingAssessmentId &&
+    existingAssessmentId !== assessmentId
+      ? (snapshot.data()?.formData as FormData | undefined)
+      : undefined;
 
   const payload = {
     coachUid,
@@ -154,7 +158,9 @@ export async function publishPublicReport(params: {
     latestOverallScore,
     updatedAt: serverTimestamp(),
     expiresAt: null, // No expiry by default
-    ...(previousFormData ? { previousFormData: sanitizeForFirestore(previousFormData) as FormData } : {}),
+    previousFormData: priorFormData
+      ? (sanitizeForFirestore(priorFormData) as FormData)
+      : deleteField(),
     ...(isNew && !snapshot.exists() ? { createdAt: serverTimestamp() } : {}),
   } as Omit<PublicReportDoc, 'shareToken' | 'createdAt' | 'updatedAt'> & {
     createdAt?: ReturnType<typeof serverTimestamp>;

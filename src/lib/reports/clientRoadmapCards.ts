@@ -1,23 +1,23 @@
 /**
- * High-level client roadmap cards — one behaviour theme per assessed pillar,
+ * High-level client roadmap cards — one behaviour theme per assessed area,
  * each with a few CONCRETE, referenceable prescriptions.
  *
- * This is the report's lead-magnet: a client who doesn't sign up should leave
- * with a framework they can actually run (Zone 2 3×/week, protein per meal,
- * 7.5h sleep, no caffeine after 2pm). It gives structure — targets and ranges —
- * without prescribing an exact program (no set/rep/%-1RM schemes). Deterministic
- * from scores + goals + lifestyle inputs; ordered by goal priority.
+ * Lead-magnet: a client who doesn't sign up still leaves with habits they
+ * can run (easy talking-pace cardio, protein per meal, sleep, caffeine cutoff).
+ * No set/rep/%-1RM schemes. Deterministic from scores + goals + lifestyle.
  */
 
 import type { FormData } from '@/contexts/FormContext';
-import { buildClientProfile } from '@/lib/physiology/profile';
+import type { ScoreSummary } from '@/lib/scoring';
 import type { ClientGoalContext, PillarId } from '@/lib/goals/goalContext';
+import { buildClientProfile } from '@/lib/physiology/profile';
+import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
 
 export interface ClientRoadmapCard {
   pillar: PillarId;
-  /** Short pillar label for the numbered kicker, e.g. "Fitness". */
+  /** Short label for the numbered kicker, e.g. "Fitness". */
   pillarLabel: string;
-  /** Behaviour theme, e.g. "Build your aerobic base". */
+  /** Behaviour theme, e.g. "Build easy cardio fitness". */
   title: string;
   /** Concrete, referenceable levers — targets/ranges, never exact programming. */
   prescriptions: string[];
@@ -43,39 +43,37 @@ function proteinLine(bodyWeightKg: number, emphasis: 'high' | 'normal'): string 
   return 'Protein at every meal — a palm-sized portion (~30–40g).';
 }
 
-function deficitLine(bodyWeightKg: number): string {
-  if (bodyWeightKg > 0) {
-    const lo = (bodyWeightKg * 0.005).toFixed(1);
-    const hi = (bodyWeightKg * 0.0075).toFixed(1);
-    return `Small calorie deficit — aim to lose about ${lo}–${hi} kg a week, no faster.`;
+function deficitLine(weeklyRateKg: number): string {
+  if (weeklyRateKg > 0) {
+    return `Eat a little less than you burn — about ${weeklyRateKg.toFixed(2)} kg a week off the scale, no faster.`;
   }
-  return 'Small, steady calorie deficit — about 0.5–0.75 kg a week, no crash dieting.';
+  return 'Eat a little less than you burn — a small, steady drop, no crash dieting.';
 }
 
 function cardioCard(score: number): CardBody {
   if (score < 55) {
     return {
-      title: 'Build your aerobic base',
+      title: 'Build easy cardio fitness',
       prescriptions: [
-        'Zone 2 cardio 3× a week, 30–40 min — easy enough to hold a conversation.',
+        'Easy cardio 3× a week, 30–40 min — a pace you can still talk through.',
         'Add 5 min to one session every couple of weeks as it gets easier.',
       ],
     };
   }
   if (score <= 75) {
     return {
-      title: 'Add structured conditioning',
+      title: 'Add a little harder work',
       prescriptions: [
-        'Keep 2 Zone 2 sessions a week (40 min, conversational pace).',
-        'Add 1 interval session: 6–8 rounds of ~1 min hard / 2 min easy.',
+        'Keep 2 easy sessions a week (40 min, a pace you can still talk through).',
+        'Add 1 harder session: 6–8 rounds of ~1 min hard / 2 min easy.',
       ],
     };
   }
   return {
-    title: 'Maintain your engine',
+    title: 'Keep the fitness you have',
     prescriptions: [
-      '2 Zone 2 sessions a week hold your fitness.',
-      '1 weekly interval session keeps pushing capacity.',
+      '2 easy talking-pace sessions a week hold your fitness.',
+      '1 weekly harder session keeps you moving forward.',
     ],
   };
 }
@@ -83,19 +81,19 @@ function cardioCard(score: number): CardBody {
 function strengthCard(score: number): CardBody {
   if (score < 55) {
     return {
-      title: 'Foundational strength',
+      title: 'Build a strength habit',
       prescriptions: [
         'Full-body strength 2–3× a week — squat, hinge, push, pull.',
-        'Progressive overload: add a rep or a little weight once the top of your range feels easy.',
+        'Add a little weight or a rep once the top of your range feels easy.',
       ],
     };
   }
   if (score <= 75) {
     return {
-      title: 'Progressive strength',
+      title: 'Keep getting stronger',
       prescriptions: [
         'Train each major muscle group 2× a week.',
-        'Add reps or load most weeks; stop 1–2 reps short of failure.',
+        'Add reps or load most weeks; stop 1–2 reps before you cannot finish.',
       ],
     };
   }
@@ -103,17 +101,22 @@ function strengthCard(score: number): CardBody {
     title: 'Keep the strength you\u2019ve built',
     prescriptions: [
       '2–3 quality strength sessions a week hold your baseline.',
-      'Wave the load — push for ~3 weeks, then an easier deload week.',
+      'Push for about 3 weeks, then take an easier week.',
     ],
   };
 }
 
-function bodyCompCard(score: number, ctx: ClientGoalContext, bodyWeightKg: number): CardBody {
+function bodyCompCard(
+  score: number,
+  ctx: ClientGoalContext,
+  bodyWeightKg: number,
+  weeklyLossKg: number,
+): CardBody {
   if (ctx.hasWeightLoss) {
     return {
       title: 'Lose fat, keep muscle',
       prescriptions: [
-        deficitLine(bodyWeightKg),
+        deficitLine(weeklyLossKg),
         proteinLine(bodyWeightKg, 'high'),
         'Build toward 8–10k steps a day; strength train to protect muscle.',
       ],
@@ -123,26 +126,26 @@ function bodyCompCard(score: number, ctx: ClientGoalContext, bodyWeightKg: numbe
     return {
       title: 'Fuel for muscle',
       prescriptions: [
-        'Eat at maintenance or a slight surplus on training days.',
+        'Eat at maintenance or a little more on training days.',
         proteinLine(bodyWeightKg, 'high'),
-        'Prioritise carbs around your workouts for energy and recovery.',
+        'Have most of your carbs around your workouts for energy and recovery.',
       ],
     };
   }
   if (score < 60) {
     return {
-      title: 'Lean recomposition',
+      title: 'Look leaner while you get stronger',
       prescriptions: [
         proteinLine(bodyWeightKg, 'normal'),
-        'Prioritise carbs around workouts; keep fats moderate the rest of the day.',
+        'Have most of your carbs around workouts; keep fats moderate the rest of the day.',
         'Build toward 8–10k steps a day.',
       ],
     };
   }
   return {
-    title: 'Maintain your composition',
+    title: 'Hold your composition',
     prescriptions: [
-      'Eat around maintenance calories.',
+      'Eat around the calories that keep your weight steady.',
       proteinLine(bodyWeightKg, 'normal'),
       'Keep daily steps up on rest days.',
     ],
@@ -161,7 +164,7 @@ function movementCard(score: number): CardBody {
   }
   if (score <= 75) {
     return {
-      title: 'Sharpen movement quality',
+      title: 'Move with more control',
       prescriptions: [
         'A 5 min mobility primer before every session.',
         'Give extra attention to the pattern flagged in your report.',
@@ -220,21 +223,26 @@ function lifestyleCard(formData: FormData | undefined): CardBody {
   }
 
   return {
-    title: 'Recovery & daily habits',
+    title: 'Recovery and daily habits',
     prescriptions: lines.slice(0, 3),
   };
 }
 
 /**
- * One card per assessed pillar, in the order the pillars are given
- * (callers pass the goal-role-sorted pillar list so priority order carries over).
+ * One card per assessed area, in the order the pillars are given
+ * (callers pass the goal-role-sorted list so priority order carries over).
  */
 export function buildClientRoadmapCards(
   pillars: Array<{ scoringId: PillarId; score: number }>,
   formData: FormData | undefined,
   ctx: ClientGoalContext,
+  scores?: ScoreSummary,
 ): ClientRoadmapCard[] {
   const bodyWeightKg = formData ? buildClientProfile(formData).bodyWeightKg : 0;
+  const weeklyLossKg =
+    formData && ctx.hasWeightLoss
+      ? (projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals)?.weeklyRateKg ?? 0)
+      : 0;
 
   return pillars.map(({ scoringId, score }) => {
     const body =
@@ -243,7 +251,7 @@ export function buildClientRoadmapCards(
         : scoringId === 'strength'
           ? strengthCard(score)
           : scoringId === 'bodyComp'
-            ? bodyCompCard(score, ctx, bodyWeightKg)
+            ? bodyCompCard(score, ctx, bodyWeightKg, weeklyLossKg)
             : scoringId === 'movementQuality'
               ? movementCard(score)
               : lifestyleCard(formData);

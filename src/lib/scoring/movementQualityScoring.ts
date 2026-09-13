@@ -277,8 +277,9 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
-  if (postureScore >= 85) strengths.push('Elite-level postural alignment');
-  else if (postureScore >= 70) strengths.push('Solid foundational alignment');
+  if (postureScore >= 85 && [head, shoulders, back, hips, knees].filter((s) => s > 0).every((s) => s >= 85)) {
+    strengths.push('Elite-level postural alignment');
+  } else if (postureScore >= 70) strengths.push('Solid foundational alignment');
 
   if (movementScore >= 85) strengths.push('Exceptional control during dynamic movement');
   else if (movementScore >= 70) strengths.push('Reliable movement patterns');

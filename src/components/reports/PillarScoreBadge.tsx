@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dumbbell, Heart, Scale, Sun, Zap, type LucideIcon } from 'lucide-react';
 import { CHART_PILLAR_COLOR_ORDER } from '@/lib/design/chartColors';
+import { SCORE_COLORS, scoreGrade } from '@/lib/scoring/scoreColor';
 import type { PillarKey } from '@/lib/reports/radarData';
 import { cn } from '@/lib/utils';
 
@@ -9,6 +10,8 @@ interface PillarScoreBadgeProps {
   score: number;
   size?: number;
   className?: string;
+  /** When false, show only the numeral — used on the client AXIS scorecard. */
+  showIcon?: boolean;
 }
 
 const PILLAR_INDEX: Record<PillarKey, number> = {
@@ -28,10 +31,7 @@ const PILLAR_ICONS: Record<PillarKey, LucideIcon> = {
 };
 
 function scoreToneClass(score: number): string {
-  if (score >= 75) return 'text-score-green-fg';
-  if (score >= 50) return 'text-score-amber-fg';
-  if (score > 0) return 'text-score-red-fg';
-  return 'text-muted-foreground';
+  return SCORE_COLORS[scoreGrade(score)].text;
 }
 
 /**
@@ -42,27 +42,36 @@ export function PillarScoreBadge({
   score,
   size = 56,
   className,
+  showIcon = true,
 }: PillarScoreBadgeProps) {
   const colour = CHART_PILLAR_COLOR_ORDER[PILLAR_INDEX[pillar]];
   const Icon = PILLAR_ICONS[pillar];
   const safe = Math.round(Math.max(0, Math.min(100, score)));
   const iconSize = Math.round(size * 0.22);
-  const fontSize = Math.round(size * 0.34);
+  const fontSize = Math.round(size * (showIcon ? 0.34 : 0.42));
+  const grade = scoreGrade(safe);
 
   return (
     <span
       className={cn(
-        'relative inline-flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl ring-1 ring-border/50',
+        'relative inline-flex shrink-0 flex-col items-center justify-center gap-0.5',
+        showIcon ? 'rounded-xl ring-1 ring-border/50' : cn('rounded-full', SCORE_COLORS[grade].pill),
         className,
       )}
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: `${colour}18`,
-      }}
+      style={
+        showIcon
+          ? {
+              width: size,
+              height: size,
+              backgroundColor: `${colour}18`,
+            }
+          : { width: size, height: size }
+      }
       aria-hidden
     >
-      <Icon className="opacity-80" style={{ width: iconSize, height: iconSize, color: colour }} />
+      {showIcon ? (
+        <Icon className="opacity-80" style={{ width: iconSize, height: iconSize, color: colour }} />
+      ) : null}
       <span
         className={cn('font-bold tabular-nums leading-none', scoreToneClass(safe))}
         style={{ fontSize }}

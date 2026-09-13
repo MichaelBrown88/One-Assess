@@ -24,7 +24,7 @@ export function ClientPartialAssessmentBanner({
 
   return (
     <div
-      className="rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm"
+      className="mb-6 rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm"
       role="status"
     >
       <p className="font-semibold text-foreground">{CLIENT_REPORT_COPY.partialAssessmentHeading}</p>

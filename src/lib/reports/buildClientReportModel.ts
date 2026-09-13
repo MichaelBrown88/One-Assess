@@ -11,19 +11,22 @@ import {
   buildClientPillarSummary,
   buildClientPriorityFallbacks,
 } from '@/components/reports/client/sub-components/clientPillarSummary';
-import { buildClientScoreHeadline } from '@/lib/reports/clientScoreHeadline';
+import { buildClientScoreHeadline, buildOverallResultsSummary } from '@/lib/reports/clientScoreHeadline';
 import { buildClientProgressionRows } from '@/lib/reports/clientProgressionRows';
 import type { ClientReportProgressionRow } from '@/lib/reports/clientProgressionRows';
-import { buildClientGoalPhases, buildClientSelfGuidedHabits } from '@/lib/reports/clientGoalPhases';
+import { buildClientSelfGuidedHabits } from '@/lib/reports/clientGoalPhases';
 import { buildClientRoadmapCards, type ClientRoadmapCard } from '@/lib/reports/clientRoadmapCards';
 import {
   buildClientNinetyDayTarget,
   type ClientNinetyDayTarget,
 } from '@/lib/reports/clientNinetyDayTarget';
-import { buildClientProfile } from '@/lib/physiology/profile';
-import { weeklyWeightLossKg } from '@/lib/physiology/rates';
-import { safeParse } from '@/lib/utils/numbers';
-import { mergeEffectiveGoalLevels } from '@/lib/goals/systemGoalTargets';
+import { formatKg1 } from '@/lib/reports/weightLossProjection';
+import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
+import {
+  pillarScoresFromCategories,
+  buildRadarDataFromScores,
+  type RadarData,
+} from '@/lib/reports/radarData';
 import {
   GOAL_BUILD_MUSCLE,
   GOAL_BUILD_STRENGTH,
@@ -42,6 +45,16 @@ import {
 } from '@/lib/posture/aggregatePostureInsights';
 import { buildMovementFindings, type ClientMovementFindingsModel } from '@/lib/reports/clientMovementFindings';
 import { sanitizeClientReportCopy } from '@/lib/reports/sanitizeClientReportCopy';
+import {
+  CLIENT_PILLAR_LABELS,
+  CLIENT_REPORT_COPY,
+  clientGoalPromiseDefault,
+  clientGoalPromiseFitness,
+  clientGoalPromiseMuscle,
+  clientGoalPromiseRecomp,
+  clientGoalPromiseStrength,
+  clientGoalPromiseWeightLoss,
+} from '@/constants/clientReport';
 
 export type ClientPillarContentMode = 'progression' | 'lifestyle-factors' | 'movement-findings';
 
@@ -96,15 +109,18 @@ export interface ClientReportModel {
   focusFirst: string[];
   /** All stated goals as display labels (chips in the hero). */
   goalLabels: string[];
-  planSteps: ClientReportPlanStep[];
-  /** Compact self-guided habits shown under the coached plan. */
+  /** Goal-primary area to improve this 12-week block. */
+  priorityFocus: { label: string; score: number } | null;
+  /** Compact self-guided habits shown under the roadmap. */
   selfGuidedHabits: string[];
   /** High-level behaviour roadmap — one card per assessed pillar, goal-priority order. */
   roadmapCards: ClientRoadmapCard[];
-  /** Achievable 90-day body-weight + macro target for the roadmap (null when data is insufficient). */
+  /** Achievable 12-week body-weight + macro target for the roadmap (null when data is insufficient). */
   roadmapTarget: ClientNinetyDayTarget | null;
   pillars: ClientReportPillarModel[];
   posture: ClientReportPostureModel | null;
+  radarData: RadarData[];
+  previousRadarData?: RadarData[];
   /** Render-only — lifestyle factor grid in v2 pillars. */
   formData?: FormData;
 }
@@ -124,7 +140,8 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     input;
 
   const overall = Math.round(scores.overall ?? 0);
-  const previousOverall = previousScores?.overall ?? null;
+  const previousOverall =
+    previousScores?.overall != null && previousScores.overall > 0 ? previousScores.overall : null;
 
   const goalCtx = parseClientGoals(formData, goals);
   const goalIds = goalCtx.allGoals;
@@ -138,31 +155,42 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
   );
   const headlineRaw = buildGoalAlignedSubheadline(scores, goalCtx);
   const headline = headlineRaw ? sanitizeClientReportCopy(headlineRaw) : null;
-  const welcome = buildWelcomeParagraph(scores, previousOverall, goalPromise);
+  const welcome = sanitizeClientReportCopy(
+    buildOverallResultsSummary(scores, previousOverall),
+  );
 
   const focusFirst = dedupeLines(
     buildHeroList(scores, 'focus', goalCtx, 3).map(sanitizeClientReportCopy),
   ).slice(0, 3);
 
-  const planSteps = buildClientGoalPhases(formData, scores, goals);
   const selfGuidedHabits = buildClientSelfGuidedHabits(formData, goals);
 
   const pillars = sortPillarsByGoalRole(
     SECTION_IDS.map((sectionId) =>
       buildPillarModel(sectionId, scores, previousScores, gapAnalysisData, formData, goalCtx, goals),
     ).filter((p): p is ClientReportPillarModel => p != null),
-    goalCtx,
   );
 
   const posture = buildPostureModel(formData);
 
   const roadmapCards = buildClientRoadmapCards(
-    pillars.map((p) => ({ scoringId: p.scoringId, score: p.score })),
+    pillars.map((p) => ({
+      // scoringId is the five-pillar union from ScoreCategory.
+      scoringId: p.scoringId as PillarId,
+      score: p.score,
+    })),
     formData,
     goalCtx,
+    scores,
   );
 
   const roadmapTarget = buildClientNinetyDayTarget(formData, scores, goalCtx);
+
+  const radarData = buildRadarDataFromScores(pillarScoresFromCategories(scores.categories));
+  const previousRadarData = previousScores
+    ? buildRadarDataFromScores(pillarScoresFromCategories(previousScores.categories))
+    : undefined;
+  const priorityFocus = buildPriorityFocus(scores, goalCtx);
 
   return {
     clientName,
@@ -174,13 +202,15 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     welcome,
     focusFirst,
     goalLabels,
-    planSteps,
     selfGuidedHabits,
     roadmapCards,
     roadmapTarget,
     pillars,
     posture,
+    radarData,
+    previousRadarData,
     formData,
+    priorityFocus,
   };
 }
 
@@ -205,34 +235,30 @@ function buildGoalPromise(
     'your goals';
 
   if (formData && goalCtx.primaryGoal === GOAL_WEIGHT_LOSS) {
-    const profile = buildClientProfile(formData, scores);
-    const { levels } = mergeEffectiveGoalLevels(formData, goals, scores);
-    const levelWL = levels.goalLevelWeightLoss;
-    let targetKg = 5;
-    if (levelWL.includes('kg')) {
-      targetKg = safeParse(levelWL.replace('kg', '')) || 5;
-    } else {
-      targetKg = (profile.bodyWeightKg * (safeParse(levelWL) || 10)) / 100;
+    const projected = projectClientTwelveWeekWeightLoss(formData, scores, goals);
+    if (projected && projected.lossKg > 0) {
+      const kg12w = formatKg1(projected.lossKg);
+      const rateLabel = projected.weeklyRateKg.toFixed(2);
+      const protectMuscle = goalCtx.hasBuildMuscle || goalCtx.hasBodyRecomp;
+      return protectMuscle
+        ? clientGoalPromiseRecomp(rateLabel, kg12w)
+        : clientGoalPromiseWeightLoss(rateLabel, kg12w);
     }
-    const rate = weeklyWeightLossKg(profile, targetKg);
-    const kg4 = (rate.rate * 16).toFixed(1);
-    const kg12 = Math.min(rate.rate * 52, profile.bodyWeightKg * 0.28).toFixed(1);
-    return `Your plan is built for ${label.toLowerCase()} at about ${rate.rate.toFixed(2)} kg per week — roughly ${kg4} kg in four months and up to ~${kg12} kg in a year while we protect muscle and strength.`;
   }
 
   if (formData && goalCtx.primaryGoal === GOAL_BUILD_MUSCLE) {
-    return `Your plan prioritises ${label.toLowerCase()} — progressive training and nutrition so lean mass and strength move up steadily over the next 4–12 months.`;
+    return clientGoalPromiseMuscle();
   }
 
   if (formData && goalCtx.primaryGoal === GOAL_IMPROVE_FITNESS) {
-    return `Your plan prioritises ${label.toLowerCase()} — we\'ll build your aerobic base, then layer intensity so heart, lungs, and recovery scores climb through the year.`;
+    return clientGoalPromiseFitness();
   }
 
   if (formData && goalCtx.primaryGoal === GOAL_BUILD_STRENGTH) {
-    return `Your plan prioritises ${label.toLowerCase()} — technique first, then load and volume so the numbers in your strength pillar keep climbing.`;
+    return clientGoalPromiseStrength();
   }
 
-  return `We\'ll build a clear plan around ${label.toLowerCase()} — steady, coached progress you can see in the tables below.`;
+  return clientGoalPromiseDefault(label);
 }
 
 function buildGoalAlignedSubheadline(
@@ -251,7 +277,7 @@ function buildGoalAlignedSubheadline(
     if (bodyComp && bodyComp.score < 60) {
       return 'Body composition is the main lever; everything else supports sustainable fat loss.';
     }
-    return 'Nutrition, steps, and strength training work together — the progression table shows the pace we\'re aiming for.';
+    return 'Nutrition, steps, and strength training work together over the next 12 weeks.';
   }
 
   if (goalCtx.primaryGoal === GOAL_BUILD_MUSCLE && movement && movement.score >= 85) {
@@ -261,15 +287,6 @@ function buildGoalAlignedSubheadline(
   return buildClientScoreHeadline(scores);
 }
 
-function buildWelcomeParagraph(
-  scores: ScoreSummary,
-  _previousOverall: number | null,
-  _goalPromise: string,
-): string {
-  const assessed = (scores.categories ?? []).filter((c) => c.assessed).length;
-  return `Today\'s assessment gives us a baseline across ${assessed} areas. The numbers below show where you are now — your coach will use them to keep you on track toward your goal.`;
-}
-
 const PILLAR_ROLE_ORDER: Record<PillarRole, number> = {
   primary: 0,
   secondary: 1,
@@ -277,13 +294,27 @@ const PILLAR_ROLE_ORDER: Record<PillarRole, number> = {
   'off-path': 3,
 };
 
-function sortPillarsByGoalRole(
-  pillars: ClientReportPillarModel[],
-  goalCtx: ClientGoalContext,
-): ClientReportPillarModel[] {
+function sortPillarsByGoalRole(pillars: ClientReportPillarModel[]): ClientReportPillarModel[] {
   return [...pillars].sort(
     (a, b) => PILLAR_ROLE_ORDER[a.pillarRole] - PILLAR_ROLE_ORDER[b.pillarRole],
   );
+}
+
+function buildPriorityFocus(
+  scores: ScoreSummary,
+  goalCtx: ClientGoalContext,
+): { label: string; score: number } | null {
+  const assessed = (scores.categories ?? []).filter((c) => c.assessed);
+  const primary = assessed.find((c) => resolvePillarRole(c.id, goalCtx) === 'primary');
+  const fallback = [...assessed]
+    .filter((c) => resolvePillarRole(c.id, goalCtx) !== 'off-path')
+    .sort((a, b) => a.score - b.score)[0];
+  const pick = primary ?? fallback;
+  if (!pick) return null;
+  return {
+    label: CLIENT_PILLAR_LABELS[pick.id] ?? pick.title,
+    score: Math.round(pick.score),
+  };
 }
 
 function buildHeroList(
@@ -336,6 +367,7 @@ function buildPillarModel(
 
   const meta = SECTION_META[sectionId];
   const prev = previousScores?.categories?.find((c) => c.id === scoringId)?.score ?? null;
+  const comparablePrev = prev != null && prev > 0 ? Math.round(prev) : null;
   const pillarRole = resolvePillarRole(scoringId, goalCtx);
 
   const gapIndex =
@@ -358,15 +390,15 @@ function buildPillarModel(
     shortTitle: meta.shortTitle,
     icon: meta.icon,
     score: Math.round(cat.score ?? 0),
-    previousScore: prev != null ? Math.round(prev) : null,
-    summary: sanitizeClientReportCopy(buildClientPillarSummary(cat, prev)),
+    previousScore: comparablePrev,
+    summary: sanitizeClientReportCopy(buildClientPillarSummary(cat, comparablePrev)),
     goingWell: (cat.strengths ?? []).slice(0, 2).map(sanitizeClientReportCopy),
     focusNext: (cat.weaknesses ?? []).slice(0, 2).map(sanitizeClientReportCopy),
     metrics:
       sectionId === 'lifestyle'
         ? extractLifestyleMetrics(formData)
         : sectionId === 'body-comp' || sectionId === 'strength' || sectionId === 'cardio'
-          ? extractGapMetrics(sectionId, gapAnalysisData[gapIndex])
+          ? extractGapMetrics(sectionId, gapAnalysisData[gapIndex], Math.round(cat.score ?? 0))
           : [],
     progressionRows:
       contentMode === 'progression'
@@ -415,7 +447,8 @@ function buildPillarGoalTieIn(
 
 function extractGapMetrics(
   sectionId: 'body-comp' | 'strength' | 'cardio',
-  gap?: GapAnalysisData,
+  gap: GapAnalysisData | undefined,
+  pillarScore: number,
 ): ClientReportMetricChip[] {
   if (!gap) return [];
 
@@ -430,12 +463,11 @@ function extractGapMetrics(
   if (sectionId === 'cardio' && gap.cardioGaps) {
     const g = gap.cardioGaps;
     const chips: ClientReportMetricChip[] = [];
-    if (g.vo2.current > 0) {
-      // No lab units client-side — "Fitness level" plain framing carries the number.
-      chips.push({ label: 'Fitness level', value: g.vo2.current.toFixed(1) });
+    if (pillarScore > 0) {
+      chips.push({ label: 'Fitness level', value: String(Math.round(pillarScore)) });
     }
     if (g.rhr.current > 0) {
-      chips.push({ label: 'Resting HR', value: `${Math.round(g.rhr.current)} bpm` });
+      chips.push({ label: 'Resting heart rate', value: `${Math.round(g.rhr.current)} bpm` });
     }
     return chips.slice(0, 2);
   }
@@ -465,23 +497,30 @@ function extractLifestyleMetrics(formData?: FormData): ClientReportMetricChip[] 
   return chips.slice(0, 2);
 }
 
-function buildPostureModel(formData?: FormData): ClientReportPostureModel | null {
-  if (!formData?.postureAiResults) return null;
-
-  const findings = aggregatePostureFindings(
-    formData.postureAiResults as Parameters<typeof aggregatePostureFindings>[0],
+function isPostureImageUrl(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    (value.startsWith('http') || value.startsWith('data:') || value.startsWith('gs://'))
   );
-  const images = collectPostureImages(formData);
-  if (Object.keys(images).length === 0) return null;
+}
 
+function buildPostureModel(formData?: FormData): ClientReportPostureModel | null {
+  if (!formData) return null;
+
+  const images = collectPostureImages(formData);
+  const rawResults = formData.postureAiResults;
+  const results =
+    rawResults && typeof rawResults === 'object'
+      ? (rawResults as Parameters<typeof aggregatePostureFindings>[0])
+      : {};
+  const hasImages = Object.keys(images).length > 0;
+  const hasAnalysis = Object.keys(results).length > 0;
+  if (!hasImages && !hasAnalysis) return null;
+
+  const findings = hasAnalysis ? aggregatePostureFindings(results) : [];
   const notable = findings.filter((f) => f.severity !== 'aligned');
   const sorted = sortFindingsForDisplay(notable);
-  const headline =
-    notable.length === 0
-      ? 'Your scan shows balanced alignment across the views we captured.'
-      : notable.length === 1
-        ? `One area to refine: ${sorted[0]?.name ?? 'posture'}.`
-        : `${notable.length} areas to refine — see the summary below and tap each view on your scan.`;
+  const headline = buildPostureOverview(sorted, hasAnalysis);
 
   const summaryLines = sorted.slice(0, 5).map((f) => {
     const meaning = sanitizeClientReportCopy(f.whatItMeans?.trim() ?? '');
@@ -491,40 +530,66 @@ function buildPostureModel(formData?: FormData): ClientReportPostureModel | null
 
   return {
     findings,
-    postureResults: formData.postureAiResults ?? {},
+    postureResults: results,
     images,
     headline,
     summaryLines,
-    focusBullets: buildFocusBullets(notable, 4),
+    focusBullets: hasAnalysis ? buildFocusBullets(notable, 4) : [],
   };
+}
+
+function formatFindingList(names: string[]): string {
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+function buildPostureOverview(
+  sorted: PostureFindingRecord[],
+  hasAnalysis: boolean,
+): string {
+  if (!hasAnalysis) return CLIENT_REPORT_COPY.v2PostureImagesOnlyHeadline;
+  if (sorted.length === 0) return CLIENT_REPORT_COPY.v2PostureBalancedHeadline;
+
+  const names = sorted.slice(0, 3).map((f) => sanitizeClientReportCopy(f.name));
+  const cue = sanitizeClientReportCopy(
+    (sorted[0]?.whatWellDo || sorted[0]?.whatItMeans || '').trim(),
+  );
+
+  if (sorted.length === 1) {
+    return cue
+      ? `${names[0]} is the main finding from this scan. ${cue}`
+      : `One area to refine: ${names[0]}.`;
+  }
+
+  const intro = `The scan flags ${formatFindingList(names)}.`;
+  if (cue) return `${intro} ${cue}`;
+  return `${intro} Those are the posture cues to work on first.`;
 }
 
 function collectPostureImages(formData: FormData): Record<string, string> {
   const postureImages: Record<string, string> = {};
+  const take = (key: string, value: unknown) => {
+    if (isPostureImageUrl(value) && !postureImages[key]) {
+      postureImages[key] = value;
+    }
+  };
+
   if (formData.postureImages && typeof formData.postureImages === 'object') {
-    Object.entries(formData.postureImages).forEach(([key, value]) => {
-      if (value && typeof value === 'string' && (value.startsWith('data:') || value.startsWith('http'))) {
-        postureImages[key] = value;
-      }
-    });
+    Object.entries(formData.postureImages).forEach(([key, value]) => take(key, value));
   }
   if (formData.postureImagesStorage && typeof formData.postureImagesStorage === 'object') {
-    Object.entries(formData.postureImagesStorage).forEach(([key, value]) => {
-      if (
-        value &&
-        typeof value === 'string' &&
-        (value.startsWith('http') || value.startsWith('gs://')) &&
-        !postureImages[key]
-      ) {
-        postureImages[key] = value;
-      }
-    });
+    Object.entries(formData.postureImagesStorage).forEach(([key, value]) => take(key, value));
+  }
+
+  const record = formData as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(record)) {
+    if (key.startsWith('postureImagesFull_')) {
+      take(key.replace('postureImagesFull_', ''), value);
+    }
+    if (key.startsWith('postureImagesStorage_')) {
+      take(key.replace('postureImagesStorage_', ''), value);
+    }
   }
   return postureImages;
-}
-
-function severityRank(severity: 'low' | 'medium' | 'high'): number {
-  if (severity === 'high') return 3;
-  if (severity === 'medium') return 2;
-  return 1;
 }

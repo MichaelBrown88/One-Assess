@@ -2,6 +2,8 @@ import type { PostureAnalysisResult } from '../ai/postureAnalysis';
 import { CONFIG } from '@/config';
 import type { OverlayOptions, PostureView, LandmarkData } from './types';
 import { drawDeviations } from './postureDeviationRenderer';
+import { planPostureOverlay } from './postureOverlayPlan';
+import { resolveAlignmentSource, type AlignmentSource } from './resolveAlignmentSource';
 
 /**
  * Adds posture reference or deviation lines to an image using HTML Canvas
@@ -20,7 +22,6 @@ export async function addPostureOverlay(
     backgroundColor = '#000000',
     clientFacingDeviations = false,
     analysis,
-    mode = 'reference',
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -45,14 +46,16 @@ export async function addPostureOverlay(
         const targetHipY = canvas.height * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.HIP_Y_PCT / 100);
 
         const landmarkData = options.landmarks || analysis?.landmarks;
+        const plan = planPostureOverlay({ landmarks: landmarkData, analysis });
+        const source = resolveAlignmentSource(view, landmarkData, img.width, img.height);
 
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (mode === 'align' && landmarkData) {
-          drawAlignedImage(ctx, img, view, landmarkData, canvas.width, canvas.height);
+        if (source) {
+          drawAlignedImage(ctx, img, source, canvas.width, canvas.height);
         } else {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          drawContainedImage(ctx, img, canvas.width, canvas.height);
         }
 
         ctx.strokeStyle = lineColor;
@@ -81,7 +84,7 @@ export async function addPostureOverlay(
           ctx.stroke();
         }
 
-        if (mode === 'deviation' && analysis) {
+        if (plan.deviations && analysis) {
           drawDeviations(
             ctx,
             view,
@@ -104,11 +107,22 @@ export async function addPostureOverlay(
   });
 }
 
+function drawContainedImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  const scale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, (canvasWidth - w) / 2, (canvasHeight - h) / 2, w, h);
+}
+
 function drawAlignedImage(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  view: PostureView,
-  landmarkData: LandmarkData,
+  source: AlignmentSource,
   canvasWidth: number,
   canvasHeight: number
 ): void {
@@ -116,48 +130,18 @@ function drawAlignedImage(
   const targetShoulderY = canvasHeight * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.SHOULDER_Y_PCT / 100);
   const targetHipY = canvasHeight * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.HIP_Y_PCT / 100);
 
-  let sourceLandmarkX: number;
-  let sourceShoulderY: number;
-  let sourceHipY: number;
-
-  if (view === 'side-right' || view === 'side-left') {
-    if (landmarkData.midfoot_x_percent !== undefined) {
-      sourceLandmarkX = (landmarkData.midfoot_x_percent / 100) * img.width;
-    } else {
-      sourceLandmarkX = img.width / 2;
-    }
-  } else {
-    if (landmarkData.center_x_percent !== undefined) {
-      sourceLandmarkX = (landmarkData.center_x_percent / 100) * img.width;
-    } else {
-      sourceLandmarkX = img.width / 2;
-    }
-  }
-
-  if (landmarkData.shoulder_y_percent !== undefined) {
-    sourceShoulderY = (landmarkData.shoulder_y_percent / 100) * img.height;
-  } else {
-    sourceShoulderY = img.height * 0.25;
-  }
-
-  if (landmarkData.hip_y_percent !== undefined) {
-    sourceHipY = (landmarkData.hip_y_percent / 100) * img.height;
-  } else {
-    sourceHipY = img.height * 0.5;
-  }
-
-  const sourceTorsoHeight = Math.abs(sourceHipY - sourceShoulderY);
+  const sourceTorsoHeight = Math.abs(source.hipY - source.shoulderY);
   const targetTorsoHeight = Math.abs(targetHipY - targetShoulderY);
+  if (sourceTorsoHeight < 1) {
+    drawContainedImage(ctx, img, canvasWidth, canvasHeight);
+    return;
+  }
 
-  let scale = sourceTorsoHeight > 0 ? targetTorsoHeight / sourceTorsoHeight : 1.0;
+  let scale = targetTorsoHeight / sourceTorsoHeight;
   scale = Math.max(0.3, Math.min(3.0, scale));
 
-  const scaledLandmarkX = sourceLandmarkX * scale;
-  const scaledShoulderY = sourceShoulderY * scale;
-  const scaledHipY = sourceHipY * scale;
-
-  const translateX = targetCenterX - scaledLandmarkX;
-  const scaledBodyCenterY = (scaledShoulderY + scaledHipY) / 2;
+  const translateX = targetCenterX - source.x * scale;
+  const scaledBodyCenterY = ((source.shoulderY + source.hipY) / 2) * scale;
   const targetBodyCenterY = (targetShoulderY + targetHipY) / 2;
   const translateY = targetBodyCenterY - scaledBodyCenterY;
 
@@ -264,54 +248,15 @@ export async function cropAndCenterImage(
           return;
         }
 
-        const targetCenterX = width * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.CENTER_X_PCT / 100);
-        const targetShoulderY = height * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.SHOULDER_Y_PCT / 100);
-        const targetHipY = height * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.HIP_Y_PCT / 100);
-
-        let sourceLandmarkX: number;
-
-        if (view === 'side-right' || view === 'side-left') {
-          sourceLandmarkX = landmarks.midfoot_x_percent !== undefined
-            ? (landmarks.midfoot_x_percent / 100) * img.width
-            : img.width / 2;
-        } else {
-          sourceLandmarkX = landmarks.center_x_percent !== undefined
-            ? (landmarks.center_x_percent / 100) * img.width
-            : img.width / 2;
-        }
-
-        const sourceShoulderY = landmarks.shoulder_y_percent !== undefined
-          ? (landmarks.shoulder_y_percent / 100) * img.height
-          : img.height * 0.25;
-
-        const sourceHipY = landmarks.hip_y_percent !== undefined
-          ? (landmarks.hip_y_percent / 100) * img.height
-          : img.height * 0.5;
-
-        const sourceTorsoHeight = Math.abs(sourceHipY - sourceShoulderY);
-        const targetTorsoHeight = Math.abs(targetHipY - targetShoulderY);
-
-        let scale = sourceTorsoHeight > 0 ? targetTorsoHeight / sourceTorsoHeight : 1.0;
-        scale = Math.max(0.3, Math.min(3.0, scale));
-
-        const scaledLandmarkX = sourceLandmarkX * scale;
-        const scaledShoulderY = sourceShoulderY * scale;
-        const scaledHipY = sourceHipY * scale;
-
-        const translateX = targetCenterX - scaledLandmarkX;
-        const scaledBodyCenterY = (scaledShoulderY + scaledHipY) / 2;
-        const targetBodyCenterY = (targetShoulderY + targetHipY) / 2;
-        const translateY = targetBodyCenterY - scaledBodyCenterY;
-
-        // Black background for gaps
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, width, height);
 
-        ctx.save();
-        ctx.translate(translateX, translateY);
-        ctx.scale(scale, scale);
-        ctx.drawImage(img, 0, 0);
-        ctx.restore();
+        const source = resolveAlignmentSource(view, landmarks, img.width, img.height);
+        if (source) {
+          drawAlignedImage(ctx, img, source, width, height);
+        } else {
+          drawContainedImage(ctx, img, width, height);
+        }
 
         resolve(canvas.toDataURL('image/jpeg', 0.92));
       } catch (error) {

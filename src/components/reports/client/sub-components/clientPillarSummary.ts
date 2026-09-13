@@ -4,7 +4,7 @@ import { getPillarLabel } from '@/constants/pillars';
 const PILLAR_LABEL_SHORT: Record<ScoreCategory['id'], string> = {
   bodyComp: 'body composition',
   strength: 'strength',
-  cardio: 'cardio',
+  cardio: 'fitness',
   movementQuality: 'movement quality',
   lifestyle: 'lifestyle',
 };
@@ -28,9 +28,9 @@ export function buildClientPillarSummary(
   const topStrength = category.strengths?.[0];
   const topFocus = category.weaknesses?.[0];
   const improved =
-    previousScore != null && Math.round(score) > Math.round(previousScore);
+    previousScore != null && previousScore > 0 && Math.round(score) > Math.round(previousScore);
   const declined =
-    previousScore != null && Math.round(score) < Math.round(previousScore);
+    previousScore != null && previousScore > 0 && Math.round(score) < Math.round(previousScore);
   const trendBit = improved
     ? ' You improved since your last assessment.'
     : declined

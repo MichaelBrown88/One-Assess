@@ -6,6 +6,8 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { processBodyCompScan } from '@/lib/ai/ocrEngine';
+import { classifyOcrFailure, type OcrFailReason } from '@/lib/ai/ocrFailure';
+import { BODY_COMP_OCR_COPY as OCR_COPY } from '@/constants/bodyCompOcrCopy';
 import type { FormData } from '@/contexts/FormContext';
 import type { PostureCompanionData } from '@/lib/types/companion';
 import { logger } from '@/lib/utils/logger';
@@ -13,17 +15,20 @@ import { logger } from '@/lib/utils/logger';
 interface UseCameraHandlerProps {
   updateFormData: (updates: Partial<FormData>) => void;
   organizationId?: string;
+  persistPosture?: (data: PostureCompanionData) => Promise<void>;
 }
 
 export function useCameraHandler({
   updateFormData,
   organizationId,
+  persistPosture,
 }: UseCameraHandlerProps) {
   const { toast } = useToast();
   // Camera state
   const [showCamera, setShowCamera] = useState<false | 'ocr'>(false);
   const [showPostureCompanion, setShowPostureCompanion] = useState(false);
   const [ocrReviewData, setOcrReviewData] = useState<Partial<FormData> | null>(null);
+  const [ocrFailReason, setOcrFailReason] = useState<OcrFailReason | null>(null);
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
   const [processingMode, setProcessingMode] = useState<'ocr' | 'posture' | null>(null);
   const [postureRetakeWarning, setPostureRetakeWarning] = useState<string | null>(null);
@@ -36,8 +41,8 @@ export function useCameraHandler({
       setIsProcessingOcr(true);
 
       toast({
-        title: "Image Captured",
-        description: "Reading the numbers from your report...",
+        title: OCR_COPY.CAPTURED_TITLE,
+        description: OCR_COPY.CAPTURED_BODY,
       });
 
       try {
@@ -45,29 +50,20 @@ export function useCameraHandler({
         if (result.fields && Object.keys(result.fields).length > 0) {
           setOcrReviewData(result.fields);
         } else {
-          toast({
-            title: "Couldn't read the report",
-            description: "Retake the photo with the numbers sharp and glare-free, or type the values into the fields below.",
-            variant: "destructive"
-          });
+          setOcrFailReason('unreadable');
         }
       } catch (err) {
         logger.error('OCR error:', err);
-        // Config gates get their own copy so a platform flag or empty credit
-        // balance never masquerades as a broken scanner.
-        const isCredit = err instanceof Error && err.name === 'AICreditExhaustedError';
-        const isDisabled = err instanceof Error && err.name === 'FeatureDisabledError';
-        toast({
-          title: isCredit
-            ? "No AI credits remaining"
-            : isDisabled
-              ? "Photo import is switched off"
-              : "Couldn't read the report",
-          description: isCredit || isDisabled
-            ? err.message
-            : "Retake the photo, or type the values into the fields below.",
-          variant: "destructive",
-        });
+        const reason = classifyOcrFailure(err);
+        if (reason === 'unreadable') {
+          setOcrFailReason('unreadable');
+        } else {
+          toast({
+            title: reason === 'credit' ? OCR_COPY.CREDIT_TITLE : OCR_COPY.DISABLED_TITLE,
+            description: err instanceof Error ? err.message : OCR_COPY.UNREADABLE_BODY,
+            variant: 'destructive',
+          });
+        }
       } finally {
         setIsProcessingOcr(false);
         setProcessingMode(null);
@@ -82,14 +78,26 @@ export function useCameraHandler({
       // Set flag to show analyzer fields after OCR data is applied
       updateFormData({ ...ocrReviewData, showAnalyzerFields: 'yes' });
       setOcrReviewData(null);
-      toast({ title: "Body composition data applied", description: "Check the remaining fields, then continue when ready." });
+      toast({ title: OCR_COPY.APPLIED_TITLE, description: OCR_COPY.APPLIED_BODY });
     }
   }, [ocrReviewData, updateFormData, toast]);
+
+  const dismissOcrFail = useCallback(() => setOcrFailReason(null), []);
+
+  const retryOcrCapture = useCallback(() => {
+    setOcrFailReason(null);
+    setShowCamera('ocr');
+  }, []);
 
   const handlePostureCompanionComplete = useCallback((data: PostureCompanionData) => {
     updateFormData(data);
     toast({ title: "Posture data applied", description: "Analysis has been populated." });
-  }, [updateFormData, toast]);
+    if (persistPosture) {
+      void persistPosture(data).catch((err) => {
+        logger.warn('[useCameraHandler] Failed to persist posture onto the saved report', err);
+      });
+    }
+  }, [updateFormData, toast, persistPosture]);
 
   return {
     // State
@@ -99,6 +107,9 @@ export function useCameraHandler({
     setShowPostureCompanion,
     ocrReviewData,
     setOcrReviewData,
+    ocrFailReason,
+    dismissOcrFail,
+    retryOcrCapture,
     isProcessingOcr,
     processingMode,
     postureRetakeWarning,

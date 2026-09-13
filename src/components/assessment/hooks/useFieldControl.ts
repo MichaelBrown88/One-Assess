@@ -4,16 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { hasActiveBaselineSession } from '@/lib/assessment/baselineSession';
+import { readStoredGripMethod } from '@/lib/assessment/gripMethodPrefill';
 import type { PhaseField } from '@/types/assessment';
-
-function readStoredGripMethod(): 'deadhang' | 'pinch' | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.LAST_GRIP_METHOD);
-    return raw === 'deadhang' || raw === 'pinch' ? raw : null;
-  } catch {
-    return null;
-  }
-}
 
 export type FieldValue = string | number | string[] | null;
 

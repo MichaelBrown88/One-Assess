@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMovementFindings, toneForMovementValue } from './clientMovementFindings';
+import { buildMovementFindings, movementWorkOns, toneForMovementValue } from './clientMovementFindings';
 import { sanitizeClientReportCopy } from './sanitizeClientReportCopy';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreCategory } from '@/lib/scoring';
@@ -30,6 +30,19 @@ describe('buildMovementFindings', () => {
     expect(groups[0]?.tone).toBe('critical');
   });
 
+  it('surfaces only the flags that need work', () => {
+    const formData = {
+      ohsSquatDepth: 'quarter-depth',
+      ohsKneeAlignment: 'stable',
+      hingeDepth: 'good',
+      hingeBackRounding: 'none',
+    } as FormData;
+    const model = buildMovementFindings(formData, undefined);
+    expect(movementWorkOns(model)).toEqual([
+      expect.objectContaining({ pattern: 'Overhead squat' }),
+    ]);
+  });
+
   it('renders clinical labels in plain language after sanitising', () => {
     const formData = { ohsKneeAlignment: 'valgus' } as FormData;
     const cat = { assessed: true, score: 70, id: 'movementQuality' } as ScoreCategory;
@@ -52,5 +65,19 @@ describe('sanitizeClientReportCopy', () => {
 
   it('still strips legacy placeholder prefixes', () => {
     expect(sanitizeClientReportCopy('Placeholder: some line')).toBe('some line');
+  });
+
+  it('translates coach shorthand that must not reach the client page', () => {
+    expect(sanitizeClientReportCopy('Keep 2 Zone 2 sessions a week')).toBe(
+      'Keep 2 easy talking pace sessions a week',
+    );
+    expect(sanitizeClientReportCopy('Small calorie deficit — go slow')).toBe(
+      'Small eat a little less than you burn — go slow',
+    );
+    expect(sanitizeClientReportCopy('Periodise harder blocks with deloads')).toBe(
+      'pace harder blocks with easier weeks',
+    );
+    expect(sanitizeClientReportCopy('VO2 max 38 ml/kg/min')).toBe('Fitness level 38');
+    expect(sanitizeClientReportCopy('2200 kcal / day')).toBe('2200 calories / day');
   });
 });

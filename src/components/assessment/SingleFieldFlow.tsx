@@ -13,6 +13,7 @@ import {
   type MovementPatternSectionId,
 } from '@/components/assessment/movement/MovementPatternCapture';
 import { CardioRunSheet } from '@/components/assessment/cardio/CardioRunSheet';
+import { shouldSkipGripMethodStep } from '@/lib/assessment/gripMethodPrefill';
 
 const MOVEMENT_PATTERN_SECTIONS = new Set<MovementPatternSectionId>([
   'overhead-squat',
@@ -172,6 +173,26 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
     }, 300);
     return () => clearTimeout(timer);
   }, [formData, isAutoAdvanceStep, currentStep, setActiveFieldIdx]);
+
+  // Last-used grip method is prefilled — skip the picker when a result field follows.
+  const gripSkippedForStep = useRef('');
+  useEffect(() => {
+    if (!currentStep || currentStep.length !== 1) return;
+    const fieldId = currentStep[0].id;
+    if (
+      !shouldSkipGripMethodStep(
+        fieldId,
+        typeof formData.gripTestMethod === 'string' ? formData.gripTestMethod : undefined,
+        isLastField,
+      )
+    ) {
+      return;
+    }
+    const key = `${section.id}:${activeFieldIdx}:${fieldId}`;
+    if (gripSkippedForStep.current === key) return;
+    gripSkippedForStep.current = key;
+    setActiveFieldIdx((prev) => prev + 1);
+  }, [currentStep, formData.gripTestMethod, isLastField, section.id, activeFieldIdx, setActiveFieldIdx]);
 
   const handleBack = () => {
     if (activeFieldIdx > 0) {

@@ -1,88 +1,130 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ClientReportPostureModel } from '@/lib/reports/buildClientReportModel';
+import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
+import type { PostureFindingRecord, PostureFindingViewId } from '@/lib/types/postureFindings';
 import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
-import { PostureClientPostureSection } from '@/components/reports/posture/PostureClientPostureSection';
+import { PostureViewExpandedSheet } from '@/components/reports/posture/PostureViewExpandedSheet';
 import { sanitizeClientReportCopy } from '@/lib/reports/sanitizeClientReportCopy';
-import { sortFindingsForDisplay } from '@/lib/posture/aggregatePostureInsights';
-import { ClientReportCallout } from './ClientReportCallout';
+import { viewLabelTitle } from '@/lib/posture/aggregatePostureInsights';
 import { cn } from '@/lib/utils';
+
+const VIEWS: PostureFindingViewId[] = ['front', 'side-left', 'back', 'side-right'];
 
 interface PostureFilmstripProps {
   posture: ClientReportPostureModel;
   embedded?: boolean;
 }
 
+function imageUrl(images: Record<string, string>, view: PostureFindingViewId): string {
+  return (
+    images[view] ||
+    images[`postureImagesStorage_${view}`] ||
+    images[`postureImagesFull_${view}`] ||
+    ''
+  );
+}
+
+function findingsForView(
+  results: Partial<Record<PostureFindingViewId, PostureAnalysisResult>>,
+  view: PostureFindingViewId,
+): PostureFindingRecord[] {
+  return (results[view]?.structuredFindings ?? []).filter((f) => f.severity !== 'aligned');
+}
+
 export function PostureFilmstrip({ posture, embedded = false }: PostureFilmstripProps) {
-  const notable = sortFindingsForDisplay(
-    posture.findings.filter((f) => f.severity !== 'aligned'),
-  ).slice(0, 5);
+  const [expandedView, setExpandedView] = useState<PostureFindingViewId | null>(null);
+  const overview = sanitizeClientReportCopy(posture.headline);
 
   return (
     <section className={cn(embedded ? '' : 'rounded-sm border border-border bg-card px-6 py-7 sm:px-10')}>
-      <div className="mb-4 border-b border-border pb-3">
-        <h2 className="text-base font-semibold tracking-[-0.02em] text-foreground">
-          {CLIENT_REPORT_COPY.v2PostureHeading}
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-foreground-secondary">
-          {sanitizeClientReportCopy(posture.headline)}
-        </p>
+      <h2 className="text-base font-semibold tracking-[-0.02em] text-foreground">
+        {CLIENT_REPORT_COPY.v2PostureHeading}
+      </h2>
+
+      <div className="mt-5 grid gap-x-8 gap-y-5 lg:grid-cols-2">
+        {VIEWS.map((view) => (
+          <PostureViewPair
+            key={view}
+            view={view}
+            url={imageUrl(posture.images, view)}
+            findings={findingsForView(posture.postureResults, view)}
+            onOpen={() => setExpandedView(view)}
+          />
+        ))}
       </div>
 
-      {notable.length > 0 ? (
-        <div className="mb-5 space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {CLIENT_REPORT_COPY.postureFindingsHeading}
-          </p>
-          {notable.map((f) => {
-            const meaning = sanitizeClientReportCopy(f.whatItMeans?.trim() ?? '');
-            const plan = sanitizeClientReportCopy(f.whatWellDo?.trim() ?? '');
-            return (
-              <article
-                key={f.id}
-                className="rounded-sm border border-border/70 bg-muted/25 px-3 py-3 sm:px-4"
-              >
-                <p className="text-sm font-semibold text-foreground">{f.name}</p>
-                {meaning ? (
-                  <p className="mt-1.5 text-sm leading-relaxed text-foreground-secondary">
-                    <span className="font-medium text-foreground/85">
-                      {CLIENT_REPORT_COPY.v2PostureWhatItMeans}:{' '}
-                    </span>
-                    {meaning}
-                  </p>
-                ) : null}
-                {plan ? (
-                  <ClientReportCallout variant="takeaway" label={CLIENT_REPORT_COPY.v2PostureWhatWeDo} className="mt-3">
-                    {plan}
-                  </ClientReportCallout>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
+      {overview ? (
+        <p className="mt-6 max-w-2xl text-sm leading-relaxed text-foreground-secondary">
+          {overview}
+        </p>
       ) : null}
 
-      {posture.focusBullets.length > 0 ? (
-        <div className="mb-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {CLIENT_REPORT_COPY.focusNext}
-          </p>
-          <ul className="mt-2 space-y-2">
-            {posture.focusBullets.map((line) => (
-              <li key={line}>
-                <ClientReportCallout variant="focus">{sanitizeClientReportCopy(line)}</ClientReportCallout>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <p className="mb-3 text-[11px] text-muted-foreground">
-        {CLIENT_REPORT_COPY.v2PostureSubheading}
-      </p>
-      <PostureClientPostureSection
-        postureResults={posture.postureResults}
-        postureImages={posture.images}
+      <PostureViewExpandedSheet
+        view={expandedView}
+        findings={expandedView ? findingsForView(posture.postureResults, expandedView) : []}
+        imageUrl={expandedView ? imageUrl(posture.images, expandedView) : ''}
+        onClose={() => setExpandedView(null)}
       />
     </section>
+  );
+}
+
+interface PostureViewPairProps {
+  view: PostureFindingViewId;
+  url: string;
+  findings: PostureFindingRecord[];
+  onOpen: () => void;
+}
+
+function PostureViewPair({ view, url, findings, onOpen }: PostureViewPairProps) {
+  const label = viewLabelTitle(view);
+  const shown = findings.slice(0, 2);
+
+  return (
+    <article className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-4">
+      {url ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="overflow-hidden rounded-md border border-border/60 bg-white dark:bg-white"
+        >
+          <img src={url} alt="" className="h-36 w-full object-contain object-center sm:h-40" />
+        </button>
+      ) : (
+        <div className="flex h-36 items-end rounded-md border border-dashed border-border/80 bg-muted/30 p-2 sm:h-40">
+          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {CLIENT_REPORT_COPY.v2PostureViewMissing}
+          </span>
+        </div>
+      )}
+      <div className="min-w-0 pt-0.5">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </p>
+        {shown.length === 0 ? (
+          <p className="mt-1.5 text-[13px] leading-snug text-foreground-secondary">
+            {url
+              ? CLIENT_REPORT_COPY.v2PostureViewBalanced
+              : CLIENT_REPORT_COPY.v2PostureViewMissing}
+          </p>
+        ) : (
+          <ul className="mt-1.5 space-y-2">
+            {shown.map((f) => {
+              const cue = sanitizeClientReportCopy((f.whatWellDo || f.whatItMeans || '').trim());
+              return (
+                <li key={f.id}>
+                  <p className="text-[13px] font-semibold text-foreground">{f.name}</p>
+                  {cue ? (
+                    <p className="mt-0.5 text-[12px] leading-snug text-foreground-secondary line-clamp-2">
+                      {cue}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </article>
   );
 }

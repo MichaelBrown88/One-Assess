@@ -19,6 +19,7 @@ export const COACH_POSTURE_CAPTURE_COPY = {
   } as Record<string, string>,
   SHUTTER_ARIA: 'Take photo',
   USE_PHOTO: 'Use photo',
+  SAVING: 'Saving…',
   RETAKE: 'Retake',
   ALL_DONE_TITLE: 'All four views captured',
   ALL_DONE_BODY: 'Analysis is running — results appear on the posture screen in a few seconds.',
@@ -27,7 +28,7 @@ export const COACH_POSTURE_CAPTURE_COPY = {
   CAMERA_STARTING: 'Starting camera…',
   CAMERA_ERROR_TITLE: "Camera couldn't start",
   CAMERA_ERROR_BODY:
-    'Allow camera access for this site in the browser settings, or close this and upload photos instead.',
+    'Allow camera access for this site in the browser settings, then tap Try again.',
   CAMERA_RETRY: 'Try again',
   UPLOAD_FAILED_TITLE: "Couldn't save that view",
   UPLOAD_FAILED_BODY: 'Check the connection and retake the view from the posture screen.',
@@ -44,4 +45,11 @@ export const POSTURE_STUDIO_MODAL_COPY = {
     'iPhone HEIC photos are converted automatically. If upload fails, export as JPEG from Photos (Share → Save Image) and try again.',
   GRID_HINT: 'Photos appear here as each view is captured.',
   APPLY: 'Apply Analysis',
+  APPLY_FAILED_TITLE: "Photos aren't ready yet",
+  APPLY_FAILED_BODY: 'Wait for each view to finish saving, then apply again.',
+  PHOTO_CTA: 'Take posture photos',
+  PHOTO_BODY:
+    'Capture the four views with this device, or upload photos. Analysis runs automatically.',
+  PHOTO_BODY_DONE: 'Photos captured — retake if needed or continue to the next step.',
+  SWITCH_MANUAL: 'Switch to manual observation',
 } as const;

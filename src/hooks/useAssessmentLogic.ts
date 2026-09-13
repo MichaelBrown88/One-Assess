@@ -120,13 +120,19 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
               const orgId = profile?.organizationId;
               if (!fd.postureImagesStorage && !fd.postureAiResults && orgId) {
                  const { getClientPostureImages, LIVE_SESSION_PLACEHOLDER_CLIENT_ID } = await import('@/services/liveSessions');
-                 const sessions = await getClientPostureImages(LIVE_SESSION_PLACEHOLDER_CLIENT_ID, orgId);
-                 // ... (Simplified logic: grab best match)
+                 const { generateClientSlug } = await import('@/services/clientProfiles');
+                 const liveClientId = generateClientSlug(clientNameForLookup) || LIVE_SESSION_PLACEHOLDER_CLIENT_ID;
+                 const namedSessions = await getClientPostureImages(liveClientId, orgId);
+                 const placeholderSessions =
+                   liveClientId === LIVE_SESSION_PLACEHOLDER_CLIENT_ID
+                     ? {}
+                     : await getClientPostureImages(LIVE_SESSION_PLACEHOLDER_CLIENT_ID, orgId);
+                 const sessions = { ...placeholderSessions, ...namedSessions };
                  const sessionsWithPosture = Object.values(sessions).filter(s => 
                    (s.images && Object.keys(s.images).length > 0) || (s.analysis && Object.keys(s.analysis).length > 0)
                  );
                  if (sessionsWithPosture.length > 0) {
-                    const latest = sessionsWithPosture[0]; // Simplification
+                    const latest = sessionsWithPosture[0];
                     if (latest.images) fd = { ...fd, postureImagesStorage: { ...(fd.postureImagesStorage as Record<string, string> | undefined ?? {}), ...(latest.images as Record<string, string>) } };
                     if (latest.analysis) fd = { ...fd, postureAiResults: { ...(fd.postureAiResults ?? {}), ...latest.analysis } as typeof latest.analysis };
                  }
