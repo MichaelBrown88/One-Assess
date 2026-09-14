@@ -21,37 +21,61 @@ function summary(partial: Partial<ScoreSummary['categories'][number]>[] , overal
   };
 }
 
+const mixed73 = summary(
+  [
+    { id: 'bodyComp', title: 'Body Composition', score: 62 },
+    { id: 'strength', title: 'Functional Strength', score: 80 },
+    { id: 'cardio', title: 'Metabolic Fitness', score: 73 },
+    { id: 'movementQuality', title: 'Movement Quality', score: 70 },
+    { id: 'lifestyle', title: 'Lifestyle Factors', score: 68 },
+  ],
+  73,
+);
+
+const ibrahim = { dateOfBirth: '1995-03-25', gender: 'male' };
+
 describe('buildOverallResultsSummary', () => {
-  it('summarises a mixed 73 in two or three sentences', () => {
-    const scores = summary(
-      [
-        { id: 'bodyComp', title: 'Body Composition', score: 62 },
-        { id: 'strength', title: 'Functional Strength', score: 80 },
-        { id: 'cardio', title: 'Metabolic Fitness', score: 73 },
-        { id: 'movementQuality', title: 'Movement Quality', score: 70 },
-        { id: 'lifestyle', title: 'Lifestyle Factors', score: 68 },
-      ],
-      73,
-    );
-    const text = buildOverallResultsSummary(scores, null);
-    expect(text).toMatch(/solid/i);
-    expect(text).toMatch(/strength/i);
+  it('uses placement, best finding, and two or three improvement areas', () => {
+    const text = buildOverallResultsSummary(mixed73, null, ibrahim);
+    expect(text).toMatch(/men aged 26–35/i);
+    expect(text).toMatch(/73/);
+    expect(text).toMatch(/above typical/i);
+    expect(text).toMatch(/Strength is your best result today/);
     expect(text).toMatch(/body composition/i);
-    expect(text.split(/[.!?]+/).filter((s) => s.trim()).length).toBeLessThanOrEqual(3);
+    expect(text).toMatch(/lifestyle/i);
+    expect(text).toMatch(/movement/i);
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim());
+    expect(sentences.length).toBeGreaterThanOrEqual(3);
+    expect(sentences.length).toBeLessThanOrEqual(3);
     expect(text).not.toMatch(CLIENT_COPY_FORBIDDEN);
-    expect(text.toLowerCase()).not.toMatch(/focus this block|90-day|vo2/);
+    expect(text.toLowerCase()).not.toMatch(/focus this block|90-day|vo2|12-week|diagnosis/);
   });
 
   it('does not mention a prior assessment when there is no previous score', () => {
-    const scores = summary([{ id: 'strength', score: 80 }], 73);
-    const text = buildOverallResultsSummary(scores, null);
-    expect(text.toLowerCase()).not.toMatch(/improved|last time|before/);
+    const text = buildOverallResultsSummary(mixed73, null, ibrahim);
+    expect(text.toLowerCase()).not.toMatch(/from last time|improved|up \d/);
   });
 
-  it('mentions improvement when the overall score rose', () => {
-    const scores = summary([{ id: 'strength', score: 80 }], 73);
-    const text = buildOverallResultsSummary(scores, 70);
-    expect(text.toLowerCase()).toMatch(/improved/);
+  it('adds a score delta on reassessment without changing the three-beat shape', () => {
+    const text = buildOverallResultsSummary(mixed73, 70, ibrahim);
+    expect(text).toMatch(/up 3 from last time/);
+    expect(text).toMatch(/Strength is your best result today/);
+    expect(text.split(/[.!?]+/).filter((s) => s.trim())).toHaveLength(3);
+  });
+
+  it('still places the score when age or gender is missing', () => {
+    const text = buildOverallResultsSummary(mixed73, null);
+    expect(text).toMatch(/sits above typical on this assessment/);
+    expect(text).not.toMatch(/men aged|women aged/);
+  });
+
+  it('uses the female peer group when the client is a woman', () => {
+    const text = buildOverallResultsSummary(mixed73, null, {
+      dateOfBirth: '1995-03-25',
+      gender: 'female',
+    });
+    expect(text).toMatch(/Among women aged 26–35/i);
+    expect(text).not.toMatch(/Among men aged/);
   });
 });
 

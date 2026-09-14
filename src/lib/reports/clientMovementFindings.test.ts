@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildMovementFindings, movementWorkOns, toneForMovementValue } from './clientMovementFindings';
+import {
+  buildMovementFindings,
+  movementProgressionRows,
+  movementWorkOns,
+  toneForMovementValue,
+} from './clientMovementFindings';
 import { sanitizeClientReportCopy } from './sanitizeClientReportCopy';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreCategory } from '@/lib/scoring';
@@ -40,6 +45,28 @@ describe('buildMovementFindings', () => {
     const model = buildMovementFindings(formData, undefined);
     expect(movementWorkOns(model)).toEqual([
       expect.objectContaining({ pattern: 'Overhead squat' }),
+    ]);
+  });
+
+  it('grades each marked pattern one band better at 12 weeks', () => {
+    const formData = {
+      ohsSquatDepth: 'quarter-depth',
+      ohsKneeAlignment: 'valgus',
+      hingeDepth: 'good',
+      hingeBackRounding: 'none',
+    } as FormData;
+    const model = buildMovementFindings(formData, undefined);
+    expect(movementProgressionRows(model)).toEqual([
+      { name: 'Overhead squat', current: 'Limited', twelveWeeks: 'Fair' },
+      { name: 'Hip hinge', current: 'Strong', twelveWeeks: 'Strong' },
+    ]);
+  });
+
+  it('grades a fair-only pattern as Fair now and Strong in 12 weeks', () => {
+    const formData = { ohsSquatDepth: 'quarter-depth' } as FormData;
+    const model = buildMovementFindings(formData, undefined);
+    expect(movementProgressionRows(model)).toEqual([
+      { name: 'Overhead squat', current: 'Fair', twelveWeeks: 'Strong' },
     ]);
   });
 

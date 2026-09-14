@@ -116,6 +116,7 @@ export function PostureClientPostureSection({
         view={expandedView}
         findings={expandedView ? findingsByView[expandedView] ?? [] : []}
         imageUrl={expandedView ? getImageUrl(postureImages, expandedView) : ''}
+        analysis={expandedView ? postureResults[expandedView] : undefined}
         onClose={() => setExpandedView(null)}
       />
     </div>

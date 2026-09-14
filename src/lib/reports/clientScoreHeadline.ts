@@ -1,6 +1,13 @@
-import type { ScoreSummary } from '@/lib/scoring';
+import type { ScoreCategory, ScoreSummary } from '@/lib/scoring';
+import { calculateAge } from '@/lib/scoring';
 import { getPillarLabel } from '@/constants/pillars';
-import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
+import { ageBracketFor } from '@/lib/cardio/cardioReference';
+import {
+  CLIENT_REPORT_COPY,
+  clientHeroBestFindingLine,
+  clientHeroImprovementsLine,
+  clientHeroPlacementLine,
+} from '@/constants/clientReport';
 
 const PILLAR_SHORT: Record<string, string> = {
   bodyComp: 'body composition',
@@ -9,6 +16,11 @@ const PILLAR_SHORT: Record<string, string> = {
   movementQuality: 'movement',
   lifestyle: 'lifestyle',
 };
+
+export interface OverallSummaryProfile {
+  dateOfBirth?: string;
+  gender?: string;
+}
 
 function pillarLabel(id: string): string {
   return PILLAR_SHORT[id] ?? getPillarLabel(id, 'full').toLowerCase();
@@ -19,12 +31,46 @@ function sentenceCase(label: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function peerGroupLabel(dateOfBirth?: string, gender?: string): string | null {
+  const age = dateOfBirth ? calculateAge(dateOfBirth) : 0;
+  const sexRaw = (gender ?? '').trim().toLowerCase();
+  const sex = sexRaw === 'female' ? 'women' : sexRaw === 'male' ? 'men' : null;
+  if (age > 0) {
+    const bracket = ageBracketFor(age).replace('-', '–');
+    return sex ? `${sex} aged ${bracket}` : `people aged ${bracket}`;
+  }
+  return sex;
+}
+
+/** Lowest 2 pillars, plus a 3rd when it is still close to the 2nd. */
+export function selectImprovementAreas(
+  assessed: ScoreCategory[],
+  bestId: string,
+): ScoreCategory[] {
+  const rest = assessed
+    .filter((c) => c.id !== bestId)
+    .sort((a, b) => a.score - b.score);
+  if (rest.length <= 2) return rest;
+  const third = rest[2];
+  const second = rest[1];
+  if (third.score <= 70 || third.score - second.score <= 8) {
+    return rest.slice(0, 3);
+  }
+  return rest.slice(0, 2);
+}
+
 /**
- * Two or three sentences for the AXIS hero: what the scores say, not a plan.
+ * Three-beat AXIS hero summary, the same shape every session:
+ * 1. where the overall score sits vs age/sex norms
+ * 2. best finding today
+ * 3. two or three areas to improve
+ *
+ * Reassessments add a score delta on beat 1 only. First sessions never mention a prior.
  */
 export function buildOverallResultsSummary(
   scores: ScoreSummary,
   previousOverall: number | null,
+  profile?: OverallSummaryProfile | null,
 ): string {
   const assessed = (scores.categories ?? []).filter((c) => c.assessed);
   if (assessed.length === 0) return CLIENT_REPORT_COPY.v2HeroWelcomeFallback;
@@ -32,38 +78,22 @@ export function buildOverallResultsSummary(
   const overall = Math.round(scores.overall ?? 0);
   const ranked = [...assessed].sort((a, b) => b.score - a.score);
   const top = ranked[0];
-  const bottom = ranked[ranked.length - 1];
-  const improved =
-    previousOverall != null && previousOverall > 0 && overall > previousOverall;
+  const delta =
+    previousOverall != null && previousOverall > 0 ? overall - Math.round(previousOverall) : null;
 
-  const picture =
-    overall >= 75
-      ? improved
-        ? 'Your overall picture is strong — and it has improved since last time.'
-        : 'Your overall picture is strong across the areas we measured.'
-      : overall >= 55
-        ? improved
-          ? 'Your overall picture is solid, with a few clear gaps, and it has improved since last time.'
-          : 'Your overall picture is solid, with a few clear gaps.'
-        : improved
-          ? 'This assessment shows a clear starting point, and you have already improved since last time.'
-          : 'This assessment shows a clear starting point, with more work ahead.';
+  const placement = clientHeroPlacementLine(
+    overall,
+    peerGroupLabel(profile?.dateOfBirth, profile?.gender),
+    delta,
+  );
 
-  if (!top || !bottom || top.id === bottom.id) {
-    return `${picture} ${sentenceCase(pillarLabel(top?.id ?? 'lifestyle'))} is the main story from today.`;
-  }
+  if (!top) return placement;
 
-  const strengthLine =
-    top.score >= 75
-      ? `${sentenceCase(pillarLabel(top.id))} stands out as a real strength.`
-      : `${sentenceCase(pillarLabel(top.id))} is currently your strongest area.`;
+  const best = clientHeroBestFindingLine(sentenceCase(pillarLabel(top.id)));
+  const gaps = selectImprovementAreas(assessed, top.id).map((c) => pillarLabel(c.id));
+  const improve = clientHeroImprovementsLine(gaps);
 
-  const gapLine =
-    bottom.score < 55
-      ? `${sentenceCase(pillarLabel(bottom.id))} is the main thing holding the score back.`
-      : `${sentenceCase(pillarLabel(bottom.id))} has the most room to grow.`;
-
-  return `${picture} ${strengthLine} ${gapLine}`;
+  return [placement, best, improve].filter(Boolean).join(' ');
 }
 
 /**

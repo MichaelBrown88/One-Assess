@@ -30,8 +30,10 @@ export const CLIENT_REPORT_COPY = {
   postureTapHint: 'Tap a view for detail',
   /** V2 client report — calm debrief layout */
   v2HeroWelcomeFallback:
-    'Your coach has a clear picture of where you are today — and a plan to help you reach your goals.',
+    'This session is the starting picture. Complete the scores to see where you sit and what to train first.',
   v2AxisScoreLabel: 'AXIS Score™',
+  /** Descriptive — no branded radar name; AXIS Score™ is the overall rollup. */
+  v2RadarLabel: 'Pillar scores',
   v2AxisScoreGloss: 'your overall picture',
   v2RoadmapHeading: 'Your 12-week roadmap',
   v2RoadmapSubheading: 'What to start this week.',
@@ -44,9 +46,9 @@ export const CLIENT_REPORT_COPY = {
   v2RoadmapTargetMaintain: 'Maintain',
   v2RoadmapTargetNote:
     'Realistic, healthy targets from your assessment — a starting point, not a strict prescription.',
-  /** Soft closing line — the report is a no-obligation sales tool. */
+  /** Soft close — how we can help, no obligation. */
   v2RoadmapCta:
-    'This is yours to keep. If you work with us, we progress this plan every 12 weeks.',
+    'Want a coach on this? We’ll turn it into a weekly plan and keep it moving every 12 weeks.',
   v2ScorecardHeading: 'Where you are',
   v2ScorecardSubheading:
     'Five scores from today. The 12-week column is a realistic target if you follow the roadmap.',
@@ -58,14 +60,14 @@ export const CLIENT_REPORT_COPY = {
   v2PostureViewBalanced: 'Looks balanced from this view.',
   v2PrimaryGoalPrefix: 'Your goals',
   v2FindingsHeading: 'Where to focus first',
-  v2SelfGuidedHeading: 'Starting on your own?',
-  v2SelfGuidedIntro: 'These three habits still move you toward your goals:',
-  v2SelfGuidedReassess: 'Check in again in 12 weeks — the numbers here are your starting point.',
   v2ProgressionHeading: 'Next 12 weeks',
   v2MovementStoryHeading: 'How you move',
-  v2MovementFindingsHeading: 'To work on',
+  v2MovementFindingsHeading: 'Next 12 weeks',
   v2MovementPatternsOk: 'Patterns looked solid.',
-  v2MovementPostureHint: 'Your posture photos are further down this report.',
+  v2MovementGradeLimited: 'Limited',
+  v2MovementGradeFair: 'Fair',
+  v2MovementGradeStrong: 'Strong',
+  v2MovementPostureHint: 'Posture photos from this session are below.',
   v2LifestyleStoryHeading: 'Daily habits',
   v2LifestyleFactorsHeading: 'Your daily habits',
   v2PostureWhatItMeans: 'What this means',
@@ -78,6 +80,50 @@ export const CLIENT_REPORT_COPY = {
   postureFindingsHeading: 'What we found',
   v2PostureViewMissing: 'Not captured',
 } as const;
+
+export type AxisPlacementBand = 'well-above' | 'above' | 'typical' | 'below' | 'well-below';
+
+const PLACEMENT_BAND_COPY: Record<AxisPlacementBand, string> = {
+  'well-above': 'well above typical',
+  above: 'above typical',
+  typical: 'around typical',
+  below: 'below typical',
+  'well-below': 'well below typical',
+};
+
+/** AXIS 0–100 is already age/sex-normed (50 ≈ typical for the tests). */
+export function axisPlacementBand(score: number): AxisPlacementBand {
+  if (score >= 80) return 'well-above';
+  if (score >= 65) return 'above';
+  if (score >= 50) return 'typical';
+  if (score >= 35) return 'below';
+  return 'well-below';
+}
+
+export function clientHeroPlacementLine(
+  score: number,
+  peerGroup: string | null,
+  delta: number | null,
+): string {
+  const band = PLACEMENT_BAND_COPY[axisPlacementBand(score)];
+  const place = peerGroup
+    ? `Among ${peerGroup}, your AXIS Score™ of ${score} sits ${band}.`
+    : `Your AXIS Score™ of ${score} sits ${band} on this assessment.`;
+  if (delta == null || delta === 0) return place;
+  const change = delta > 0 ? `up ${delta}` : `down ${Math.abs(delta)}`;
+  return `${place.slice(0, -1)} — ${change} from last time.`;
+}
+
+export function clientHeroBestFindingLine(label: string): string {
+  return `${label} is your best result today.`;
+}
+
+export function clientHeroImprovementsLine(labels: string[]): string {
+  if (labels.length === 0) return '';
+  if (labels.length === 1) return `The main area to improve is ${labels[0]}.`;
+  if (labels.length === 2) return `The main areas to improve are ${labels[0]} and ${labels[1]}.`;
+  return `The main areas to improve are ${labels[0]}, ${labels[1]}, and ${labels[2]}.`;
+}
 
 export function clientGoalPromiseWeightLoss(rate: string, kg12w: string): string {
   return `Over the next 12 weeks, a healthy pace is about ${kg12w} kg off the scale — roughly ${rate} kg a week — without crash dieting.`;

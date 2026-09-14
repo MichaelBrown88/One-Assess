@@ -1,5 +1,6 @@
 import React from 'react';
 import type { FormData } from '@/contexts/FormContext';
+import { cn } from '@/lib/utils';
 
 interface LifestyleFactorsCardProps {
   formData?: FormData;
@@ -125,17 +126,23 @@ export const LifestyleFactorsCard: React.FC<LifestyleFactorsCardProps> = ({ form
   }
 
   return (
-    <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
-      {factors.map((f) => (
-        <FactorRow key={f.id} factor={f} />
+    <div className="overflow-hidden border border-border-medium bg-card">
+      {factors.map((factor, index) => (
+        <FactorRow key={factor.id} factor={factor} index={index} />
       ))}
     </div>
   );
 };
 
-function FactorRow({ factor }: { factor: Factor }) {
+function FactorRow({ factor, index }: { factor: Factor; index: number }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3 px-3 py-3 sm:px-4',
+        index > 0 && 'border-t border-border-medium',
+        index % 2 === 1 && 'bg-muted',
+      )}
+    >
       <span className="flex min-w-0 flex-col gap-px">
         <span className="text-[10px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
           {factor.label}

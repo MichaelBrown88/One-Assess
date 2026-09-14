@@ -53,7 +53,7 @@ export default function ClientPortalEntry() {
 
   return (
     <AppShell title="Your fitness report" mode="public">
-      <div className="max-w-md mx-auto rounded-xl border border-border bg-card text-card-foreground p-6 sm:p-8 text-center space-y-4">
+      <div className="mx-auto max-w-md space-y-4 rounded-xl border border-border bg-card p-6 text-center text-card-foreground max-lg:mx-4 sm:p-8">
         <p className="text-sm font-medium text-foreground">
           Open the link your coach sent you to view your report.
         </p>

@@ -181,7 +181,7 @@ export default function AppShell({
         {/* Header: logo + client nav — semantic tokens for light/dark (DESIGN_SYSTEM) */}
         {publicHeader}
 
-        <main className="max-w-7xl mx-auto py-8 px-4">
+        <main className="mx-auto w-full max-w-7xl px-0 py-0 xl:px-4 xl:py-8">
           {children}
         </main>
 

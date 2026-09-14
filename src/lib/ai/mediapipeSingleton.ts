@@ -13,6 +13,7 @@ let poseLandmarker: PoseLandmarkerType | null = null;
 let isInitializing = false;
 let initPromise: Promise<PoseLandmarkerType> | null = null;
 let initFailed = false;
+let runningMode: 'VIDEO' | 'IMAGE' = 'VIDEO';
 
 type QueuedRequest = { execute: () => void };
 const requestQueue: QueuedRequest[] = [];
@@ -31,6 +32,14 @@ export function mapNormalizedLandmarksToMediaPipe(
   }));
 }
 
+function mapFirstPose(
+  landmarks: ReadonlyArray<ReadonlyArray<{ x: number; y: number; z: number; visibility?: number }>> | undefined,
+): MediaPipeLandmark[] | undefined {
+  const first = landmarks?.[0];
+  if (!first?.length) return undefined;
+  return mapNormalizedLandmarksToMediaPipe(first);
+}
+
 export function detectPoseFromImageSource(
   source: HTMLVideoElement | HTMLImageElement,
   timestampMs: number
@@ -38,10 +47,37 @@ export function detectPoseFromImageSource(
   if (!poseLandmarker) {
     throw new Error('MediaPipe PoseLandmarker not initialized');
   }
+  if (runningMode !== 'VIDEO') {
+    throw new Error('PoseLandmarker is not in VIDEO mode');
+  }
   const result = poseLandmarker.detectForVideo(source, timestampMs);
-  const first = result.landmarks[0];
-  if (!first?.length) return undefined;
-  return mapNormalizedLandmarksToMediaPipe(first);
+  return mapFirstPose(result.landmarks);
+}
+
+async function ensureRunningMode(mode: 'VIDEO' | 'IMAGE'): Promise<PoseLandmarkerType> {
+  const instance = await getPoseInstance();
+  if (runningMode !== mode) {
+    await instance.setOptions({ runningMode: mode });
+    runningMode = mode;
+  }
+  return instance;
+}
+
+/** Still photos must use IMAGE `detect()` — VIDEO tracking often misses a single frame. */
+export async function detectPoseFromStillImage(
+  source: HTMLImageElement,
+): Promise<MediaPipeLandmark[] | undefined> {
+  const landmarker = await ensureRunningMode('IMAGE');
+  try {
+    const result = landmarker.detect(source);
+    return mapFirstPose(result.landmarks);
+  } finally {
+    try {
+      await ensureRunningMode('VIDEO');
+    } catch (error) {
+      logger.warn('[SINGLETON] Failed to restore VIDEO mode after still detect', 'MEDIAPIPE', error);
+    }
+  }
 }
 
 async function createLandmarker(): Promise<PoseLandmarkerType> {
@@ -151,6 +187,7 @@ export function destroyPoseInstance(): void {
     }
     poseLandmarker = null;
   }
+  runningMode = 'VIDEO';
   requestQueue.length = 0;
   isProcessingQueue = false;
   initFailed = false;

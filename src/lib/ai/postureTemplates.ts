@@ -11,12 +11,28 @@
 import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 import type { LandmarkResult } from '@/lib/ai/postureLandmarks';
 import type { CalculatedPostureMetrics } from '@/lib/utils/postureMath';
-import { calculateFrontViewMetrics, calculateSideViewMetrics } from '@/lib/utils/postureMath';
+import {
+  calculateFrontViewMetrics,
+  calculateSideViewMetrics,
+  classifySidePelvicTilt,
+} from '@/lib/utils/postureMath';
 
 type Severity = 'Neutral' | 'Mild' | 'Moderate' | 'Severe';
 type FrontBackView = 'front' | 'back';
 type SideView = 'side-left' | 'side-right';
 type PostureView = FrontBackView | SideView;
+
+function persistableLandmarks(landmarks: LandmarkResult): PostureAnalysisResult['landmarks'] {
+  return {
+    shoulder_y_percent: landmarks.shoulder_y_percent,
+    hip_y_percent: landmarks.hip_y_percent,
+    head_y_percent: landmarks.head_y_percent,
+    center_x_percent: landmarks.center_x_percent,
+    midfoot_x_percent: landmarks.midfoot_x_percent,
+    overlay: landmarks.overlay,
+    raw: landmarks.raw,
+  };
+}
 
 const FORWARD_HEAD_DESC: Record<Severity, string> = {
   Neutral: 'Your head aligns well with your shoulders.',
@@ -84,19 +100,6 @@ const PELVIC_SIDE_REC: Record<string, string> = {
   'Posterior Tilt': 'Stretch your hamstrings and strengthen your hip flexors.',
 };
 
-function getSidePelvicStatus(pelvicAngle: number): 'Neutral' | 'Anterior Tilt' | 'Posterior Tilt' {
-  if (pelvicAngle < 160) return 'Anterior Tilt';
-  if (pelvicAngle > 185) return 'Posterior Tilt';
-  return 'Neutral';
-}
-
-function getSidePelvicSeverity(pelvicAngle: number): Severity {
-  const dev = pelvicAngle < 160 ? 160 - pelvicAngle : pelvicAngle > 185 ? pelvicAngle - 185 : 0;
-  if (dev === 0) return 'Neutral';
-  if (dev < 8) return 'Mild';
-  if (dev < 15) return 'Moderate';
-  return 'Severe';
-}
 
 function buildDeviationsList(items: Array<{ status: string; label: string; neutral: string[] }>): string[] {
   const deviations: string[] = [];
@@ -235,13 +238,7 @@ export function buildFrontBackResult(
   const isPositive = deviations[0] === 'Your posture alignment is excellent';
 
   return {
-    landmarks: {
-      shoulder_y_percent: landmarks.shoulder_y_percent,
-      hip_y_percent: landmarks.hip_y_percent,
-      head_y_percent: landmarks.head_y_percent,
-      center_x_percent: landmarks.center_x_percent,
-      raw: landmarks.raw,
-    },
+    landmarks: persistableLandmarks(landmarks),
     head_alignment: {
       status: headTiltStatus,
       tilt_degrees: headTiltDeg,
@@ -334,9 +331,8 @@ export function buildSideViewResult(
   const pelvicAngle = metrics.pelvicTiltDegrees ?? 170;
   const headPitchStatus = metrics.headPitchStatus ?? 'Level';
   const headPitchDeg = metrics.headPitchDegrees ?? 0;
-
-  const pelvicStatus = getSidePelvicStatus(pelvicAngle);
-  const pelvicSeverity = getSidePelvicSeverity(pelvicAngle);
+  const pelvic = classifySidePelvicTilt(metrics.hipAnteriorOffset ?? 0, pelvicAngle);
+  const pelvicStatus = pelvic.status;
 
   const headUpdownSeverity: 'Mild' | 'Moderate' | 'Severe' =
     Math.abs(headPitchDeg) < 15 ? 'Mild' : Math.abs(headPitchDeg) < 25 ? 'Moderate' : 'Severe';
@@ -350,12 +346,7 @@ export function buildSideViewResult(
   const isPositive = deviations[0] === 'Your posture alignment is excellent';
 
   return {
-    landmarks: {
-      shoulder_y_percent: landmarks.shoulder_y_percent,
-      hip_y_percent: landmarks.hip_y_percent,
-      midfoot_x_percent: landmarks.midfoot_x_percent,
-      raw: landmarks.raw,
-    },
+    landmarks: persistableLandmarks(landmarks),
     forward_head: {
       status: headSeverity,
       deviation_degrees: forwardHeadCm * 2.5,
@@ -387,7 +378,7 @@ export function buildSideViewResult(
     },
     pelvic_tilt: {
       status: pelvicStatus,
-      anterior_tilt_degrees: pelvicStatus === 'Anterior Tilt' ? 160 - pelvicAngle : 0,
+      anterior_tilt_degrees: pelvicStatus === 'Anterior Tilt' || pelvicStatus === 'Posterior Tilt' ? pelvic.degrees : 0,
       description: PELVIC_SIDE_DESC[pelvicStatus] ?? PELVIC_SIDE_DESC.Neutral,
       recommendation: PELVIC_SIDE_REC[pelvicStatus] ?? '',
     },

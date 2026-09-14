@@ -1,7 +1,6 @@
 import React from 'react';
 import type { ClientNinetyDayTarget } from '@/lib/reports/clientNinetyDayTarget';
 import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
-import { sanitizeClientReportCopy } from '@/lib/reports/sanitizeClientReportCopy';
 
 export function RoadmapTargetFigures({ target }: { target: ClientNinetyDayTarget }) {
   const items: { label: string; value: string; hint?: string }[] = [];
@@ -45,17 +44,5 @@ export function RoadmapTargetFigures({ target }: { target: ClientNinetyDayTarget
         </div>
       ))}
     </div>
-  );
-}
-
-export function RoadmapSelfGuidedHabits({ habits }: { habits: string[] }) {
-  if (habits.length === 0) return null;
-  return (
-    <p className="mt-5 text-[12px] leading-relaxed text-muted-foreground">
-      <span className="font-semibold text-foreground-secondary">
-        {CLIENT_REPORT_COPY.v2SelfGuidedHeading}{' '}
-      </span>
-      {habits.map((habit) => sanitizeClientReportCopy(habit)).join(' · ')}
-    </p>
   );
 }

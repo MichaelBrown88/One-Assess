@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { PostureFindingRecord, PostureFindingSeverity, PostureFindingViewId } from '@/lib/types/postureFindings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,10 @@ import { X } from 'lucide-react';
 import { viewLabelUpper } from '@/lib/posture/aggregatePostureInsights';
 import { MuscleMap } from '@/components/reports/MuscleMap';
 import { combineMuscleImplications } from '@/lib/posture/findingMuscleMap';
+import { isReportablePostureFinding } from '@/lib/posture/buildStructuredPostureFindings';
+import { useEnrichedPostureAnalysis } from '@/hooks/useReportPostureOverlay';
+import { PostureMarkedImage } from './PostureMarkedImage';
+import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 
 const SEV_ORDER: Record<PostureFindingSeverity, number> = {
   aligned: 0,
@@ -28,17 +32,23 @@ function severityPillClass(sev: PostureFindingSeverity): string {
   return 'bg-muted text-muted-foreground';
 }
 
-function formatMeasure(value: number | null | undefined, unit: string | undefined): string {
+function formatMeasure(finding: { id: string; measuredValue: number | null | undefined; unit: string | undefined }): string {
+  const value = finding.measuredValue;
   if (value == null || !Number.isFinite(value)) return '';
-  const abs = Math.abs(value);
-  const precision = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-  return `${value.toFixed(precision)}${unit ? ` ${unit}` : ''}`;
+  if (finding.unit === 'degrees') {
+    return `${Math.abs(value).toFixed(0)}°`;
+  }
+  if (finding.id === 'lateral_pelvic_shift') {
+    return `${Math.abs(value).toFixed(0)}%`;
+  }
+  return '';
 }
 
 interface PostureViewExpandedSheetProps {
   view: PostureFindingViewId | null;
   findings: PostureFindingRecord[];
   imageUrl: string;
+  analysis?: PostureAnalysisResult;
   onClose: () => void;
 }
 
@@ -46,10 +56,15 @@ export function PostureViewExpandedSheet({
   view,
   findings,
   imageUrl,
+  analysis,
   onClose,
 }: PostureViewExpandedSheetProps) {
   const open = view !== null;
-  const sorted = [...findings].sort((a, b) => SEV_ORDER[b.severity] - SEV_ORDER[a.severity]);
+  const enriched = useEnrichedPostureAnalysis(imageUrl, view ?? 'front', analysis);
+  const sorted = useMemo(() => {
+    const list = (enriched?.structuredFindings ?? findings).filter(isReportablePostureFinding);
+    return [...list].sort((a, b) => SEV_ORDER[b.severity] - SEV_ORDER[a.severity]);
+  }, [enriched, findings]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -107,11 +122,11 @@ export function PostureViewExpandedSheet({
                       >
                         {f.severity}
                       </span>
-                      {f.measuredValue != null && (
+                      {formatMeasure(f) ? (
                         <span className="ml-auto shrink-0 tabular-nums text-[11px] text-muted-foreground">
-                          {formatMeasure(f.measuredValue, f.unit)}
+                          {formatMeasure(f)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     {f.whatItMeans && (
                       <p className="mt-2 text-sm text-foreground-secondary leading-relaxed">
@@ -131,12 +146,13 @@ export function PostureViewExpandedSheet({
             </div>
 
             {/* ─── Image panel (RIGHT on desktop, TOP on mobile) ─── */}
-            <div className="order-1 md:order-2 h-[55vh] w-full shrink-0 overflow-hidden bg-white md:h-full md:w-auto md:flex-1">
+            <div className="order-1 md:order-2 flex h-[55vh] w-full shrink-0 items-center justify-center overflow-hidden bg-white md:h-full md:w-auto md:flex-1">
               {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="h-full w-full object-contain object-top md:object-center"
+                <PostureMarkedImage
+                  url={imageUrl}
+                  view={view}
+                  analysis={analysis}
+                  className="max-h-full w-auto max-w-full"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-muted-foreground text-sm">

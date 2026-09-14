@@ -25,6 +25,12 @@ const GRADE_HEX: Record<ScoreGrade, string> = {
   red: CHART_HEX.scoreRed,
 };
 
+const GRADE_FG: Record<ScoreGrade, string> = {
+  green: 'hsl(var(--score-green-fg))',
+  amber: 'hsl(var(--score-amber-fg))',
+  red: 'hsl(var(--score-red-fg))',
+};
+
 function displayPillarLabel(label: string, fullLabel: string | undefined, clientFacing: boolean): string {
   if (!clientFacing) return label;
   const key = fullLabel ?? label;
@@ -71,11 +77,11 @@ export default function OverallRadarPolygon({
     overallScore ?? data.reduce((sum, d) => sum + Math.max(0, Math.min(100, d.value)), 0) / n;
   const hullColor = GRADE_HEX[scoreGrade(scoreForColor)];
 
-  const size = hero ? 400 : compact ? 400 : 480;
+  const size = hero ? 480 : compact ? 400 : 480;
   const cx = size / 2;
   const cy = size / 2;
-  const baseR = hero ? 108 : compact ? 108 : 130;
-  const labelR = hero ? baseR + 30 : compact ? baseR + 28 : baseR + 38;
+  const baseR = hero ? 148 : compact ? 108 : 130;
+  const labelR = hero ? baseR + 36 : compact ? baseR + 28 : baseR + 38;
   const ang = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
 
   const vertices = data.map((d, i) => {
@@ -108,7 +114,7 @@ export default function OverallRadarPolygon({
     <div
       className={cn(
         'flex w-full items-center justify-center',
-        compact ? 'min-h-[220px]' : hero ? 'min-h-[200px]' : 'min-h-[260px]',
+        compact ? 'min-h-[220px]' : hero ? 'h-[17.5rem] w-full overflow-visible' : 'min-h-[260px]',
         className,
       )}
     >
@@ -116,7 +122,7 @@ export default function OverallRadarPolygon({
         viewBox={`0 0 ${size} ${size}`}
         className={cn(
           'h-full w-full max-w-full',
-          hero ? 'max-h-[220px]' : 'max-h-[320px]',
+          hero ? 'h-full max-h-[17.5rem] overflow-visible' : 'max-h-[320px]',
         )}
         role="img"
         aria-label="Five-pillar score radar"
@@ -207,16 +213,18 @@ export default function OverallRadarPolygon({
           const labelDy = isAbove ? (compact ? -6 : -8) : isBelow ? (compact ? 14 : 16) : 4;
           const sectionId = sectionIdForIndex(i);
           const clickable = Boolean(onPillarSelect && sectionId);
+          const score = Math.round(Math.max(0, Math.min(100, d.value)));
+          const name = displayPillarLabel(d.name, d.fullLabel ?? d.name, clientFacingLabels);
 
           return (
             <text
               key={`lbl-${i}`}
               x={lp.x}
               y={lp.y + labelDy}
-              fontSize={compact ? 10 : 11}
+              fontSize={hero ? 16 : compact ? 10 : 11}
               fontWeight={700}
               textAnchor={anchor}
-              fill="hsl(var(--muted-foreground))"
+              fill={hero ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
               className={clickable ? 'cursor-pointer' : undefined}
               onClick={
                 clickable
@@ -226,7 +234,15 @@ export default function OverallRadarPolygon({
                   : undefined
               }
             >
-              {displayPillarLabel(d.name, d.fullLabel ?? d.name, clientFacingLabels)}
+              {name}
+              <tspan
+                dx={hero ? 7 : 5}
+                fill={GRADE_FG[scoreGrade(score)]}
+                fontWeight={700}
+                className="tabular-nums"
+              >
+                {score}
+              </tspan>
             </text>
           );
         })}

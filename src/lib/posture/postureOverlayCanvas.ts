@@ -4,6 +4,7 @@ import type { OverlayOptions, PostureView, LandmarkData } from './types';
 import { drawDeviations } from './postureDeviationRenderer';
 import { planPostureOverlay } from './postureOverlayPlan';
 import { resolveAlignmentSource, type AlignmentSource } from './resolveAlignmentSource';
+import { createOverlayMap } from './overlayTransform';
 
 /**
  * Adds posture reference or deviation lines to an image using HTML Canvas
@@ -126,28 +127,15 @@ function drawAlignedImage(
   canvasWidth: number,
   canvasHeight: number
 ): void {
-  const targetCenterX = canvasWidth * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.CENTER_X_PCT / 100);
-  const targetShoulderY = canvasHeight * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.SHOULDER_Y_PCT / 100);
-  const targetHipY = canvasHeight * (CONFIG.POSTURE_OVERLAY.TARGET_LANDMARKS.HIP_Y_PCT / 100);
-
-  const sourceTorsoHeight = Math.abs(source.hipY - source.shoulderY);
-  const targetTorsoHeight = Math.abs(targetHipY - targetShoulderY);
-  if (sourceTorsoHeight < 1) {
+  const map = createOverlayMap(source, canvasWidth, canvasHeight);
+  if (!map) {
     drawContainedImage(ctx, img, canvasWidth, canvasHeight);
     return;
   }
 
-  let scale = targetTorsoHeight / sourceTorsoHeight;
-  scale = Math.max(0.3, Math.min(3.0, scale));
-
-  const translateX = targetCenterX - source.x * scale;
-  const scaledBodyCenterY = ((source.shoulderY + source.hipY) / 2) * scale;
-  const targetBodyCenterY = (targetShoulderY + targetHipY) / 2;
-  const translateY = targetBodyCenterY - scaledBodyCenterY;
-
   ctx.save();
-  ctx.translate(translateX, translateY);
-  ctx.scale(scale, scale);
+  ctx.translate(map.translateX, map.translateY);
+  ctx.scale(map.scale, map.scale);
   ctx.drawImage(img, 0, 0);
   ctx.restore();
 }

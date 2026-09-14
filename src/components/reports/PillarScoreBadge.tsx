@@ -55,7 +55,13 @@ export function PillarScoreBadge({
     <span
       className={cn(
         'relative inline-flex shrink-0 flex-col items-center justify-center gap-0.5',
-        showIcon ? 'rounded-xl ring-1 ring-border/50' : cn('rounded-full', SCORE_COLORS[grade].pill),
+        showIcon
+          ? 'rounded-xl ring-1 ring-border/50'
+          : cn(
+              'md:h-12 md:w-12 md:rounded-full',
+              SCORE_COLORS[grade].pill,
+              'max-md:border-0 max-md:bg-transparent',
+            ),
         className,
       )}
       style={
@@ -65,7 +71,7 @@ export function PillarScoreBadge({
               height: size,
               backgroundColor: `${colour}18`,
             }
-          : { width: size, height: size }
+          : undefined
       }
       aria-hidden
     >
@@ -73,8 +79,12 @@ export function PillarScoreBadge({
         <Icon className="opacity-80" style={{ width: iconSize, height: iconSize, color: colour }} />
       ) : null}
       <span
-        className={cn('font-bold tabular-nums leading-none', scoreToneClass(safe))}
-        style={{ fontSize }}
+        className={cn(
+          'font-bold tabular-nums leading-none',
+          scoreToneClass(safe),
+          !showIcon && 'text-[1.375rem] md:text-[1.25rem]',
+        )}
+        style={showIcon ? { fontSize } : undefined}
       >
         {safe || '—'}
       </span>

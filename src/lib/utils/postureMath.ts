@@ -1,5 +1,10 @@
 import type { MediaPipeLandmark } from '@/lib/types/mediapipe';
-import { calculateFrontBackDeviationSummary, POSTURE_STANDARD } from '@/lib/utils/postureAlignment';
+import {
+  calculateFrontBackDeviationSummary,
+  getSeverity,
+  POSTURE_STANDARD,
+  POSTURE_THRESHOLDS,
+} from '@/lib/utils/postureAlignment';
 import { logger } from '@/lib/utils/logger';
 
 /**
@@ -14,6 +19,8 @@ export interface CalculatedPostureMetrics {
   shoulderSymmetryCm: number;
   hipSymmetryCm: number;
   pelvicTiltDegrees: number;
+  /** + = hip anterior of shoulder / shoulder–ankle line (side view). */
+  hipAnteriorOffset?: number;
   kneeValgusDegrees: number;
   leftLegAlignmentStatus?: 'Straight' | 'Valgus' | 'Varus';
   rightLegAlignmentStatus?: 'Straight' | 'Valgus' | 'Varus';
@@ -64,6 +71,74 @@ function pixelsToCm(normalizedValue: number, shoulderWidthNormalized: number): n
   const CM_PER_SHOULDER = 40; 
   if (shoulderWidthNormalized <= 0) return 0;
   return (normalizedValue / shoulderWidthNormalized) * CM_PER_SHOULDER;
+}
+
+/**
+ * Side-view hip translation in image space. Positive = hip is anterior
+ * (toward the belly). Uses the stronger of hip-vs-shoulder (pelvic rotation
+ * cue) and hip vs the shoulder–ankle chord.
+ */
+export function hipAnteriorOffsetNorm(
+  shoulder: { x: number; y: number },
+  hip: { x: number; y: number },
+  ankle: { x: number; y: number } | undefined,
+  view: 'side-left' | 'side-right',
+): number {
+  const facing = view === 'side-left' ? -1 : 1;
+  const vsShoulder = (hip.x - shoulder.x) * facing;
+  if (!ankle) return vsShoulder;
+  const dy = ankle.y - shoulder.y;
+  if (Math.abs(dy) < 1e-6) return vsShoulder;
+  const t = (hip.y - shoulder.y) / dy;
+  const lineX = shoulder.x + t * (ankle.x - shoulder.x);
+  const vsLine = (hip.x - lineX) * facing;
+  return Math.abs(vsShoulder) >= Math.abs(vsLine) ? vsShoulder : vsLine;
+}
+
+export type SidePelvicTiltStatus = 'Neutral' | 'Anterior Tilt' | 'Posterior Tilt';
+
+/**
+ * Classify side-view pelvic tilt. The 2D hip joint can sit on the plumb
+ * while the pelvis is still rotated — offset vs shoulder/ankle is the
+ * primary cue; the old shoulder–hip–knee angle is only a fallback.
+ */
+export function classifySidePelvicTilt(
+  hipAnteriorOffset: number,
+  shoulderHipKneeAngle: number,
+): {
+  status: SidePelvicTiltStatus;
+  degrees: number;
+  severity: 'Neutral' | 'Mild' | 'Moderate' | 'Severe';
+} {
+  const good = POSTURE_THRESHOLDS.PELVIC_TILT.GOOD;
+  const fromOffset: SidePelvicTiltStatus =
+    hipAnteriorOffset > good ? 'Anterior Tilt' : hipAnteriorOffset < -good ? 'Posterior Tilt' : 'Neutral';
+  const fromAngle: SidePelvicTiltStatus =
+    shoulderHipKneeAngle < 160 ? 'Anterior Tilt' : shoulderHipKneeAngle > 185 ? 'Posterior Tilt' : 'Neutral';
+  const status = fromOffset !== 'Neutral' ? fromOffset : fromAngle;
+  if (status === 'Neutral') {
+    return { status, degrees: 0, severity: 'Neutral' };
+  }
+
+  const offsetDeg = (Math.abs(hipAnteriorOffset) / good) * 6;
+  const angleDeg =
+    shoulderHipKneeAngle < 160
+      ? 160 - shoulderHipKneeAngle
+      : shoulderHipKneeAngle > 185
+        ? shoulderHipKneeAngle - 185
+        : 0;
+  const degrees = Math.max(offsetDeg, angleDeg);
+
+  if (fromOffset !== 'Neutral') {
+    const band = getSeverity(Math.abs(hipAnteriorOffset), POSTURE_THRESHOLDS.PELVIC_TILT);
+    const mapped = toReportSeverity(band);
+    const severity: 'Neutral' | 'Mild' | 'Moderate' | 'Severe' = mapped === 'Good' ? 'Mild' : mapped;
+    return { status, degrees, severity };
+  }
+
+  const severity: 'Neutral' | 'Mild' | 'Moderate' | 'Severe' =
+    angleDeg < 8 ? 'Mild' : angleDeg < 15 ? 'Moderate' : 'Severe';
+  return { status, degrees, severity };
 }
 
 function toReportSeverity(severity: 'good' | 'mild' | 'moderate' | 'severe'): 'Good' | 'Mild' | 'Moderate' | 'Severe' {
@@ -290,14 +365,15 @@ export function calculateSideViewMetrics(
     }
   }
 
-  // 3. Pelvic Tilt (Approximation via Hip vs Knee vs Shoulder)
-  // This is a complex calculation in 2D, but we can look at the hip position relative to shoulder/knee
-  const pelvicAngle = calculateAngle(shoulder, hip, knee);
+  // 3. Pelvic tilt — hip vs shoulder/ankle (rotation), not only shoulder–hip–knee angle
+  const pelvicAngle = hip && knee ? calculateAngle(shoulder, hip, knee) : 170;
+  const hipAnteriorOffset = hip ? hipAnteriorOffsetNorm(shoulder, hip, ankle, view) : 0;
 
   const metrics = {
     forwardHeadCm: headOffsetCm,
     headSeverity: headSeverityFromCva,
     pelvicTiltDegrees: pelvicAngle,
+    hipAnteriorOffset,
     headPitchDegrees,
     headPitchStatus,
   };
@@ -307,6 +383,7 @@ export function calculateSideViewMetrics(
   logger.debug(`   Forward Head: ${headOffsetCm.toFixed(2)}cm (${headSeverityFromCva})`);
   logger.debug(`   Head Pitch: ${headPitchDegrees.toFixed(1)}° (${headPitchStatus})`);
   logger.debug(`   Pelvic Angle: ${pelvicAngle.toFixed(1)}°`);
+  logger.debug(`   Hip anterior offset: ${hipAnteriorOffset.toFixed(3)}`);
   logger.debug(`   Plumb Line X: ${(plumbLineX * 100).toFixed(1)}%`);
   logger.debug(`   Ear X: ${((ear?.x ?? 0) * 100).toFixed(1)}%`);
   logger.debug(`   Ear-Plumb Diff: ${((ear?.x ?? 0.5) - plumbLineX).toFixed(3)} (${view === 'side-left' ? 'negative=forward' : 'positive=forward'})`);

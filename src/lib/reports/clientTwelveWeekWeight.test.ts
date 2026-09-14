@@ -29,4 +29,15 @@ describe('projectClientTwelveWeekWeightLoss', () => {
     expect(fromGap?.weeklyRateKg).toBe(fromProfile?.weeklyRateKg);
     expect(fromGap?.lossKg).toBe(fromProfile?.lossKg);
   });
+
+  it('still projects a cut for a female recomp client, not a crash', () => {
+    const result = projectClientTwelveWeekWeightLoss(
+      { ...ibrahim, gender: 'female' },
+      undefined,
+      ibrahim.clientGoals,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.endWeightKg).toBeGreaterThan(74);
+    expect(result!.endWeightKg).toBeLessThan(81.2);
+  });
 });

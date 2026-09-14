@@ -78,8 +78,8 @@ export default function ClientReport({
   }
 
   const containerClass = standalone
-    ? 'min-h-screen bg-muted/40 text-foreground px-3 py-6 sm:px-5 sm:py-8 md:px-6 lg:px-8 overflow-x-hidden'
-    : 'w-full text-foreground overflow-x-hidden';
+    ? 'min-h-screen overflow-x-hidden bg-muted/40 px-0 py-6 text-foreground xl:px-8 xl:py-8'
+    : 'w-full overflow-x-hidden text-foreground';
 
   const contentClass = standalone
     ? 'mx-auto w-full min-w-0 max-w-5xl'

@@ -99,7 +99,7 @@ describe('buildClientReportModel', () => {
     expect(Number(weightRow!.twelveWeeks)).toBeCloseTo(model.roadmapTarget!.targetWeightKg!, 0);
 
     expect(model.priorityFocus).toEqual({ label: 'Body composition', score: 62 });
-    expect(model.welcome).toMatch(/solid/i);
+    expect(model.welcome).toMatch(/Among men aged 26–35/i);
     expect(model.welcome.split(/[.!?]+/).filter((s) => s.trim()).length).toBeLessThanOrEqual(3);
     expect(model.welcome.toLowerCase()).not.toMatch(/focus this block|improved|last time|last assessment/);
   });
@@ -153,5 +153,35 @@ describe('buildClientReportModel', () => {
     });
     expect(analysisOnly.posture).not.toBeNull();
     expect(Object.keys(analysisOnly.posture?.images ?? {})).toHaveLength(0);
+  });
+
+  it('promises muscle gain (not a cut) when that is the primary goal', () => {
+    const model = buildClientReportModel({
+      scores,
+      formData: { ...formData, clientGoals: ['build-muscle'] } as FormData,
+      goals: ['build-muscle'],
+      gapAnalysisData,
+      clientName: 'Ibrahim Al Tuwaijri',
+      reportDate: 'Sep 13, 2026',
+    });
+    expect(model.goalPromise).toMatch(/build muscle/i);
+    expect(model.goalPromise).not.toMatch(/kg off the scale/i);
+    expect(model.roadmapCards.find((c) => c.pillar === 'bodyComp')?.prescriptions.join(' ')).toMatch(
+      /holds or slowly rises/i,
+    );
+  });
+
+  it('places a female client among women, not men', () => {
+    const model = buildClientReportModel({
+      scores,
+      formData: { ...formData, gender: 'female' } as FormData,
+      goals: formData.clientGoals,
+      gapAnalysisData,
+      clientName: 'Sara',
+      reportDate: 'Sep 13, 2026',
+    });
+    expect(model.welcome).toMatch(/Among women aged/i);
+    expect(model.welcome).not.toMatch(/Among men aged/);
+    expect(model.goalPromise).toMatch(/add muscle|kg off the scale/i);
   });
 });

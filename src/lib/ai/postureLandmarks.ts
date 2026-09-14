@@ -4,9 +4,10 @@
  * Uses a SINGLETON PoseLandmarker instance (Tasks Vision) and queues detection requests.
  */
 
-import { CONFIG } from '@/config';
 import { logger } from '@/lib/utils/logger';
-import { detectPoseFromImageSource, getPoseInstance, queueDetection } from './mediapipeSingleton';
+import { buildOverlaySkeleton, type OverlaySkeleton } from '@/lib/posture/overlaySkeleton';
+import type { PostureView } from '@/lib/posture/types';
+import { detectPoseFromStillImage, getPoseInstance, queueDetection } from './mediapipeSingleton';
 
 export interface LandmarkResult {
   shoulder_y_percent?: number;
@@ -14,6 +15,7 @@ export interface LandmarkResult {
   head_y_percent?: number;
   center_x_percent?: number;
   midfoot_x_percent?: number;
+  overlay?: OverlaySkeleton;
   raw?: import('@/lib/types/mediapipe').MediaPipeLandmark[];
 }
 
@@ -21,7 +23,10 @@ function loadImage(imageUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      const ready = typeof img.decode === 'function' ? img.decode().then(() => img) : Promise.resolve(img);
+      ready.then(resolve).catch(() => resolve(img));
+    };
     img.onerror = () => reject(new Error('Failed to load image'));
 
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('data:')) {
@@ -34,7 +39,9 @@ function loadImage(imageUrl: string): Promise<HTMLImageElement> {
 
 function processLandmarks(
   landmarks: Array<{ x: number; y: number; z: number; visibility?: number }>,
-  view: string
+  view: string,
+  imgW: number,
+  imgH: number,
 ): LandmarkResult {
   const nose = landmarks[0];
   const leftEar = landmarks[7];
@@ -93,6 +100,9 @@ function processLandmarks(
     }
   }
 
+  const overlay = buildOverlaySkeleton(landmarks, view as PostureView, imgW, imgH);
+  if (overlay) result.overlay = overlay;
+
   return result;
 }
 
@@ -113,42 +123,18 @@ async function detectPostureLandmarksInternal(imageUrl: string, view: string): P
     const img = await loadImage(imageUrl);
     logger.debug(`[DETECT] Image loaded: ${img.width}x${img.height}`, ctx);
 
-    return await new Promise((resolve, reject) => {
-      let settled = false;
+    const raw = await detectPoseFromStillImage(img);
+    if (!raw || raw.length === 0) {
+      logger.warn(`[DETECT] No landmarks found for ${view}`, ctx);
+      return {};
+    }
 
-      const timeoutId = setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          logger.error(`[DETECT] Timeout for ${view}`, ctx);
-          reject(new Error(`Landmark detection timed out for ${view}`));
-        }
-      }, CONFIG.AI.MEDIAPIPE.TIMEOUT_MS);
-
-      try {
-        const raw = detectPoseFromImageSource(img, performance.now());
-        clearTimeout(timeoutId);
-        if (!settled) {
-          settled = true;
-          if (!raw || raw.length === 0) {
-            logger.warn(`[DETECT] No landmarks found for ${view}`, ctx);
-            resolve({});
-            return;
-          }
-          const result = processLandmarks(raw, view);
-          logger.debug(
-            `[DETECT] Success for ${view}: headY=${result.head_y_percent?.toFixed(1)}%, shoulderY=${result.shoulder_y_percent?.toFixed(1)}%`,
-            ctx
-          );
-          resolve(result);
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (!settled) {
-          settled = true;
-          reject(err);
-        }
-      }
-    });
+    const result = processLandmarks(raw, view, img.width, img.height);
+    logger.debug(
+      `[DETECT] Success for ${view}: headY=${result.head_y_percent?.toFixed(1)}%, shoulderY=${result.shoulder_y_percent?.toFixed(1)}%`,
+      ctx
+    );
+    return result;
   } catch (error) {
     logger.error(`[DETECT] Detection failed for ${view}`, ctx, error);
     throw error;

@@ -42,7 +42,8 @@ function stripRawLandmarks(
  * Assessment / public-report writes must never carry camera JPEGs as data URLs.
  * Four views blow past Firestore's 1MB document cap (and sessionStorage quota),
  * which is why in-studio posture looked applied then vanished on save.
- * Raw MediaPipe arrays are dropped too — overlays are already baked into Storage JPEGs.
+ * Raw MediaPipe arrays are dropped — a compact overlay skeleton (ear/eye/hips)
+ * is kept so the AXIS report can annotate from real pose points.
  */
 export function prepareFormDataForPersistence(formData: FormData): FormData {
   const fromImages = pickPersistableImageMap(formData.postureImages);

@@ -14,7 +14,7 @@ import type {
   PostureFindingUnit,
   PostureFindingViewId,
 } from '@/lib/types/postureFindings';
-import { calculateDeviationsFromLandmarks, getSideViewPlumbSeverity } from '@/lib/utils/postureDeviation';
+import { calculateDeviationsFromLandmarks } from '@/lib/utils/postureDeviation';
 import type { Severity } from '@/lib/utils/postureDeviation';
 
 function copyForTier(
@@ -46,6 +46,13 @@ function makeRecord(
     whatWellDo,
     priority: def.priority,
   };
+}
+
+/** Hide noise that was stored on older captures (e.g. 0.03 “rounded shoulders”). */
+export function isReportablePostureFinding(f: PostureFindingRecord): boolean {
+  if (f.severity === 'aligned') return false;
+  if (f.id === 'rounded_shoulders' && Math.abs(f.measuredValue) < 0.04) return false;
+  return true;
 }
 
 function headSeverityFromStatus(status: string): PostureFindingSeverity {
@@ -130,9 +137,11 @@ export function buildStructuredPostureFindings(
     const rs = getPostureFeedbackDefinition('rounded_shoulders');
     if (rs && raw) {
       const shoulderIdx = view === 'side-left' ? 11 : 12;
-      const plumbSev = getSideViewPlumbSeverity(raw, view, shoulderIdx);
-      const findingSev = plumbSeverityToFinding(plumbSev);
-      const dev = Math.abs((raw[shoulderIdx]?.x ?? 0.5) - (raw[view === 'side-left' ? 27 : 28]?.x ?? 0.5));
+      const ankleIdx = view === 'side-left' ? 27 : 28;
+      const t = rs.thresholds;
+      const dev = Math.abs((raw[shoulderIdx]?.x ?? 0.5) - (raw[ankleIdx]?.x ?? 0.5));
+      const findingSev: PostureFindingSeverity =
+        dev >= t.significant ? 'significant' : dev >= t.moderate ? 'moderate' : dev >= t.mild ? 'mild' : 'aligned';
       push(makeRecord(rs, view, dev, 'pixels', findingSev));
     }
 

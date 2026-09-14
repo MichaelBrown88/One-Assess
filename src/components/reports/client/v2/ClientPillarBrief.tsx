@@ -26,6 +26,7 @@ interface ClientPillarBriefProps {
 export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) {
   const pillarKey = SCORING_TO_PILLAR[pillar.scoringId];
   const title = CLIENT_PILLAR_LABELS[pillar.scoringId] ?? pillar.title;
+  const summary = sanitizeClientReportCopy(pillar.summary);
   const scoreDelta =
     pillar.previousScore != null ? pillar.score - pillar.previousScore : null;
 
@@ -33,9 +34,9 @@ export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) 
     <article
       id={`pillar-${pillar.sectionId}`}
       data-section-id={pillar.sectionId}
-      className="scroll-mt-24 py-6 sm:py-7"
+      className="scroll-mt-24"
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-baseline gap-2.5 md:items-start md:gap-4">
         <PillarScoreBadge pillar={pillarKey} score={pillar.score} size={48} showIcon={false} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -51,11 +52,12 @@ export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) 
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-foreground-secondary">
-            {sanitizeClientReportCopy(pillar.summary)}
+          <p className="mt-2 hidden text-sm leading-relaxed text-foreground-secondary md:block">
+            {summary}
           </p>
         </div>
       </div>
+      <p className="mt-2 text-sm leading-relaxed text-foreground-secondary md:hidden">{summary}</p>
 
       {pillar.contentMode === 'lifestyle-factors' ? (
         <div className="mt-5">

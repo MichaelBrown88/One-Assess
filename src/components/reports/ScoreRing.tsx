@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { scoreGrade, type ScoreGrade } from '@/lib/scoring/scoreColor';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,7 @@ interface ScoreRingProps {
   size?: number;
   /** Stroke width in viewbox units (0–100). Default 7. */
   strokeWidth?: number;
-  /** Display label below the score. Default "AXIS Score™". */
+  /** Display label. Omit when the parent renders the caption. */
   label?: string;
   className?: string;
   /** Stroke follows the score band (green / amber / red). Defaults to true. */
@@ -27,30 +27,46 @@ const ARC_LENGTH = 190; // out of 264 (2π·42) ≈ 72% sweep, leaves ~100° bot
 const CIRCUMFERENCE = 264;
 const ARC_ROTATION_DEG = 140;
 
-const GRADE_STROKE: Record<ScoreGrade, string> = {
-  green: 'hsl(var(--score-green))',
-  amber: 'hsl(var(--score-amber))',
-  red: 'hsl(var(--score-red))',
+const GRADE_GRADIENT: Record<ScoreGrade, { from: string; to: string }> = {
+  green: { from: 'hsl(var(--score-green))', to: 'hsl(var(--score-green-fg))' },
+  amber: { from: 'hsl(var(--score-amber))', to: 'hsl(var(--score-amber-fg))' },
+  red: { from: 'hsl(var(--score-red))', to: 'hsl(var(--score-red-fg))' },
 };
 
 export function ScoreRing({
   score,
   size = 180,
   strokeWidth = 7,
-  label = 'AXIS Score™',
+  label,
   className,
   scoreTinted = true,
 }: ScoreRingProps) {
   const pct = Math.max(0, Math.min(100, score));
   const dash = (pct / 100) * ARC_LENGTH;
   const compactNumerals = size <= 130;
-  const stroke = scoreTinted ? GRADE_STROKE[scoreGrade(score)] : 'hsl(var(--foreground))';
+  const grade = scoreGrade(score);
+  const gradientId = `${useId().replace(/:/g, '')}ring`;
+  const stroke = scoreTinted ? `url(#${gradientId})` : 'hsl(var(--foreground))';
+  const stops = GRADE_GRADIENT[grade];
 
   return (
     <div className={cn('inline-flex flex-col items-center', className)} style={{ width: size }}>
+      {label ? (
+        <span className="mb-2 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+          {label}
+        </span>
+      ) : null}
       <div className="relative" style={{ width: size, height: size }}>
         <svg className="h-full w-full" viewBox="-4 -4 108 108" aria-hidden>
-          {/* Track */}
+          {scoreTinted ? (
+            <defs>
+              <linearGradient id={gradientId} x1="12%" y1="8%" x2="88%" y2="92%">
+                <stop offset="0%" stopColor={stops.from} stopOpacity={0.55} />
+                <stop offset="42%" stopColor={stops.from} />
+                <stop offset="100%" stopColor={stops.to} />
+              </linearGradient>
+            </defs>
+          ) : null}
           <circle
             cx="50"
             cy="50"
@@ -62,7 +78,6 @@ export function ScoreRing({
             strokeDasharray={`${ARC_LENGTH} ${CIRCUMFERENCE}`}
             transform={`rotate(${ARC_ROTATION_DEG} 50 50)`}
           />
-          {/* Fill */}
           <circle
             cx="50"
             cy="50"
@@ -81,21 +96,16 @@ export function ScoreRing({
             className={
               compactNumerals
                 ? 'text-4xl font-bold tabular-nums tracking-[-0.02em] text-foreground sm:text-[2.65rem]'
-                : 'text-5xl font-bold tabular-nums tracking-[-0.02em] text-foreground sm:text-6xl'
+                : 'text-4xl font-bold tabular-nums tracking-[-0.02em] text-foreground sm:text-[2.75rem]'
             }
           >
             {score || '—'}
           </span>
-          <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             / 100
           </span>
         </div>
       </div>
-      {label ? (
-        <span className="mt-1 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
-          {label}
-        </span>
-      ) : null}
     </div>
   );
 }

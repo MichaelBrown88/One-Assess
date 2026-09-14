@@ -51,6 +51,7 @@ describe('prepareFormDataForPersistence', () => {
         front: {
           landmarks: {
             shoulder_y_percent: 25,
+            overlay: { ear: { x: 50, y: 18 } },
             raw: [{ x: 0.1, y: 0.2, z: 0.3, visibility: 1 }],
           },
         },
@@ -63,5 +64,8 @@ describe('prepareFormDataForPersistence', () => {
     );
     expect(persisted.postureAiResults?.front?.landmarks?.shoulder_y_percent).toBe(25);
     expect(persisted.postureAiResults?.front?.landmarks?.raw).toBeUndefined();
+    expect(persisted.postureAiResults?.front?.landmarks?.overlay).toEqual({
+      ear: { x: 50, y: 18 },
+    });
   });
 });

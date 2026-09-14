@@ -14,7 +14,6 @@ import {
 import { buildClientScoreHeadline, buildOverallResultsSummary } from '@/lib/reports/clientScoreHeadline';
 import { buildClientProgressionRows } from '@/lib/reports/clientProgressionRows';
 import type { ClientReportProgressionRow } from '@/lib/reports/clientProgressionRows';
-import { buildClientSelfGuidedHabits } from '@/lib/reports/clientGoalPhases';
 import { buildClientRoadmapCards, type ClientRoadmapCard } from '@/lib/reports/clientRoadmapCards';
 import {
   buildClientNinetyDayTarget,
@@ -22,6 +21,7 @@ import {
 } from '@/lib/reports/clientNinetyDayTarget';
 import { formatKg1 } from '@/lib/reports/weightLossProjection';
 import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
+import { isReportablePostureFinding } from '@/lib/posture/buildStructuredPostureFindings';
 import {
   pillarScoresFromCategories,
   buildRadarDataFromScores,
@@ -106,8 +106,6 @@ export interface ClientReportModel {
   goalLabels: string[];
   /** Goal-primary area to improve this 12-week block. */
   priorityFocus: { label: string; score: number } | null;
-  /** Compact self-guided habits shown under the roadmap. */
-  selfGuidedHabits: string[];
   /** High-level behaviour roadmap — one card per assessed pillar, goal-priority order. */
   roadmapCards: ClientRoadmapCard[];
   /** Achievable 12-week body-weight + macro target for the roadmap (null when data is insufficient). */
@@ -151,14 +149,15 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
   const headlineRaw = buildGoalAlignedSubheadline(scores, goalCtx);
   const headline = headlineRaw ? sanitizeClientReportCopy(headlineRaw) : null;
   const welcome = sanitizeClientReportCopy(
-    buildOverallResultsSummary(scores, previousOverall),
+    buildOverallResultsSummary(scores, previousOverall, {
+      dateOfBirth: formData?.dateOfBirth,
+      gender: formData?.gender,
+    }),
   );
 
   const focusFirst = dedupeLines(
     buildHeroList(scores, 'focus', goalCtx, 3).map(sanitizeClientReportCopy),
   ).slice(0, 3);
-
-  const selfGuidedHabits = buildClientSelfGuidedHabits(formData, goals);
 
   const pillars = sortPillarsByGoalRole(
     SECTION_IDS.map((sectionId) =>
@@ -176,7 +175,6 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     })),
     formData,
     goalCtx,
-    scores,
   );
 
   const roadmapTarget = buildClientNinetyDayTarget(formData, scores, goalCtx);
@@ -197,7 +195,6 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     welcome,
     focusFirst,
     goalLabels,
-    selfGuidedHabits,
     roadmapCards,
     roadmapTarget,
     pillars,
@@ -513,7 +510,7 @@ function buildPostureModel(formData?: FormData): ClientReportPostureModel | null
   if (!hasImages && !hasAnalysis) return null;
 
   const findings = hasAnalysis ? aggregatePostureFindings(results) : [];
-  const notable = findings.filter((f) => f.severity !== 'aligned');
+  const notable = findings.filter(isReportablePostureFinding);
   const sorted = sortFindingsForDisplay(notable);
   const headline = buildPostureOverview(sorted, hasAnalysis);
 

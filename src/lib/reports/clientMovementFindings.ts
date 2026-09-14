@@ -5,15 +5,20 @@
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreCategory } from '@/lib/scoring';
 import { ASSESSMENT_LABELS, ASSESSMENT_OPTIONS } from '@/constants/assessment';
+import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
 
 const P4_LABELS = ASSESSMENT_LABELS.P4 as Record<string, string>;
 
 export type MovementFindingTone = 'good' | 'concern' | 'critical';
+type AssessmentOptionKey = keyof typeof ASSESSMENT_OPTIONS;
 
 export interface ClientMovementFindingRow {
   label: string;
   value: string;
   tone: MovementFindingTone;
+  optionKey?: AssessmentOptionKey;
+  raw?: string;
+  name: string;
 }
 
 export interface ClientMovementFindingGroup {
@@ -28,7 +33,8 @@ export interface ClientMovementFindingsModel {
   hasPostureScan: boolean;
 }
 
-type AssessmentOptionKey = keyof typeof ASSESSMENT_OPTIONS;
+/** Form field paired with the ASSESSMENT_OPTIONS key that holds its labels
+ *  (left/right lunge fields share the same option list). */
 
 function optionLabel(field: AssessmentOptionKey, value: string | undefined): string | null {
   if (!value?.trim()) return null;
@@ -121,6 +127,16 @@ const MOVEMENT_LUNGE_FIELDS: MovementFieldSpec[] = [
   { field: 'lungeRightKneeAlignment', optionKey: 'lungeKneeAlignment' },
 ];
 
+function findingRowName(
+  title: string,
+  field: string,
+  label: string,
+): string {
+  if (field.includes('Left')) return `${title} · Left ${label.toLowerCase()}`;
+  if (field.includes('Right')) return `${title} · Right ${label.toLowerCase()}`;
+  return `${title} · ${label}`;
+}
+
 function buildGroup(
   id: ClientMovementFindingGroup['id'],
   title: string,
@@ -138,6 +154,9 @@ function buildGroup(
       label,
       value,
       tone: toneForMovementValue(raw),
+      optionKey,
+      raw,
+      name: findingRowName(title, field, label),
     });
   }
   if (rows.length === 0) return null;
@@ -173,6 +192,7 @@ export function buildMovementFindings(
       label: 'Focus',
       value: line,
       tone: 'concern' as const,
+      name: line,
     }));
     if (rows.length > 0) {
       groups.push({
@@ -204,4 +224,26 @@ export function movementWorkOns(model: ClientMovementFindingsModel): Array<{
       };
     })
     .filter((row): row is { pattern: string; detail: string; tone: MovementFindingTone } => row != null);
+}
+
+/** One row per marked pattern: coach grade now, one grade better in 12 weeks. */
+export function movementProgressionRows(
+  model: ClientMovementFindingsModel,
+): Array<{ name: string; current: string; twelveWeeks: string }> {
+  return model.groups.map((group) => ({
+    name: group.title,
+    current: gradeForTone(group.tone),
+    twelveWeeks: gradeForTone(nextTone(group.tone)),
+  }));
+}
+
+function gradeForTone(tone: MovementFindingTone): string {
+  if (tone === 'critical') return CLIENT_REPORT_COPY.v2MovementGradeLimited;
+  if (tone === 'concern') return CLIENT_REPORT_COPY.v2MovementGradeFair;
+  return CLIENT_REPORT_COPY.v2MovementGradeStrong;
+}
+
+function nextTone(tone: MovementFindingTone): MovementFindingTone {
+  if (tone === 'critical') return 'concern';
+  return 'good';
 }

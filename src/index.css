@@ -54,6 +54,7 @@
   --color-card-foreground: hsl(var(--card-foreground));
   --color-card-elevated: hsl(var(--card-elevated));
   --color-card-subtle: hsl(var(--card-subtle));
+  --color-report-band: hsl(var(--report-band));
 
   --color-admin-bg: hsl(var(--admin-bg));
   --color-admin-card: hsl(var(--admin-card));
@@ -499,6 +500,7 @@
     --card-foreground: 0 0% 4%;
     --card-elevated: 0 0% 98%;          /* #FAFAFA — nested cards */
     --card-subtle: 0 0% 97%;
+    --report-band: 0 0% 92%;            /* #EBEBEB — AXIS report grey sections vs white */
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
@@ -639,6 +641,7 @@
     --card-foreground: 0 0% 96%;
     --card-elevated: 0 0% 11%;          /* #1C1C1C */
     --card-subtle: 0 0% 6%;
+    --report-band: 0 0% 13%;            /* AXIS report grey sections vs card */
 
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 96%;

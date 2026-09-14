@@ -278,16 +278,16 @@ export const CONFIG = {
     },
     STYLE: {
       LINE_COLOR: "#00ff00",
-      LINE_WIDTH: 4,
+      LINE_WIDTH: 2,
       DEVIATION_COLOR: "#ff0000",
-      DEVIATION_WIDTH: 3,
+      DEVIATION_WIDTH: 2,
       PLACEHOLDER_BG: "#f1f5f9",
       /** Client AXIS report — person on white, high-contrast overlays */
       CLIENT_BG: "#ffffff",
       CLIENT_LINE_COLOR: "rgba(22, 163, 74, 0.9)",
-      CLIENT_LINE_WIDTH: 3,
+      CLIENT_LINE_WIDTH: 1.5,
       CLIENT_DEVIATION_COLOR: "#dc2626",
-      CLIENT_DEVIATION_WIDTH: 7,
+      CLIENT_DEVIATION_WIDTH: 2,
     },
   },
 

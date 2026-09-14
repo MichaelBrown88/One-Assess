@@ -72,7 +72,7 @@ export const POSTURE_FEEDBACK_LIBRARY = {
     id: 'rounded_shoulders',
     name: 'Rounded Shoulders',
     views: ['side-left', 'side-right'],
-    thresholds: { mild: 0.02, moderate: 0.04, significant: 0.07 },
+    thresholds: { mild: 0.045, moderate: 0.07, significant: 0.1 },
     priority: 'high',
     feedback: {
       mild: tier(

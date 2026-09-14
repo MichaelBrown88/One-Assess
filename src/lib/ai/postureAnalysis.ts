@@ -50,6 +50,7 @@ export interface PostureAnalysisResult {
     head_y_percent?: number; // Y position of head/nose as % of image height (0-100)
     center_x_percent?: number; // X position of body center/midfoot as % of image width (0-100)
     midfoot_x_percent?: number; // X position of midfoot (for side views) as % of image width (0-100)
+    overlay?: import('@/lib/posture/overlaySkeleton').OverlaySkeleton;
     raw?: import('@/lib/types/mediapipe').MediaPipeLandmark[]; // The raw MediaPipe landmarks for calculation
   };
   

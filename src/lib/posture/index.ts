@@ -31,6 +31,8 @@ export {
 } from './postureOverlayCanvas';
 
 export { composeClientPosturePreview } from './composeClientPosturePreview';
+export { buildOverlaySkeleton, overlayFromNormalizedLandmarks } from './overlaySkeleton';
+export type { OverlaySkeleton, OverlayPt } from './overlaySkeleton';
 
 // Alignment calculations
 export { calculateFrontBackAlignments } from './postureAlignmentFront';
@@ -44,6 +46,8 @@ export {
 
 // Deviation rendering
 export { drawDeviations } from './postureDeviationRenderer';
+export { postureDeviationMarks } from './postureDeviationMarks';
+export { enrichPostureAnalysisFromOverlay, overlaySideCues } from './overlayCues';
 
 // Drawing utilities
 export {

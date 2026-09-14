@@ -73,6 +73,7 @@ export default {
           elevated: "hsl(var(--card-elevated))",
           subtle: "hsl(var(--card-subtle))",
         },
+        "report-band": "hsl(var(--report-band))",
         admin: {
           bg: "hsl(var(--admin-bg))",
           card: "hsl(var(--admin-card))",

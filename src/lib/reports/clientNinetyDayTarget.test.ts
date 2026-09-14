@@ -84,4 +84,19 @@ describe('buildClientNinetyDayTarget', () => {
     expect(target!.direction).toBe('lose');
     expect(target!.targetWeightKg!).toBeGreaterThan(74);
   });
+
+  it('gives a female client lower calories than a male with the same stats', () => {
+    const male = buildClientNinetyDayTarget(form({ gender: 'male' }), undefined, weightLossCtx);
+    const female = buildClientNinetyDayTarget(form({ gender: 'female' }), undefined, weightLossCtx);
+    expect(female!.calories!).toBeLessThan(male!.calories!);
+    expect(female!.direction).toBe('lose');
+  });
+
+  it('projects slower 12-week muscle gain for a female client', () => {
+    const male = buildClientNinetyDayTarget(form({ gender: 'male' }), undefined, muscleCtx);
+    const female = buildClientNinetyDayTarget(form({ gender: 'female' }), undefined, muscleCtx);
+    expect(male!.direction).toBe('gain');
+    expect(female!.direction).toBe('gain');
+    expect(female!.targetWeightKg!).toBeLessThan(male!.targetWeightKg!);
+  });
 });

@@ -21,6 +21,7 @@ import {
 import { LandmarkResult, detectPostureLandmarks } from '@/lib/ai/postureLandmarks';
 import { drawLandmarkWireframe } from '@/lib/utils/postureOverlay';
 import { composeClientPosturePreview } from '@/lib/posture/composeClientPosturePreview';
+import { buildOverlaySkeleton } from '@/lib/posture/overlaySkeleton';
 import { buildPostureResult } from '@/lib/ai/postureTemplates';
 import type { PostureAiContext, PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 import { buildStructuredPostureFindings } from '@/lib/posture/buildStructuredPostureFindings';
@@ -164,6 +165,15 @@ export interface ProcessingProgress {
 // Callback type for progress updates
 export type OnProgressCallback = (progress: ProcessingProgress) => void;
 
+function readImageSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.width, height: img.height });
+    img.onerror = () => reject(new Error('Failed to read posture image size'));
+    img.src = src;
+  });
+}
+
 /**
  * UNIFIED PROCESSING FUNCTION
  * Processes a posture image from ANY source using the same flow
@@ -200,6 +210,16 @@ export async function processPostureImage(
       } catch (landmarkError) {
         logger.error(`Landmark detection failed for ${view}`, ctx, landmarkError);
         throw new Error(`Failed to detect landmarks: ${landmarkError instanceof Error ? landmarkError.message : 'Unknown error'}`);
+      }
+    }
+
+    if (!landmarks.overlay && landmarks.raw && landmarks.raw.length > 0) {
+      try {
+        const size = await readImageSize(imageData);
+        const overlay = buildOverlaySkeleton(landmarks.raw, view, size.width, size.height);
+        if (overlay) landmarks = { ...landmarks, overlay };
+      } catch (overlayError) {
+        logger.warn(`Overlay skeleton skipped for ${view}`, ctx, overlayError);
       }
     }
 
@@ -254,7 +274,6 @@ export async function processPostureImage(
       imageWithDeviations = await composeClientPosturePreview(
         imageData,
         view,
-        analysis,
         landmarks,
       );
     } catch (composeError) {

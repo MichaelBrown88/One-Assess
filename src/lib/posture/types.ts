@@ -23,6 +23,7 @@ export interface LandmarkData {
   center_x_percent?: number;
   midfoot_x_percent?: number;
   head_y_percent?: number;
+  overlay?: import('./overlaySkeleton').OverlaySkeleton;
   raw?: Array<{ x: number; y: number; z?: number; visibility?: number }>;
 }
 

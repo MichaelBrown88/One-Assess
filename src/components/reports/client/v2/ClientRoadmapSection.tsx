@@ -3,20 +3,18 @@ import type { ClientRoadmapCard } from '@/lib/reports/clientRoadmapCards';
 import type { ClientNinetyDayTarget } from '@/lib/reports/clientNinetyDayTarget';
 import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
 import { sanitizeClientReportCopy } from '@/lib/reports/sanitizeClientReportCopy';
-import { RoadmapSelfGuidedHabits, RoadmapTargetFigures } from './ClientRoadmapSupport';
+import { RoadmapTargetFigures } from './ClientRoadmapSupport';
 import { cn } from '@/lib/utils';
 
 interface ClientRoadmapSectionProps {
   cards: ClientRoadmapCard[];
   target?: ClientNinetyDayTarget | null;
-  selfGuidedHabits?: string[];
   embedded?: boolean;
 }
 
 export function ClientRoadmapSection({
   cards,
   target,
-  selfGuidedHabits = [],
   embedded = false,
 }: ClientRoadmapSectionProps) {
   if (cards.length === 0) return null;
@@ -42,18 +40,18 @@ export function ClientRoadmapSection({
             <p className="mt-0.5 text-[15px] font-semibold tracking-[-0.01em] text-foreground">
               {card.title}
             </p>
-            {card.prescriptions[0] ? (
-              <p className="mt-1 text-[13px] leading-snug text-foreground-secondary">
-                {sanitizeClientReportCopy(card.prescriptions[0])}
-              </p>
-            ) : null}
+            <div className="mt-1 space-y-0.5">
+              {card.prescriptions.map((line) => (
+                <p key={line} className="text-[13px] leading-snug text-foreground-secondary">
+                  {sanitizeClientReportCopy(line)}
+                </p>
+              ))}
+            </div>
           </li>
         ))}
       </ul>
 
-      <RoadmapSelfGuidedHabits habits={selfGuidedHabits} />
-
-      <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+      <p className="mt-5 text-[12px] leading-relaxed text-muted-foreground">
         {CLIENT_REPORT_COPY.v2RoadmapCta}
       </p>
     </section>
