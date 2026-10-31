@@ -1568,3 +1568,6 @@ export const extractRemoteBodyCompOcr = onCall(
     return handleExtractRemoteBodyCompOcr(request);
   },
 );
+
+// Integration API endpoints
+export { inboundAssessment, onAssessmentCompleted } from './integrations';
