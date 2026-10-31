@@ -183,19 +183,20 @@ export function useAssessmentSave({
           : null;
         if (parsedEdit?.assessmentId && profile?.organizationId) {
             // Edit mode: always update the existing snapshot, never create a new one
-            const { getCurrentAssessment, updateSnapshotWithCascade, getClientAssessmentHistory } = await import('@/services/assessmentHistory');
+            const { getCurrentAssessment, updateSnapshotWithCascade } = await import('@/services/assessmentHistory');
             
-            // If snapshotId is missing, fetch the latest snapshot for this client
-            let snapshotId = parsedEdit.snapshotId;
+            // Safety: require explicit snapshotId to prevent overwriting the wrong assessment
+            const snapshotId = parsedEdit.snapshotId;
             if (!snapshotId) {
-              logger.warn('[Assessment] Edit mode missing snapshotId; fetching latest snapshot');
-              const snapshots = await getClientAssessmentHistory(user.uid, clientName, profile.organizationId, 1);
-              if (snapshots.length > 0 && snapshots[0].id) {
-                snapshotId = snapshots[0].id;
-                logger.info('[Assessment] Resolved missing snapshotId to latest:', snapshotId);
-              } else {
-                throw new Error('Cannot edit assessment: no snapshot found');
-              }
+              logger.error('[Assessment] Edit mode missing snapshotId - cannot safely determine which snapshot to update');
+              toast({
+                title: 'Cannot save changes',
+                description: 'Unable to identify which assessment to update. Please return to the client profile and try editing again.',
+                variant: 'destructive',
+              });
+              setSaving(false);
+              saveInitiatedRef.current = false;
+              return;
             }
 
             // Edit existing snapshot in place with cascade; for partial, merge with current so we don't wipe other pillars
