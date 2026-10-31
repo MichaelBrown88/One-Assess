@@ -176,10 +176,22 @@ const AssessmentReport = () => {
 
   const navigateToEdit = () => {
     if (!id || !formData) return;
+    
+    // Determine which snapshot is being edited (the currently selected one in the version selector)
+    const selectedSnapshot = allSnapshots[versionSelector.selectedIndex];
+    const snapshotId = selectedSnapshot?.id;
+    
+    if (!snapshotId) {
+      // Safety: don't allow edit without a clear snapshot ID to prevent overwriting the wrong assessment
+      console.error('[AssessmentReport] Cannot edit: snapshot ID not found for selected version');
+      return;
+    }
+    
     writeEditAssessmentPayload({
       assessmentId: id,
       formData: formData,
       clientName: formData.fullName,
+      snapshotId: snapshotId,
     });
     removePartialAssessment();
     removePrefillClient();
