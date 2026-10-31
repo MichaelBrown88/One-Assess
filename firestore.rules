@@ -549,5 +549,28 @@ service cloud.firestore {
     match /rate-limits/{key} {
       allow read, write: if false;
     }
+
+    // =========================================================
+    // INTEGRATION API KEYS & WEBHOOKS (Org Admins only)
+    // =========================================================
+
+    match /organizations/{orgId}/integration-api-keys/{keyId} {
+      allow read: if isOrgAdmin(orgId);
+      allow create, update: if isOrgAdmin(orgId) && 
+        request.resource.data.organizationId == orgId;
+      allow delete: if false; // Keys are revoked, not deleted
+    }
+
+    match /organizations/{orgId}/integration-webhooks/{webhookId} {
+      allow read: if isOrgAdmin(orgId);
+      allow create, update: if isOrgAdmin(orgId) && 
+        request.resource.data.organizationId == orgId;
+      allow delete: if isOrgAdmin(orgId);
+    }
+
+    match /organizations/{orgId}/integration-assessments/{assessmentId} {
+      allow read: if canReadOrgData(orgId);
+      allow write: if false; // Cloud Functions only
+    }
   }
 }

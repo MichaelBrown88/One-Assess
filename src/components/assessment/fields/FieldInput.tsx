@@ -17,6 +17,10 @@ export const FieldInput: React.FC<FieldInputProps> = ({
   value,
   onValueChange,
 }) => {
+  // Add native HTML5 validation attributes based on field type
+  const inputMode = type === 'email' ? 'email' : type === 'tel' ? 'tel' : undefined;
+  const pattern = type === 'email' ? '[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$' : undefined;
+  
   return (
     <SmartInput
       id={id}
@@ -26,6 +30,8 @@ export const FieldInput: React.FC<FieldInputProps> = ({
       value={(value as string) ?? ''}
       onValueChange={onValueChange}
       className="h-12 rounded-lg border-border focus:ring-primary"
+      inputMode={inputMode}
+      pattern={pattern}
     />
   );
 };

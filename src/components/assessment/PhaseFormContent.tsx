@@ -412,7 +412,7 @@ export const PhaseFormContent = ({
           />
 
           <PhaseFormViewResultsCta
-            visible={activePhaseIdx >= 1 && activePhaseIdx < totalPhases - 1}
+            visible={activePhaseIdx >= 1 && activePhaseIdx < totalPhases - 1 && isCompleteForReport}
             buttonText={submitButtonHint}
             onClick={openPreResultsReview}
           />
