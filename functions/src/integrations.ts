@@ -42,22 +42,66 @@ interface WebhookEndpoint {
   failureCount: number;
 }
 
+// Accepted enum values for multiple-choice fields (from One Assess UI)
+const VALID_ENUMS = {
+  gender: ['male', 'female'] as const,
+  activityLevel: ['sedentary', 'lightly-active', 'moderately-active', 'very-active', 'extremely-active'] as const,
+  sleepArchetype: ['excellent', 'good', 'fair', 'poor'] as const,
+  stressLevel: ['very-low', 'low', 'moderate', 'high'] as const,
+  nutritionHabits: ['excellent', 'good', 'fair', 'poor'] as const,
+  hydrationHabits: ['excellent', 'good', 'fair', 'poor'] as const,
+  alcoholFrequency: ['never', 'occasionally', 'weekly', 'multiple-weekly', 'frequent', 'daily'] as const,
+  medicationsFlag: ['no', 'yes'] as const,
+  trainingHistory: ['beginner', 'intermediate', 'advanced'] as const,
+  recentActivity: ['currently-training', 'stopped-3-months', 'stopped-6-months'] as const,
+  clientGoals: ['build-muscle', 'weight-loss', 'body-recomposition', 'build-strength', 'improve-fitness', 'general-health'] as const,
+};
+
+type Gender = typeof VALID_ENUMS.gender[number];
+type ActivityLevel = typeof VALID_ENUMS.activityLevel[number];
+type SleepArchetype = typeof VALID_ENUMS.sleepArchetype[number];
+type StressLevel = typeof VALID_ENUMS.stressLevel[number];
+type NutritionHabits = typeof VALID_ENUMS.nutritionHabits[number];
+type HydrationHabits = typeof VALID_ENUMS.hydrationHabits[number];
+type AlcoholFrequency = typeof VALID_ENUMS.alcoholFrequency[number];
+type MedicationsFlag = typeof VALID_ENUMS.medicationsFlag[number];
+type TrainingHistory = typeof VALID_ENUMS.trainingHistory[number];
+type RecentActivity = typeof VALID_ENUMS.recentActivity[number];
+type ClientGoal = typeof VALID_ENUMS.clientGoals[number];
+
 interface InboundAssessmentPayload {
   externalId: string;
   clientName: string;
   email?: string;
   phone?: string;
   dateOfBirth?: string;
-  gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
-  parqAnswers?: Record<string, boolean>;
-  lifestyle?: {
-    sleepHours?: number;
-    stressLevel?: string;
-    activityLevel?: string;
-    trainingFrequency?: number;
+  gender?: Gender;
+  trainingHistory?: TrainingHistory;
+  recentActivity?: RecentActivity;
+  parqAnswers?: {
+    chestPain?: boolean;
+    dizziness?: boolean;
+    boneJointProblem?: boolean;
+    bloodPressureMedication?: boolean;
+    heartCondition?: boolean;
+    physicalActivityAdvised?: boolean;
+    otherReason?: boolean;
   };
-  goals?: string[];
-  medications?: string;
+  lifestyle?: {
+    activityLevel?: ActivityLevel;
+    stepsPerDay?: number;
+    sleepArchetype?: SleepArchetype;
+    stressLevel?: StressLevel;
+    nutritionHabits?: NutritionHabits;
+    hydrationHabits?: HydrationHabits;
+    caffeineCupsPerDay?: number;
+    lastCaffeineIntake?: string;
+    alcoholFrequency?: AlcoholFrequency;
+    medicationsFlag?: MedicationsFlag;
+    medicationsNotes?: string;
+  };
+  goals?: ClientGoal[];
+  trainingFrequency?: number;
   height?: number;
   weight?: number;
 }
@@ -210,6 +254,67 @@ export const inboundAssessment = functions.https.onRequest(async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: externalId, clientName' });
     }
 
+    // Validate enum values
+    const validationErrors: string[] = [];
+
+    if (data.gender && !VALID_ENUMS.gender.includes(data.gender as Gender)) {
+      validationErrors.push(`Invalid gender: "${data.gender}". Accepted values: ${VALID_ENUMS.gender.join(', ')}`);
+    }
+
+    if (data.trainingHistory && !VALID_ENUMS.trainingHistory.includes(data.trainingHistory as TrainingHistory)) {
+      validationErrors.push(`Invalid trainingHistory: "${data.trainingHistory}". Accepted values: ${VALID_ENUMS.trainingHistory.join(', ')}`);
+    }
+
+    if (data.recentActivity && !VALID_ENUMS.recentActivity.includes(data.recentActivity as RecentActivity)) {
+      validationErrors.push(`Invalid recentActivity: "${data.recentActivity}". Accepted values: ${VALID_ENUMS.recentActivity.join(', ')}`);
+    }
+
+    if (data.goals && Array.isArray(data.goals)) {
+      const invalidGoals = data.goals.filter(g => !VALID_ENUMS.clientGoals.includes(g as ClientGoal));
+      if (invalidGoals.length > 0) {
+        validationErrors.push(`Invalid goals: ${invalidGoals.join(', ')}. Accepted values: ${VALID_ENUMS.clientGoals.join(', ')}`);
+      }
+    }
+
+    if (data.lifestyle) {
+      const { activityLevel, sleepArchetype, stressLevel, nutritionHabits, hydrationHabits, alcoholFrequency, medicationsFlag } = data.lifestyle;
+
+      if (activityLevel && !VALID_ENUMS.activityLevel.includes(activityLevel as ActivityLevel)) {
+        validationErrors.push(`Invalid lifestyle.activityLevel: "${activityLevel}". Accepted values: ${VALID_ENUMS.activityLevel.join(', ')}`);
+      }
+
+      if (sleepArchetype && !VALID_ENUMS.sleepArchetype.includes(sleepArchetype as SleepArchetype)) {
+        validationErrors.push(`Invalid lifestyle.sleepArchetype: "${sleepArchetype}". Accepted values: ${VALID_ENUMS.sleepArchetype.join(', ')}`);
+      }
+
+      if (stressLevel && !VALID_ENUMS.stressLevel.includes(stressLevel as StressLevel)) {
+        validationErrors.push(`Invalid lifestyle.stressLevel: "${stressLevel}". Accepted values: ${VALID_ENUMS.stressLevel.join(', ')}`);
+      }
+
+      if (nutritionHabits && !VALID_ENUMS.nutritionHabits.includes(nutritionHabits as NutritionHabits)) {
+        validationErrors.push(`Invalid lifestyle.nutritionHabits: "${nutritionHabits}". Accepted values: ${VALID_ENUMS.nutritionHabits.join(', ')}`);
+      }
+
+      if (hydrationHabits && !VALID_ENUMS.hydrationHabits.includes(hydrationHabits as HydrationHabits)) {
+        validationErrors.push(`Invalid lifestyle.hydrationHabits: "${hydrationHabits}". Accepted values: ${VALID_ENUMS.hydrationHabits.join(', ')}`);
+      }
+
+      if (alcoholFrequency && !VALID_ENUMS.alcoholFrequency.includes(alcoholFrequency as AlcoholFrequency)) {
+        validationErrors.push(`Invalid lifestyle.alcoholFrequency: "${alcoholFrequency}". Accepted values: ${VALID_ENUMS.alcoholFrequency.join(', ')}`);
+      }
+
+      if (medicationsFlag && !VALID_ENUMS.medicationsFlag.includes(medicationsFlag as MedicationsFlag)) {
+        validationErrors.push(`Invalid lifestyle.medicationsFlag: "${medicationsFlag}". Accepted values: ${VALID_ENUMS.medicationsFlag.join(', ')}`);
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: validationErrors 
+      });
+    }
+
     // Check for existing assessment with this external ID
     const existingSnapshot = await admin.firestore()
       .collection(`organizations/${orgId}/integration-assessments`)
@@ -230,20 +335,35 @@ export const inboundAssessment = functions.https.onRequest(async (req, res) => {
       gender: data.gender,
       heightCm: data.height,
       inbodyWeightKg: data.weight,
-      medications: data.medications,
+      trainingHistory: data.trainingHistory,
+      recentActivity: data.recentActivity,
+      trainingFrequency: data.trainingFrequency,
     };
 
-    // PAR-Q answers
+    // PAR-Q answers (map directly to FormData boolean fields)
     if (data.parqAnswers) {
-      Object.assign(formData, data.parqAnswers);
+      if (data.parqAnswers.chestPain !== undefined) formData.chestPain = data.parqAnswers.chestPain;
+      if (data.parqAnswers.dizziness !== undefined) formData.dizziness = data.parqAnswers.dizziness;
+      if (data.parqAnswers.boneJointProblem !== undefined) formData.boneJointProblem = data.parqAnswers.boneJointProblem;
+      if (data.parqAnswers.bloodPressureMedication !== undefined) formData.bloodPressureMedication = data.parqAnswers.bloodPressureMedication;
+      if (data.parqAnswers.heartCondition !== undefined) formData.heartCondition = data.parqAnswers.heartCondition;
+      if (data.parqAnswers.physicalActivityAdvised !== undefined) formData.physicalActivityAdvised = data.parqAnswers.physicalActivityAdvised;
+      if (data.parqAnswers.otherReason !== undefined) formData.otherReason = data.parqAnswers.otherReason;
     }
 
     // Lifestyle
     if (data.lifestyle) {
-      if (data.lifestyle.sleepHours) formData.sleepHours = data.lifestyle.sleepHours;
-      if (data.lifestyle.stressLevel) formData.stressLevel = data.lifestyle.stressLevel;
       if (data.lifestyle.activityLevel) formData.activityLevel = data.lifestyle.activityLevel;
-      if (data.lifestyle.trainingFrequency) formData.trainingFrequency = data.lifestyle.trainingFrequency;
+      if (data.lifestyle.stepsPerDay) formData.stepsPerDay = data.lifestyle.stepsPerDay;
+      if (data.lifestyle.sleepArchetype) formData.sleepArchetype = data.lifestyle.sleepArchetype;
+      if (data.lifestyle.stressLevel) formData.stressLevel = data.lifestyle.stressLevel;
+      if (data.lifestyle.nutritionHabits) formData.nutritionHabits = data.lifestyle.nutritionHabits;
+      if (data.lifestyle.hydrationHabits) formData.hydrationHabits = data.lifestyle.hydrationHabits;
+      if (data.lifestyle.caffeineCupsPerDay) formData.caffeineCupsPerDay = data.lifestyle.caffeineCupsPerDay;
+      if (data.lifestyle.lastCaffeineIntake) formData.lastCaffeineIntake = data.lifestyle.lastCaffeineIntake;
+      if (data.lifestyle.alcoholFrequency) formData.alcoholFrequency = data.lifestyle.alcoholFrequency;
+      if (data.lifestyle.medicationsFlag) formData.medicationsFlag = data.lifestyle.medicationsFlag;
+      if (data.lifestyle.medicationsNotes) formData.medicationsNotes = data.lifestyle.medicationsNotes;
     }
 
     // Goals

@@ -65,6 +65,8 @@ Create a new assessment with prefilled data, or update an existing one by extern
   "phone": "+1234567890",
   "dateOfBirth": "1990-01-15",
   "gender": "male",
+  "trainingHistory": "intermediate",
+  "recentActivity": "currently-training",
   "parqAnswers": {
     "chestPain": false,
     "dizziness": false,
@@ -75,37 +77,122 @@ Create a new assessment with prefilled data, or update an existing one by extern
     "otherReason": false
   },
   "lifestyle": {
-    "sleepHours": 7,
-    "stressLevel": "moderate",
     "activityLevel": "moderately-active",
-    "trainingFrequency": 3
+    "stepsPerDay": 8000,
+    "sleepArchetype": "good",
+    "stressLevel": "low",
+    "nutritionHabits": "good",
+    "hydrationHabits": "excellent",
+    "caffeineCupsPerDay": 2,
+    "lastCaffeineIntake": "14:00",
+    "alcoholFrequency": "occasionally",
+    "medicationsFlag": "no",
+    "medicationsNotes": ""
   },
-  "goals": ["lose-weight", "build-muscle"],
-  "medications": "None",
+  "goals": ["weight-loss", "build-muscle"],
+  "trainingFrequency": 3,
   "height": 180,
   "weight": 85
 }
 ```
 
 **Required Fields:**
-- `externalId` (string): Your unique identifier for this client
+- `externalId` (string): Your unique identifier for this client (used for idempotency)
 - `clientName` (string): Client's full name
 
 **Optional Fields:**
-- `email` (string): Client email
+
+All optional fields use One Assess's stored option values. **Unknown enum values will be rejected** with a 400 error listing accepted values.
+
+### Basic Info (Phase P0)
+
+- `email` (string): Client email address
 - `phone` (string): Client phone number
 - `dateOfBirth` (string): Format: YYYY-MM-DD
-- `gender` (string): `male`, `female`, `other`, or `prefer-not-to-say`
-- `parqAnswers` (object): PAR-Q questionnaire responses (boolean values)
-- `lifestyle` (object): Lifestyle data
-  - `sleepHours` (number): Average hours of sleep per night
-  - `stressLevel` (string): `low`, `moderate`, or `high`
-  - `activityLevel` (string): `sedentary`, `lightly-active`, `moderately-active`, `very-active`, or `extremely-active`
-  - `trainingFrequency` (number): Training sessions per week
-- `goals` (array): Array of goal strings (`lose-weight`, `build-muscle`, `improve-fitness`, `improve-posture`, `reduce-pain`)
-- `medications` (string): Current medications or "None"
+- `gender` (enum): 
+  - `male`
+  - `female`
+- `trainingHistory` (enum):
+  - `beginner` — None / Beginner (< 6 months)
+  - `intermediate` — Intermediate (6 months – 2 years)
+  - `advanced` — Advanced (> 2 years consistent training)
+- `recentActivity` (enum):
+  - `currently-training` — Currently Training
+  - `stopped-3-months` — Stopped < 3 months ago
+  - `stopped-6-months` — Stopped > 6 months ago
+
+### PAR-Q Questionnaire (Phase P0)
+
+- `parqAnswers` (object): Physical Activity Readiness Questionnaire responses
+  - `chestPain` (boolean): Chest pain during physical activity
+  - `dizziness` (boolean): Loss of balance or consciousness
+  - `boneJointProblem` (boolean): Bone or joint problem
+  - `bloodPressureMedication` (boolean): Currently taking blood pressure medication
+  - `heartCondition` (boolean): Heart condition diagnosis
+  - `physicalActivityAdvised` (boolean): Doctor advised against physical activity
+  - `otherReason` (boolean): Other medical reason preventing exercise
+
+### Lifestyle (Phase P1)
+
+- `lifestyle` (object): Daily habits and health factors
+  - `activityLevel` (enum):
+    - `sedentary` — Desk job, minimal walking
+    - `lightly-active` — Light activity or walking
+    - `moderately-active` — Moderately active throughout day
+    - `very-active` — Very active, standing job or 10k+ steps
+    - `extremely-active` — Extremely active lifestyle
+  - `stepsPerDay` (number): Average daily steps
+  - `sleepArchetype` (enum):
+    - `excellent` — Consistent 7-9 hours with minimal disruptions
+    - `good` — Enough sleep but schedule/quality varies
+    - `fair` — Often insufficient sleep or wake frequently
+    - `poor` — Major challenge with irregular schedule and poor quality
+  - `stressLevel` (enum):
+    - `very-low` — Manage stress well, feel balanced
+    - `low` — Some stress but cope reasonably
+    - `moderate` — Stress affects regularly, impacts energy
+    - `high` — Frequently stressed, significantly affects life
+  - `nutritionHabits` (enum):
+    - `excellent` — Mostly whole foods, balanced meals, consistent timing
+    - `good` — Try to eat healthy but struggle with consistency
+    - `fair` — Diet varies a lot
+    - `poor` — Not in control, mostly takeout/processed
+  - `hydrationHabits` (enum):
+    - `excellent` — Drink plenty of water consistently
+    - `good` — Try to stay hydrated but often forget
+    - `fair` — Water intake varies
+    - `poor` — Rarely drink enough water
+  - `caffeineCupsPerDay` (number): Average caffeinated drinks per day
+  - `lastCaffeineIntake` (string): Time of last caffeine (HH:MM format, e.g. "14:00")
+  - `alcoholFrequency` (enum):
+    - `never` — Rarely or never
+    - `occasionally` — Few times a month
+    - `weekly` — About once a week
+    - `multiple-weekly` — Several times a week
+    - `frequent` — Most days
+    - `daily` — Daily
+  - `medicationsFlag` (enum):
+    - `no` — No regular medications
+    - `yes` — Takes medication(s)
+  - `medicationsNotes` (string): Medication details (optional, relevant when medicationsFlag is "yes")
+
+### Goals & Training (Phase P1)
+
+- `goals` (array of enums): Client's primary and secondary goals
+  - `build-muscle` — Build muscle
+  - `weight-loss` — Weight loss
+  - `body-recomposition` — Body recomposition
+  - `build-strength` — Build strength
+  - `improve-fitness` — Improve fitness
+  - `general-health` — General health
+- `trainingFrequency` (number): Training sessions per week (0-7)
+
+### Body Composition (Phase P2)
+
 - `height` (number): Height in centimeters
 - `weight` (number): Weight in kilograms
+
+**Note:** Coach continues assessment from Phase P2 (Metabolic) onwards after prefilled data.
 
 **Response (201 Created or 200 OK):**
 
@@ -119,9 +206,89 @@ Create a new assessment with prefilled data, or update an existing one by extern
 
 **Error Responses:**
 
-- `400 Bad Request`: Missing required fields or invalid data
-- `401 Unauthorized`: Invalid API key or signature
-- `500 Internal Server Error`: Server error
+**400 Bad Request** - Invalid or missing data:
+
+```json
+{
+  "error": "Missing required fields: externalId, clientName"
+}
+```
+
+**400 Bad Request** - Enum validation failed:
+
+```json
+{
+  "error": "Validation failed",
+  "details": [
+    "Invalid gender: \"unknown\". Accepted values: male, female",
+    "Invalid lifestyle.activityLevel: \"super-active\". Accepted values: sedentary, lightly-active, moderately-active, very-active, extremely-active"
+  ]
+}
+```
+
+**401 Unauthorized** - Invalid API key or signature:
+
+```json
+{
+  "error": "Invalid API key"
+}
+```
+
+**401 Unauthorized** - Signature verification failed:
+
+```json
+{
+  "error": "Invalid signature"
+}
+```
+
+**500 Internal Server Error** - Server error:
+
+```json
+{
+  "error": "Internal server error"
+}
+```
+
+### Enum Validation
+
+All multiple-choice fields are validated against One Assess's stored option values. If you provide an invalid enum value, the API will:
+
+1. **Reject the entire request** with a 400 error
+2. **List all validation errors** in the `details` array
+3. **Show accepted values** for each invalid field
+
+This ensures prefilled assessments display correctly in the UI with the proper options already selected.
+
+**Example:**
+
+If you send `"gender": "other"`, you'll get:
+```json
+{
+  "error": "Validation failed",
+  "details": [
+    "Invalid gender: \"other\". Accepted values: male, female"
+  ]
+}
+```
+
+### Prefilled Assessment Flow
+
+When an assessment is prefilled via the API:
+
+1. **Assessment created** in `integration-assessments` collection with `status: 'prefilled'`
+2. **Coach opens the assessment** - automatically loads prefilled data
+3. **Prefilled steps remain editable** - Coach can review and modify any field
+4. **Direct navigation to P2** - If P0 and P1 are fully prefilled, coach can skip directly to Metabolic (P2) phase
+5. **Coach continues from P2** - Analyzer, tape measurements, fitness tests, movement, strength, posture
+6. **Generate AXIS Report** - Complete assessment and webhook fires
+
+**Navigation Behavior:**
+
+- Fully prefilled steps show as "complete" in sidebar
+- Coach can click any step to review/edit prefilled data
+- No data is locked - everything remains editable
+- Incomplete steps still require completion before generating report
 
 ### Example: Create Assessment (JavaScript)
 
