@@ -162,7 +162,7 @@ AI credit top-up: £9 for 20 credits (GB).
 - noreply@one-assess.com
 
 ### Infrastructure
-- GitHub: MichaelBrown88/fitness-flow-form
+- GitHub: MichaelBrown88/one-assess
 - Domain: one-assess.com (Google Workspace)
 - Firebase project: assessment-engine-8f633
 
