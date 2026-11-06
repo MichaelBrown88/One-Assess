@@ -15,7 +15,6 @@ import {
   ChevronUp,
   Database,
   AlertTriangle,
-  CloudUpload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlatformDataIntelligence } from '@/hooks/usePlatformDataIntelligence';
@@ -744,25 +743,6 @@ function FullAnalysis({
   );
 }
 
-function apexSkippedUserMessage(reason?: string): string {
-  if (reason === 'http_401') {
-    return (
-      'APEX OS: skipped (401). Cloud Functions secret must exactly match Vercel ' +
-      'PRODUCT_ANALYTICS_INGEST_SECRET for production (os.one-assess.com). Update functions/.env, then firebase deploy --only functions.'
-    );
-  }
-  if (reason === 'secret_placeholder') {
-    return 'APEX OS: skipped — replace the placeholder in APEX_PRODUCT_ANALYTICS_SECRET and redeploy functions.';
-  }
-  if (reason === 'no_secret') {
-    return 'APEX OS: skipped — set APEX_PRODUCT_ANALYTICS_SECRET in functions/.env and redeploy functions.';
-  }
-  if (reason === 'no_global_metrics') {
-    return 'APEX OS: skipped — Firestore system_stats/global_metrics does not exist yet.';
-  }
-  return `APEX OS: skipped${reason ? ` (${reason})` : ''}. Check functions env secret and global_metrics.`;
-}
-
 // ---------------------------------------------------------------------------
 // Main tab
 // ---------------------------------------------------------------------------
@@ -781,14 +761,10 @@ export function PlatformDashboardDataIntelligenceTab() {
     dataCompleteness,
     efficacyPct,
     triggerCompute,
-    triggerPushApexProductMetrics,
-    pushingApexProductMetrics,
     lastComputedLabel,
   } = usePlatformDataIntelligence();
 
   const [computeError, setComputeError] = useState<string | null>(null);
-  const [apexPushError, setApexPushError] = useState<string | null>(null);
-  const [apexPushMessage, setApexPushMessage] = useState<string | null>(null);
   const [showFullAnalysis, setShowFullAnalysis] = useState(false);
 
   async function handleCompute() {
@@ -803,30 +779,6 @@ export function PlatformDashboardDataIntelligenceTab() {
         isCors
           ? 'Function not reachable. Run: firebase deploy --only functions:computePopulationAnalyticsNow'
           : `Computation failed: ${msg}`,
-      );
-    }
-  }
-
-  async function handlePushApexProductMetrics() {
-    setApexPushError(null);
-    setApexPushMessage(null);
-    try {
-      const data = await triggerPushApexProductMetrics();
-      if (data.pushed) {
-        setApexPushMessage(
-          `APEX OS: sent ${data.metricsCount ?? 0} metrics (HTTP ${data.status ?? '—'}).`,
-        );
-      } else {
-        setApexPushMessage(apexSkippedUserMessage(data.reason));
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isCors =
-        msg.toLowerCase().includes('cors') || msg.toLowerCase().includes('failed to fetch');
-      setApexPushError(
-        isCors
-          ? 'Function not reachable. Run: firebase deploy --only functions:pushApexProductMetricsNow'
-          : `APEX push failed: ${msg}`,
       );
     }
   }
@@ -862,26 +814,7 @@ export function PlatformDashboardDataIntelligenceTab() {
             {computing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
             {computing ? 'Computing…' : 'Compute Now'}
           </Button>
-          <Button
-            variant="outline"
-            onClick={handlePushApexProductMetrics}
-            disabled={pushingApexProductMetrics || computing}
-          >
-            {pushingApexProductMetrics && (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            )}
-            {!pushingApexProductMetrics && (
-              <CloudUpload className="w-4 h-4 mr-2" />
-            )}
-            {pushingApexProductMetrics ? 'Pushing…' : 'Push to APEX'}
-          </Button>
         </div>
-        {apexPushError && (
-          <p className="text-xs text-red-400 max-w-sm">{apexPushError}</p>
-        )}
-        {apexPushMessage && !apexPushError && (
-          <p className="text-xs text-muted-foreground max-w-sm">{apexPushMessage}</p>
-        )}
       </div>
     );
   }
@@ -907,18 +840,6 @@ export function PlatformDashboardDataIntelligenceTab() {
               : <RefreshCw className="w-3 h-3 mr-1.5" />}
             Recompute
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handlePushApexProductMetrics}
-            disabled={pushingApexProductMetrics || computing}
-            className="text-muted-foreground hover:text-foreground-secondary text-xs h-7 px-2"
-          >
-            {pushingApexProductMetrics
-              ? <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
-              : <CloudUpload className="w-3 h-3 mr-1.5" />}
-            Push to APEX
-          </Button>
         </div>
       </div>
 
@@ -926,19 +847,6 @@ export function PlatformDashboardDataIntelligenceTab() {
         <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           {computeError}
-        </div>
-      )}
-
-      {apexPushError && (
-        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-400">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          {apexPushError}
-        </div>
-      )}
-
-      {apexPushMessage && !apexPushError && (
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-          {apexPushMessage}
         </div>
       )}
 
