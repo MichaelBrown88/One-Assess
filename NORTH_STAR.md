@@ -165,7 +165,6 @@ AI credit top-up: £9 for 20 credits (GB).
 - GitHub: MichaelBrown88/fitness-flow-form
 - Domain: one-assess.com (Google Workspace)
 - Firebase project: assessment-engine-8f633
-- APEX OS: os.one-assess.com (Vercel)
 
 ---
 
@@ -185,7 +184,7 @@ These are non-negotiable. Every line of code must respect them.
 
 ## AGENT OPERATING PRINCIPLES
 
-Every APEX OS agent must apply these when responding:
+Every AI agent working on One Assess must apply these when responding:
 
 1. **Revenue first** — always ask if this moves us closer to a paying customer
 2. **Solo founder reality** — Michael has limited time. Prioritise ruthlessly.
