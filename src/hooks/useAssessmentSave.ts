@@ -182,81 +182,71 @@ export function useAssessmentSave({
             }
           : null;
         if (parsedEdit?.assessmentId && profile?.organizationId) {
-            if (parsedEdit.snapshotId) {
-              // Edit existing snapshot in place with cascade; for partial, merge with current so we don't wipe other pillars
-              const { getCurrentAssessment, updateSnapshotWithCascade } = await import('@/services/assessmentHistory');
-              const isPartialEdit = parsedEdit.editType?.startsWith('partial-');
-              let dataToSave = formData;
-              if (isPartialEdit) {
-                const current = await getCurrentAssessment(user.uid, clientName, profile.organizationId);
-                dataToSave = current?.formData && Object.keys(current.formData).length > 0
-                  ? { ...current.formData, ...formData }
-                  : formData;
-              }
-              const result = await updateSnapshotWithCascade(
-                user.uid,
-                clientName,
-                parsedEdit.snapshotId,
-                dataToSave,
-                profile.organizationId
-              );
-              if (result.success) {
-                removeEditAssessment();
-                removePartialAssessment();
-                clearDraft();
-                setIsEditMode(true);
-                try {
-                  const { publishPublicReport } = await import('@/services/publicReports');
-                  await publishPublicReport({
-                    coachUid: user.uid,
-                    assessmentId: parsedEdit.assessmentId,
-                    formData: dataToSave,
-                    organizationId: profile.organizationId,
-                  });
-                } catch (pubErr) {
-                  logger.warn('[Assessment] Failed to update public report after snapshot edit', pubErr);
-                }
-                toast({
-                  title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
-                  description: result.message,
-                });
-                saveSucceeded = true;
-                await decrementSandboxTrialAfterSuccessfulSave({
-                  organizationId: profile.organizationId,
-                  isDemoAssessment,
-                  subscriptionPlan: orgSettings?.subscription?.plan ?? null,
-                });
-                setSavingId(parsedEdit.assessmentId);
-                setSaving(false);
-                return;
-              }
+            // Edit mode: always update the existing snapshot, never create a new one
+            const { getCurrentAssessment, updateSnapshotWithCascade } = await import('@/services/assessmentHistory');
+            
+            // Safety: require explicit snapshotId to prevent overwriting the wrong assessment
+            const snapshotId = parsedEdit.snapshotId;
+            if (!snapshotId) {
+              logger.error('[Assessment] Edit mode missing snapshotId - cannot safely determine which snapshot to update');
+              toast({
+                title: 'Cannot save changes',
+                description: 'Unable to identify which assessment to update. Please return to the client profile and try editing again.',
+                variant: 'destructive',
+              });
+              setSaving(false);
+              saveInitiatedRef.current = false;
+              return;
             }
-            // No snapshotId or update failed: fall back to full doc update (creates new snapshot)
-            await updateCoachAssessment(
+
+            // Edit existing snapshot in place with cascade; for partial, merge with current so we don't wipe other pillars
+            const isPartialEdit = parsedEdit.editType?.startsWith('partial-');
+            let dataToSave = formData;
+            if (isPartialEdit) {
+              const current = await getCurrentAssessment(user.uid, clientName, profile.organizationId);
+              dataToSave = current?.formData && Object.keys(current.formData).length > 0
+                ? { ...current.formData, ...formData }
+                : formData;
+            }
+            const result = await updateSnapshotWithCascade(
               user.uid,
-              parsedEdit.assessmentId,
-              formData,
-              scores.overall,
-              profile?.organizationId,
-              profile
+              clientName,
+              snapshotId,
+              dataToSave,
+              profile.organizationId
             );
-            assessmentId = parsedEdit.assessmentId;
-            removeEditAssessment();
-            clearDraft();
-            setIsEditMode(true);
-            toast({
-              title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
-              description: `Assessment for ${clientName} has been updated without changing the original date.`
-            });
-            saveSucceeded = true;
-            await decrementSandboxTrialAfterSuccessfulSave({
-              organizationId: profile?.organizationId,
-              isDemoAssessment,
-              subscriptionPlan: orgSettings?.subscription?.plan ?? null,
-            });
-            setSavingId(assessmentId);
-            setSaving(false);
-            return;
+            if (result.success) {
+              removeEditAssessment();
+              removePartialAssessment();
+              clearDraft();
+              setIsEditMode(true);
+              try {
+                const { publishPublicReport } = await import('@/services/publicReports');
+                await publishPublicReport({
+                  coachUid: user.uid,
+                  assessmentId: parsedEdit.assessmentId,
+                  formData: dataToSave,
+                  organizationId: profile.organizationId,
+                });
+              } catch (pubErr) {
+                logger.warn('[Assessment] Failed to update public report after snapshot edit', pubErr);
+              }
+              toast({
+                title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
+                description: result.message,
+              });
+              saveSucceeded = true;
+              await decrementSandboxTrialAfterSuccessfulSave({
+                organizationId: profile.organizationId,
+                isDemoAssessment,
+                subscriptionPlan: orgSettings?.subscription?.plan ?? null,
+              });
+              setSavingId(parsedEdit.assessmentId);
+              setSaving(false);
+              return;
+            } else {
+              throw new Error(result.message || 'Failed to update snapshot');
+            }
         }
 
         const parsedPartial = readPartialAssessmentRecord();
