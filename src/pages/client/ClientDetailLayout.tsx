@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams, Outlet, useLocation } from 'react-router-dom';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { Seo } from '@/components/seo/Seo';
 import { WorkspaceBreadcrumb } from '@/components/dashboard/WorkspaceBreadcrumb';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,7 @@ export default function ClientDetailLayout() {
     assessments,
     incompleteDraft,
     handleFinishAssessment,
+    resuming,
     handleDiscardDraft,
     handleNewAssessment,
     navigateBack,
@@ -166,26 +168,27 @@ export default function ClientDetailLayout() {
       {/* In-progress notice — only shown on the Overview tab. The Report
           tab is a read-only surface and doesn't need this nudge; coaches
           will see it when they return to the client profile. */}
-      {incompleteDraft && location.pathname === buildClientPath(clientName) && (
-        <div className="flex items-center justify-between gap-3 rounded-full border border-score-amber-fg/20 bg-score-amber-muted/40 py-1.5 pl-4 pr-1.5">
+      {incompleteDraft && clientData.snapshots.length > 0 && location.pathname === buildClientPath(clientName) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-score-amber-fg/20 bg-score-amber-muted/40 p-3">
           <p className="text-[13px] font-medium text-score-amber-fg">
-            Assessment in progress — resume to complete the report.
+            {ASSESSMENT_DRAFT_COPY.RESUME_DESCRIPTION}
           </p>
           <div className="flex items-center gap-1.5 shrink-0">
             <Button
               size="sm"
               variant="ghost"
               onClick={handleDiscardDraft}
-              className="h-7 rounded-full px-3 text-[12px] font-medium text-score-amber-fg hover:bg-score-amber-muted/60"
+              className="min-h-11 rounded-full px-3 text-[12px] font-medium text-score-amber-fg hover:bg-score-amber-muted/60"
             >
               Discard
             </Button>
             <Button
               size="sm"
+              disabled={resuming}
               onClick={handleFinishAssessment}
-              className="h-7 rounded-full px-3 text-[12px] font-semibold"
+              className="min-h-11 rounded-full px-3 text-[12px] font-semibold"
             >
-              Finish
+              {resuming ? ASSESSMENT_DRAFT_COPY.RESUMING : ASSESSMENT_DRAFT_COPY.RESUME}
             </Button>
           </div>
         </div>

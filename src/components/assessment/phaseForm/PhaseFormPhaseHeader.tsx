@@ -1,3 +1,4 @@
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { ArrowLeft, Info } from 'lucide-react';
 import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
 import { ASSESSMENT_COPY } from '@/constants/assessmentCopy';
@@ -14,6 +15,7 @@ export interface PhaseFormPhaseHeaderProps {
   isPartialAssessment: boolean;
   partialCategory: string | null;
   showSaveAndExit: boolean;
+  savingDraft?: boolean;
   onSaveAndExit: () => void;
   phaseTitle: string;
   phaseSummary: string;
@@ -25,6 +27,7 @@ export function PhaseFormPhaseHeader({
   isPartialAssessment,
   partialCategory,
   showSaveAndExit,
+  savingDraft,
   onSaveAndExit,
   phaseTitle,
   phaseSummary,
@@ -70,10 +73,11 @@ export function PhaseFormPhaseHeader({
             variant="ghost"
             size="sm"
             className="text-muted-foreground"
+            disabled={savingDraft}
             onClick={onSaveAndExit}
           >
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {PHASE_FORM_COPY.SAVE_AND_EXIT}
+            {savingDraft ? ASSESSMENT_DRAFT_COPY.SAVING : PHASE_FORM_COPY.SAVE_AND_EXIT}
           </Button>
         ) : null}
       </div>

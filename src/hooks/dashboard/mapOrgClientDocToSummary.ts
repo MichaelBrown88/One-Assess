@@ -25,6 +25,8 @@ export function mapOrgClientDocToSummary(
     trend: docData.trend,
     assessmentCount: docData.assessmentCount,
     clientStatus,
+    hasAssessmentDraft: clientStatus !== 'deleted' && docData.hasAssessmentDraft === true,
+    draftUpdatedAt: docData.draftUpdatedAt ?? null,
     remoteIntakeAwaitingStudio:
       clientStatus !== 'deleted' && docData.remoteIntakeAwaitingStudio === true,
     remoteIntakePending:

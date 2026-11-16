@@ -141,6 +141,9 @@ export default function ClientOverview() {
     categoryChanges,
     stats,
     handleNewAssessment,
+    incompleteDraft,
+    handleFinishAssessment,
+    resuming,
     snapshots,
     profile,
   } = ctx;
@@ -169,6 +172,7 @@ export default function ClientOverview() {
 
   const overviewEmptyVariant = useMemo((): ClientOverviewEmptyVariant | null => {
     if (showCoachAxis) return null;
+    if (incompleteDraft) return 'in-progress';
     if (profile?.remoteIntakePending) return 'intake-pending';
     if (
       profile?.remoteIntakeAwaitingStudio ||
@@ -181,6 +185,7 @@ export default function ClientOverview() {
     return 'not-started';
   }, [
     showCoachAxis,
+    incompleteDraft,
     profile?.remoteIntakePending,
     profile?.remoteIntakeAwaitingStudio,
     profile?.formData,
@@ -318,8 +323,9 @@ export default function ClientOverview() {
       <ClientOverviewEmpty
         name={displayClientName || clientName}
         variant={overviewEmptyVariant}
+        busy={resuming}
         onPrimaryAction={
-          overviewEmptyVariant === 'intake-pending'
+          overviewEmptyVariant === 'in-progress' ? handleFinishAssessment : overviewEmptyVariant === 'intake-pending'
             ? undefined
             : () => void handleNewAssessment()
         }

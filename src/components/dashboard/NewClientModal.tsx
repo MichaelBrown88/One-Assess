@@ -21,6 +21,8 @@ import { ROUTES } from '@/constants/routes';
 import { UI_TOASTS } from '@/constants/ui';
 import { functionsCallableUserMessage } from '@/lib/firebase/functionsCallableUserMessage';
 import { logger } from '@/lib/utils/logger';
+import { createBaselineClient } from '@/services/clientProfiles';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { cn } from '@/lib/utils';
 
 interface NewClientModalProps {
@@ -113,15 +115,19 @@ export function NewClientModal({ open, onOpenChange, organizationId }: NewClient
     }
   }
 
-  function handleStartInStudio() {
-    if (!isValidName || loading) return;
+  async function handleStartInStudio() {
+    if (!isValidName || !hasOrgContext || loading) return;
     setLoading('studio');
-    startBaselineAssessmentSession({
-      fullName: trimmedName,
-      ...(trimmedEmail ? { email: trimmedEmail } : {}),
-    });
-    handleClose(false);
-    navigate(ROUTES.ASSESSMENT);
+    try {
+      await createBaselineClient(trimmedName, trimmedEmail, organizationId);
+      startBaselineAssessmentSession({ fullName: trimmedName, ...(trimmedEmail ? { email: trimmedEmail } : {}) });
+      handleClose(false);
+      navigate(ROUTES.ASSESSMENT);
+    } catch (error) {
+      toast({ title: ASSESSMENT_DRAFT_COPY.NEW_ERROR, description: error instanceof Error ? error.message : ASSESSMENT_DRAFT_COPY.LOAD_ERROR, variant: 'destructive' });
+    } finally {
+      setLoading(null);
+    }
   }
 
   if (!hasOrgContext) {

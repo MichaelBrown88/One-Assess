@@ -26,6 +26,7 @@ import { IntakePrefillBanner } from '@/components/assessment/IntakePrefillBanner
 import { PhaseFormSingleFieldFlow } from '@/components/assessment/phaseForm/PhaseFormSingleFieldFlow';
 import { computeScores, buildRoadmap } from '@/lib/scoring';
 import { writeSessionDraftAssessmentBundle } from '@/lib/assessment/assessmentSessionStorage';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { saveDraftAssessment } from '@/services/coachAssessments';
 import type { ScoreSummary } from '@/lib/scoring/types';
 import { logger } from '@/lib/utils/logger';
@@ -123,7 +124,10 @@ export const PhaseFormContent = ({
     updateFormData,
   });
 
+  const [savingDraft, setSavingDraft] = useState(false);
   const handleSaveAndExit = useCallback(async () => {
+    if (savingDraft) return;
+    setSavingDraft(true);
     // Flush the draft immediately — the debounced session/Firestore draft
     // writers cancel pending timers on unmount, so exiting without an
     // explicit flush can drop the most recent answers.
@@ -141,6 +145,11 @@ export const PhaseFormContent = ({
         logger.error('Save and exit: cloud draft flush failed', err);
       }
     }
+    setSavingDraft(false);
+    if (!cloudSaved) {
+      toast({ title: ASSESSMENT_DRAFT_COPY.SAVE_ERROR, description: ASSESSMENT_DRAFT_COPY.SAVE_ERROR_DESCRIPTION, variant: 'destructive' });
+      return;
+    }
     toast({
       title: UI_DRAFT.DRAFT_SAVED,
       description: cloudSaved
@@ -148,7 +157,7 @@ export const PhaseFormContent = ({
         : PHASE_FORM_COPY.SAVE_AND_EXIT_LOCAL_ONLY_DESCRIPTION,
     });
     navigate(ROUTES.DASHBOARD);
-  }, [navigate, toast, formData, activeClientName, profile?.organizationId, activePhaseIdx, activePhase.id]);
+  }, [navigate, toast, formData, activeClientName, profile?.organizationId, activePhaseIdx, activePhase.id, savingDraft]);
 
   const [isDemoAssessment, setIsDemoAssessment] = useState(false);
   const [reviewCheckpointOpen, setReviewCheckpointOpen] = useState(false);
@@ -258,7 +267,7 @@ export const PhaseFormContent = ({
 
   // Skip empty phases (e.g. filtered-out equipment phases or org-filtered lifestyle phases)
   useEffect(() => {
-    if ((filteredActivePhase.sections?.length ?? 0) === 0 && activePhaseIdx < totalPhases - 1) {
+    if ((activePhase.sections?.length ?? 0) === 0 && activePhaseIdx < totalPhases - 1) {
       const timeout = setTimeout(() => {
         const nextVisibleIdx = visiblePhases.findIndex((p, i) => i > activePhaseIdx);
         if (nextVisibleIdx !== -1) {
@@ -385,6 +394,7 @@ export const PhaseFormContent = ({
           isPartialAssessment={isPartialAssessment}
           partialCategory={partialCategory}
           showSaveAndExit={activePhase.id !== 'P7'}
+          savingDraft={savingDraft}
           onSaveAndExit={handleSaveAndExit}
           phaseTitle={activePhase.title}
           phaseSummary={activePhase.summary}

@@ -21,6 +21,8 @@ export type ClientGroup = {
   id: string;
   name: string;
   assessments: CoachAssessmentSummary[];
+  hasAssessmentDraft?: boolean;
+  draftUpdatedAt?: Date | null;
   latestScore: number;
   latestDate: Date | null;
   scoreChange?: number;

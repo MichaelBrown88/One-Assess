@@ -3,7 +3,8 @@
  * Extracted from MultiStepForm to improve performance and separation of concerns
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { resolveDraftPhaseIndex } from '@/lib/assessment/draftNavigation';
 import { phaseDefinitions, type PhaseSection, type PhaseId, type PhaseField } from '@/lib/phaseConfig';
 import type { FormData } from '@/contexts/FormContext';
 import type { OrgSettings } from '@/services/organizations';
@@ -85,13 +86,10 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
     return 0;
   };
 
-  const [activePhaseIdx, setActivePhaseIdx] = useState(getInitialPhase);
-
-  // Id-preferred resume: the persisted index is positional, so a phase-order
-  // change between sessions would silently resume into the wrong phase.
-  // Once phases are known, reconcile the restored index against the saved
-  // phase id (runs once per mount; index remains the fallback).
-  const phaseIdReconciled = useRef(false);
+  const [position, setPosition] = useState(() => ({
+    index: getInitialPhase(),
+    id: readSavedAssessmentPhaseId(),
+  }));
 
   // Filter phases based on organization settings and partial assessment mode
   const visiblePhases = useMemo(() => {
@@ -233,20 +231,15 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
         };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null);
-  }, [formData.assessmentPlan, isPartialAssessment, partialCategory, orgSettings?.modules]);
+  }, [formData, isPartialAssessment, partialCategory, orgSettings?.modules]);
 
-  useEffect(() => {
-    if (phaseIdReconciled.current || visiblePhases.length === 0) return;
-    phaseIdReconciled.current = true;
-    // Only reconcile when an index was actually restored — a fresh session
-    // must stay on phase 0 regardless of any stale id.
-    if (readSavedAssessmentPhaseIndex() === null) return;
-    const savedId = readSavedAssessmentPhaseId();
-    if (!savedId) return;
-    const idx = visiblePhases.findIndex((p) => p.id === savedId);
-    if (idx !== -1) {
-      setActivePhaseIdx((prev) => (prev === idx ? prev : idx));
-    }
+  const activePhaseIdx = resolveDraftPhaseIndex(visiblePhases.map((phase) => phase.id), position.id, position.index);
+  const setActivePhaseIdx = useCallback((next: number | ((previous: number) => number)) => {
+    setPosition((previous) => {
+      const current = resolveDraftPhaseIndex(visiblePhases.map((phase) => phase.id), previous.id, previous.index);
+      const index = typeof next === 'function' ? next(current) : next;
+      return { index, id: visiblePhases[index]?.id ?? null };
+    });
   }, [visiblePhases]);
 
   const isFieldVisible = useCallback((field: { id?: string; conditional?: { showWhen?: Record<string, unknown> } }, customData?: FormData) => {

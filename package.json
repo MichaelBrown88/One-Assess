@@ -13,7 +13,8 @@
     "deploy:preview": "npm run build && firebase hosting:channel:deploy preview-$(date +%Y%m%d-%H%M%S)",
     "deploy:prod": "npm run build && firebase deploy --only hosting",
     "test": "vitest",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "test:rules:drafts": "firebase emulators:exec --only firestore --project demo-one-assess \"node scripts/test-draft-rules.mjs\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -67,6 +68,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/node": "^22.19.3",

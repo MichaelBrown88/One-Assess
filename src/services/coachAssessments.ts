@@ -1,7 +1,7 @@
-import { collection, serverTimestamp, getDocs, query, orderBy, limit, doc, getDoc, deleteDoc, where, setDoc, updateDoc, type DocumentReference } from 'firebase/firestore';
+import { collection, serverTimestamp, getDocs, query, orderBy, limit, doc, getDoc, deleteDoc, where, setDoc, updateDoc, runTransaction, deleteField, getDocFromServer, type DocumentReference } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore';
 import type { FormData } from '@/contexts/FormContext';
-import { getDb } from '@/services/firebase';
+import { getDb, auth } from '@/services/firebase';
 import { summarizeScores } from '@/lib/scoring';
 import { validateOrganizationId } from '@/lib/utils/validateOrganizationId';
 import type { UserProfile } from '@/types/auth';
@@ -12,8 +12,10 @@ import { sanitizeForFirestore } from '@/lib/utils/firebaseUtils';
 import { prepareFormDataForPersistence } from '@/lib/assessment/prepareFormDataForPersistence';
 import { logger } from '@/lib/utils/logger';
 
+import { baselineClientRecord } from '@/lib/clients/baselineClientRecord';
+import { isPersistablePhaseId } from '@/lib/assessment/draftNavigation';
+
 const MAX_ASSESSMENTS_LIMIT = 200;
-const MAX_CLIENT_ASSESSMENTS_LIMIT = 200;
 const MAX_CLIENT_LIST_LIMIT = 500;
 
 /**
@@ -35,6 +37,8 @@ export type CoachAssessmentSummary = {
   updatedAt?: Timestamp | null;
   overallScore: number;
   goals: string[];
+  hasAssessmentDraft?: boolean;
+  draftUpdatedAt?: Timestamp | null;
   /** Previous assessment score (for trend calculation) */
   previousScore?: number;
   /** Pre-computed trend (overallScore - previousScore) */
@@ -132,13 +136,32 @@ export async function saveDraftAssessment(
     updatedAt: serverTimestamp(),
     organizationId,
   };
-  if (options?.activePhaseIdx !== undefined) {
+  if (options?.activePhaseIdx !== undefined && Number.isInteger(options.activePhaseIdx) && options.activePhaseIdx >= 0 && options.activePhaseId !== 'empty') {
     payload.activePhaseIdx = options.activePhaseIdx;
   }
-  if (options?.activePhaseId !== undefined) {
+  if (isPersistablePhaseId(options?.activePhaseId)) {
     payload.activePhaseId = options.activePhaseId;
   }
-  await setDoc(draftRef, payload);
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in before saving an assessment.');
+  validateOrganizationId(organizationId, null);
+  const clientRef = doc(getDb(), ORGANIZATION.clients.doc(organizationId, slug));
+  await runTransaction(getDb(), async (transaction) => {
+    const client = await transaction.get(clientRef);
+    const existing = client.data();
+    if (existing?.organizationId && existing.organizationId !== organizationId) throw new Error('Organization mismatch.');
+    if (existing?.status === 'deleted' || existing?.status === 'archived') throw new Error('This client is not active.');
+    if (!client.exists()) {
+      const orphan = await transaction.get(draftRef);
+      if (orphan.exists()) throw new Error('An existing draft needs its client profile restored before saving.');
+      transaction.set(clientRef, baselineClientRecord(formData.fullName || clientName, organizationId, uid, serverTimestamp(), {
+        email: formData.email, phone: formData.phone, dateOfBirth: formData.dateOfBirth, gender: formData.gender,
+      }));
+    }
+    transaction.set(clientRef, { hasAssessmentDraft: true, draftUpdatedAt: serverTimestamp() }, { merge: true });
+    // Replace formData as a whole while retaining phase metadata omitted by legacy callers.
+    transaction.set(draftRef, payload, { mergeFields: Object.keys(payload) });
+  });
 }
 
 /**
@@ -147,6 +170,7 @@ export async function saveDraftAssessment(
 export async function getDraftAssessment(
   clientName: string,
   organizationId: string,
+  fromServer = false,
 ): Promise<{
   formData: FormData;
   updatedAt: Timestamp | null;
@@ -155,9 +179,15 @@ export async function getDraftAssessment(
 } | null> {
   const slug = generateClientSlug(clientName);
   const draftRef = doc(getDb(), ORGANIZATION.clients.draft(organizationId, slug));
-  const snap = await getDoc(draftRef);
+  const snap = await (fromServer ? getDocFromServer(draftRef) : getDoc(draftRef));
   if (!snap.exists()) return null;
   const data = snap.data();
+  if (data.organizationId && data.organizationId !== organizationId) throw new Error('Organization mismatch.');
+  if (fromServer) {
+    const current = await getDocFromServer(doc(getDb(), ORGANIZATION.clients.current(organizationId, slug)));
+    const completedAt = current.data()?.lastUpdated;
+    if (completedAt?.toMillis?.() > data.updatedAt?.toMillis?.()) return null;
+  }
   const rawPhase = data?.activePhaseIdx;
   const activePhaseIdx =
     typeof rawPhase === 'number' && Number.isFinite(rawPhase) ? rawPhase : null;
@@ -181,8 +211,12 @@ export async function clearDraftAssessment(
 ): Promise<void> {
   const slug = generateClientSlug(clientName);
   const draftRef = doc(getDb(), ORGANIZATION.clients.draft(organizationId, slug));
-  const snap = await getDoc(draftRef);
-  if (snap.exists()) await deleteDoc(draftRef);
+  const clientRef = doc(getDb(), ORGANIZATION.clients.doc(organizationId, slug));
+  await runTransaction(getDb(), async (transaction) => {
+    const client = await transaction.get(clientRef);
+    transaction.delete(draftRef);
+    if (client.exists()) transaction.update(clientRef, { hasAssessmentDraft: false, draftUpdatedAt: deleteField() });
+  });
 }
 
 export async function saveCoachAssessment(
@@ -480,20 +514,14 @@ export async function getClientAssessments(
   coachUid: string,
   clientName: string,
   organizationId?: string,
-  maxResults = 50,
+  _maxResults = 50,
 ): Promise<CoachAssessmentSummary[]> {
   const resolvedOrgId = await resolveOrganizationId(coachUid, organizationId);
-  const resolvedLimit = Math.min(maxResults, MAX_CLIENT_ASSESSMENTS_LIMIT);
-
-  const q = query(
-    orgClientsCollection(resolvedOrgId),
-    where('clientNameLower', '==', clientName.toLowerCase()),
-    orderBy('createdAt', 'desc'),
-    limit(resolvedLimit),
-  );
-  const snap = await getDocs(q);
+  // One current summary per client. Direct reads preserve coach ownership rules
+  // and accept the canonical slug used by profile routes.
+  const docSnap = await getDoc(doc(getDb(), ORGANIZATION.clients.doc(resolvedOrgId, generateClientSlug(clientName))));
   const items: CoachAssessmentSummary[] = [];
-  snap.forEach((docSnap) => {
+  if (docSnap.exists() && docSnap.data().assessmentCount !== 0) {
     const data = docSnap.data() as Partial<CoachAssessmentDoc> & { scores?: { overall?: number }; previousScore?: number; trend?: number; assessmentCount?: number; updatedAt?: Timestamp };
     items.push({
       id: docSnap.id,
@@ -510,7 +538,7 @@ export async function getClientAssessments(
       isPartial: data.isPartial,
       remoteIntakeAwaitingStudio: data.remoteIntakeAwaitingStudio === true,
     });
-  });
+  }
   return items;
 }
 
