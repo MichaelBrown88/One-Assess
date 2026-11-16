@@ -12,7 +12,7 @@ import { sanitizeForFirestore } from '@/lib/utils/firebaseUtils';
 import { prepareFormDataForPersistence } from '@/lib/assessment/prepareFormDataForPersistence';
 import { logger } from '@/lib/utils/logger';
 
-import { baselineClientRecord } from '@/lib/clients/baselineClientRecord';
+import { baselineClientRecord, priorAssessmentComparison } from '@/lib/clients/baselineClientRecord';
 import { isPersistablePhaseId } from '@/lib/assessment/draftNavigation';
 
 const MAX_ASSESSMENTS_LIMIT = 200;
@@ -270,8 +270,7 @@ export async function saveCoachAssessment(
   }
 
   if (existingData !== null) {
-    const previousScore = (existingData.overallScore as number | undefined) ?? 0;
-    const trend = overallScore - previousScore;
+    const comparison = priorAssessmentComparison(existingData, overallScore);
 
     logger.info('[Assessment] Upsert: updating current-state doc for', slug);
     await setDoc(slugDocRef, {
@@ -281,8 +280,7 @@ export async function saveCoachAssessment(
       coachEmail: coachEmail || null,
       organizationId: validOrgId,
       overallScore,
-      previousScore,
-      trend,
+      ...comparison,
       assessmentCount: ((existingData.assessmentCount as number | undefined) ?? 0) + 1,
       createdAt: existingData.createdAt ?? serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -627,8 +625,7 @@ export async function savePartialAssessment(
   }
 
   if (existingDataPartial !== null) {
-    const previousScore = (existingDataPartial.overallScore as number | undefined) ?? 0;
-    const trend = overallScore - previousScore;
+    const comparison = priorAssessmentComparison(existingDataPartial, overallScore);
 
     logger.info('[Assessment] Upsert (partial): updating current-state doc for', slug);
     await setDoc(slugDocRef, {
@@ -638,8 +635,7 @@ export async function savePartialAssessment(
       coachEmail: coachEmail || null,
       organizationId: validOrgId,
       overallScore,
-      previousScore,
-      trend,
+      ...comparison,
       assessmentCount: ((existingDataPartial.assessmentCount as number | undefined) ?? 0) + 1,
       createdAt: existingDataPartial.createdAt ?? serverTimestamp(),
       updatedAt: serverTimestamp(),

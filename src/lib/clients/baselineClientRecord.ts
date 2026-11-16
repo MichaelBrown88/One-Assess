@@ -17,3 +17,10 @@ export function baselineClientRecord(
     ...Object.fromEntries(Object.entries(contact).filter(([, value]) => typeof value === 'string' && value.trim())),
   };
 }
+
+/** An intake/draft profile is not a previous assessment, even if a placeholder score exists. */
+export function priorAssessmentComparison(previous: Record<string, unknown>, score: number): { previousScore?: number; trend?: number } {
+  const previousScore = previous.overallScore;
+  if (previous.assessmentCount === 0 || typeof previousScore !== 'number' || !Number.isFinite(previousScore)) return {};
+  return { previousScore, trend: score - previousScore };
+}
