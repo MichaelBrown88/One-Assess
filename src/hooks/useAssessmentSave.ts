@@ -182,6 +182,9 @@ export function useAssessmentSave({
             }
           : null;
         if (parsedEdit?.assessmentId && profile?.organizationId) {
+            // ALWAYS use snapshot cascade when editing an existing assessment,
+            // even if snapshotId is missing — fall back to creating a new snapshot
+            // only when updateSnapshotWithCascade explicitly fails.
             if (parsedEdit.snapshotId) {
               // Edit existing snapshot in place with cascade; for partial, merge with current so we don't wipe other pillars
               const { getCurrentAssessment, updateSnapshotWithCascade } = await import('@/services/assessmentHistory');
@@ -230,32 +233,33 @@ export function useAssessmentSave({
                 setSaving(false);
                 return;
               }
+              // Cascade update failed (snapshot not found) — log warning and prevent duplicate
+              logger.error('[Assessment] Snapshot cascade failed for edit — preventing duplicate creation', {
+                snapshotId: parsedEdit.snapshotId,
+                clientName,
+              });
+              toast({
+                title: 'Update failed',
+                description: 'Could not find the original assessment to update. Please try again.',
+                variant: 'destructive',
+              });
+              setSaving(false);
+              saveInitiatedRef.current = false;
+              return;
             }
-            // No snapshotId or update failed: fall back to full doc update (creates new snapshot)
-            await updateCoachAssessment(
-              user.uid,
-              parsedEdit.assessmentId,
-              formData,
-              scores.overall,
-              profile?.organizationId,
-              profile
-            );
-            assessmentId = parsedEdit.assessmentId;
-            removeEditAssessment();
-            clearDraft();
-            setIsEditMode(true);
+            // Missing snapshotId: this is an edit session without snapshot context.
+            // Log error and abort — do not create a new snapshot, which would duplicate the timeline.
+            logger.error('[Assessment] Edit mode without snapshotId — cannot update safely', {
+              assessmentId: parsedEdit.assessmentId,
+              clientName,
+            });
             toast({
-              title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
-              description: `Assessment for ${clientName} has been updated without changing the original date.`
+              title: 'Cannot update assessment',
+              description: 'Missing snapshot information. Please reload and try editing again.',
+              variant: 'destructive',
             });
-            saveSucceeded = true;
-            await decrementSandboxTrialAfterSuccessfulSave({
-              organizationId: profile?.organizationId,
-              isDemoAssessment,
-              subscriptionPlan: orgSettings?.subscription?.plan ?? null,
-            });
-            setSavingId(assessmentId);
             setSaving(false);
+            saveInitiatedRef.current = false;
             return;
         }
 
