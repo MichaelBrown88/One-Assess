@@ -1,3 +1,4 @@
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 import {
   doc,
   getDoc,
@@ -192,7 +193,7 @@ export async function publishPublicReport(params: {
       const newSummary: SnapshotSummary = {
         id: snapshotId,
         score: overallScore,
-        date: Timestamp.now(),
+        date: Timestamp.fromDate(assessmentDate(formData.assessedAt) ?? new Date()),
         type: snapshotType,
       };
       const updatedSummaries = [newSummary, ...existingSummaries].slice(0, 50);

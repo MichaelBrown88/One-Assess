@@ -1,3 +1,4 @@
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import { useMemo } from 'react';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring';
@@ -13,6 +14,7 @@ export interface UseClientReportDataProps {
   scores: ScoreSummary;
   goals?: string[];
   formData?: FormData;
+  assessmentDate?: Date | null;
   previousScores?: ScoreSummary | null;
   previousFormData?: FormData;
 }
@@ -21,6 +23,7 @@ export function useClientReportData({
   scores,
   goals,
   formData,
+  assessmentDate,
   previousScores,
   previousFormData,
 }: UseClientReportDataProps) {
@@ -252,9 +255,9 @@ export function useClientReportData({
   // If not, it mirrors current data (no animation needed).
   
   const reportDate = useMemo(() => {
-    const date = new Date();
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }, []);
+    const date = resolveAssessmentDate(formData?.assessedAt, assessmentDate);
+    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ?? '';
+  }, [formData?.assessedAt, assessmentDate]);
 
   return {
     safeScores,

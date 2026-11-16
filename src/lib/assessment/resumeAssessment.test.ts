@@ -26,6 +26,10 @@ describe('resume across clients and fresh form mounts', () => {
     expect(isAssessmentSetupConfirmedInSession()).toBe(true);
     expect(readSavedAssessmentPhaseId()).toBe('P2');
   });
+  it('restores the original saved time for a legacy draft', () => {
+    prepareAssessmentResume({ formData: { ...createEmptyAssessmentForm(), fullName: 'Saved Client' }, activePhaseId: 'P2', activePhaseIdx: 5, updatedAt: { toDate: () => new Date('2026-09-21T19:00:43.057Z') } });
+    expect(getInitialFormDataFromSession(createEmptyAssessmentForm()).assessedAt).toBe('2026-09-21T19:00:43.057Z');
+  });
   it('does not restore Results or the legacy empty phase', () => {
     for (const phase of ['P7','empty']) {
       prepareAssessmentResume({formData:{...createEmptyAssessmentForm(),fullName:'Saved Client'},activePhaseId:phase,activePhaseIdx:5});

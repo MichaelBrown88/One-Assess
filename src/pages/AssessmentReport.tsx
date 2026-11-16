@@ -324,6 +324,7 @@ const AssessmentReport = () => {
                 formData={versionSelector.selectedFormData ?? formData}
                 previousScores={versionSelector.previousScores ?? previousScores}
                 previousFormData={(versionSelector.previousFormData ?? previousFormData) ?? undefined}
+                assessmentDate={allSnapshots[versionSelector.selectedIndex]?.date}
                 standalone={true}
                 coachActions={{
                   onShare: () => setShareModalOpen(true),

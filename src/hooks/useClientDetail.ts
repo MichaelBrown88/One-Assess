@@ -518,7 +518,7 @@ export function useClientDetail(): UseClientDetailResult {
 
           // Build update object with data from assessment
           const profileUpdate: Partial<ClientProfile> = {
-            lastAssessmentDate: data[0].createdAt ?? undefined,
+            lastAssessmentDate: data[0].assessedAt ?? data[0].createdAt ?? undefined,
           };
 
           // Sync contact info from assessment if available

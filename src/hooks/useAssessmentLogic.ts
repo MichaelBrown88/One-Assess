@@ -1,3 +1,4 @@
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getCoachAssessment } from '@/services/coachAssessments';
@@ -182,17 +183,17 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
                   return {
                     id: s.id ?? '',
                     score,
-                    date: s.timestamp.toDate(),
+                    date: resolveAssessmentDate(s.formData.assessedAt, s.timestamp.toDate())!,
                     type: s.type,
                     formData: s.formData,
                   };
                 });
 
-                if (mapped.length === 0) {
+                if (mapped.length === 0 && resolveAssessmentDate(fd.assessedAt, data.createdAt)) {
                   mapped = [{
                     id: assessmentId ?? '',
                     score: scores.overall,
-                    date: new Date(),
+                    date: resolveAssessmentDate(fd.assessedAt, data.createdAt) ?? new Date(0),
                     type: 'full-assessment',
                     formData: fd,
                   }];

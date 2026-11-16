@@ -48,7 +48,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleRetry = () => {
     if (isChunkLoadError(this.state.error)) {
-      window.location.reload();
+      // Rewritten app routes may still have the previous HTML in the browser cache.
+      const latest = new URL(window.location.href);
+      latest.searchParams.set('appUpdate', String(Date.now()));
+      window.location.replace(latest.toString());
     } else {
       this.setState({ hasError: false, error: null });
     }

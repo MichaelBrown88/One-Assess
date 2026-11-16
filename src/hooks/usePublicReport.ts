@@ -1,3 +1,4 @@
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 /**
  * Real-time subscription to a public report by token.
  * Used by PublicReportViewer so client PWA updates when coach saves assessment.
@@ -25,6 +26,7 @@ export interface UsePublicReportResult {
   clientName: string;
   /** AI-generated "what changed" narrative — set after coach first shares the report */
   changeNarrative: string | null;
+  assessmentDate: Date | null;
 }
 
 function parseDoc(
@@ -58,6 +60,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
   const [snapshotSummaries, setSnapshotSummaries] = useState<SnapshotSummary[]>([]);
   const [orgDetails, setOrgDetails] = useState<{ name: string; logoUrl?: string } | null>(null);
   const [plan, setPlan] = useState<import('@/lib/recommendations').CoachPlan | null>(null);
+  const [assessmentDate, setAssessmentDate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [changeNarrative, setChangeNarrative] = useState<string | null>(null);
@@ -73,6 +76,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
       setSnapshotSummaries([]);
       setOrgDetails(null);
       setPlan(null);
+      setAssessmentDate(null);
       return;
     }
 
@@ -92,6 +96,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
           setSnapshotSummaries([]);
           setOrgDetails(null);
           setPlan(null);
+          setAssessmentDate(null);
           return;
         }
         if (data.revoked) {
@@ -104,6 +109,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
           setSnapshotSummaries([]);
           setOrgDetails(null);
           setPlan(null);
+          setAssessmentDate(null);
           return;
         }
 
@@ -118,6 +124,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
         setPreviousScores(prevS);
         setSnapshotSummaries(summaries);
         setChangeNarrative(data.changeNarrative ?? null);
+        setAssessmentDate(resolveAssessmentDate(fd.assessedAt, summaries[0]?.date?.toDate?.() ?? data.createdAt?.toDate?.()));
         setLoading(false);
 
         if (data.organizationId) {
@@ -161,5 +168,6 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
     loading,
     clientName,
     changeNarrative,
+    assessmentDate,
   };
 }

@@ -16,6 +16,7 @@ export function mapOrgClientDocToSummary(
     id: docSnap.id,
     clientName: docData.clientName || 'Unnamed client',
     createdAt: docData.createdAt || null,
+    assessedAt: docData.assessedAt || null,
     updatedAt: docData.updatedAt || docData.remoteIntakeLastAt || null,
     overallScore: score,
     goals: Array.isArray(docData.goals) ? docData.goals : [],

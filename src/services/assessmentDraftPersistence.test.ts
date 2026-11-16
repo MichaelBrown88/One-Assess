@@ -25,6 +25,13 @@ const draft = parent + '/assessmentDrafts/draft';
 const form = {...createEmptyAssessmentForm(),fullName:'Saved Client',cardioRestingHr:'65'};
 beforeEach(()=>{mock.records.clear();mock.fail=false;});
 describe('atomic draft discovery writes',()=>{
+  it('keeps the original legacy draft date across later saves', async () => {
+    mock.records.set(parent, { coachUid: 'coach-a', organizationId: 'org-a' });
+    mock.records.set(draft, { updatedAt: { toDate: () => new Date('2026-09-21T19:00:43.057Z') }, formData: form });
+    await saveDraftAssessment('Saved Client', form, 'org-a');
+    await saveDraftAssessment('Saved Client', { ...form, cardioPeakHr: '140' }, 'org-a');
+    expect(mock.records.get(draft)).toMatchObject({ formData: { assessedAt: '2026-09-21T19:00:43.057Z', cardioPeakHr: '140' } });
+  });
   it('creates a discoverable owned parent without a fabricated report',async()=>{
     await saveDraftAssessment('Saved Client',form,'org-a',{activePhaseId:'P2',activePhaseIdx:3});
     expect(mock.records.get(parent)).toMatchObject({clientName:'Saved Client',coachUid:'coach-a',organizationId:'org-a',assessmentCount:0,hasAssessmentDraft:true});

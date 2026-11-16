@@ -2,6 +2,8 @@ import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 import type { AssessmentPlan } from '@/lib/types/assessmentPlan';
 
 export interface FormData {
+  /** Original physical assessment time (ISO); preserved when photos/results are updated. */
+  assessedAt?: string;
   /** Client Profile */
   fullName: string;
   email: string;

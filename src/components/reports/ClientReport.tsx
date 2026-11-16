@@ -16,6 +16,7 @@ export default function ClientReport({
   bodyComp: _bodyComp,
   previousScores,
   previousFormData,
+  assessmentDate,
   standalone = true,
   coachActions,
   reportMeta,
@@ -26,6 +27,7 @@ export default function ClientReport({
   bodyComp?: { timeframeWeeks: string };
   previousScores?: ScoreSummary | null;
   previousFormData?: FormData;
+  assessmentDate?: Date | null;
   standalone?: boolean;
   coachActions?: {
     onShare?: () => void;
@@ -44,7 +46,7 @@ export default function ClientReport({
     hasAnyData,
     gapAnalysisData,
     reportDate,
-  } = useClientReportData({ scores, goals, formData, previousScores, previousFormData });
+  } = useClientReportData({ scores, goals, formData, previousScores, previousFormData, assessmentDate });
 
   const reportModel = useMemo(
     () =>

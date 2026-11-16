@@ -86,7 +86,7 @@ export function useClientList(
         latestScore: item.overallScore || 0,
         hasAssessmentDraft: item.hasAssessmentDraft,
         draftUpdatedAt: safeFirestoreTimestampToDate(item.draftUpdatedAt),
-        latestDate: item.assessmentCount === 0 ? null : safeFirestoreTimestampToDate(item.updatedAt ?? item.createdAt),
+        latestDate: item.assessmentCount === 0 ? null : safeFirestoreTimestampToDate(item.assessedAt ?? item.updatedAt ?? item.createdAt),
         scoreChange: item.trend,
         coachUid: item.coachUid,
         retestSchedule: schedule?.recommended || schedule?.custom

@@ -1,3 +1,4 @@
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -122,6 +123,7 @@ const PublicReportViewer = () => {
     loading,
     clientName,
     changeNarrative,
+    assessmentDate,
   } = usePublicReport(token);
 
   // Consent gate — shown once per device per token (replaces PrivacyNoticeBanner).
@@ -492,6 +494,7 @@ const PublicReportViewer = () => {
             formData={displayFormData}
             previousScores={displayPrevScores}
             previousFormData={displayPrevFormData}
+            assessmentDate={resolveAssessmentDate(displayFormData.assessedAt, snapshotSummaries[selectedVersionIndex]?.date?.toDate?.() ?? assessmentDate)}
             standalone={true}
           />
         </Suspense>
