@@ -1,3 +1,4 @@
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 /**
  * Client Console — Overview tab.
  *
@@ -243,7 +244,7 @@ export default function ClientOverview() {
   // Last assessment date (any assessment).
   const lastAssessmentDate = useMemo(() => {
     const latest = sortedSnapshots[sortedSnapshots.length - 1];
-    return timestampToDate(latest?.timestamp ?? null);
+    return assessmentDate(latest?.formData.assessedAt, timestampToDate(latest?.timestamp ?? null));
   }, [sortedSnapshots]);
 
   // ─── Coach notes (coach-only diagnostic + prescription) ─────────
@@ -340,7 +341,7 @@ export default function ClientOverview() {
         vitals={buildVitals(currentAssessment?.formData)}
         archetype={archetype?.name}
         currentOverall={currentOverall}
-        scoreChange={stats?.scoreChange ?? 0}
+        scoreChange={sortedSnapshots.length > 1 ? stats?.scoreChange ?? 0 : 0}
         radarScores={currentRadar}
         lastAssessedAt={lastAssessmentDate}
         showAxisScores={showCoachAxis}
@@ -349,13 +350,13 @@ export default function ClientOverview() {
       <JourneySection
         startingScores={startingScores}
         startingOverall={startingOverall}
-        startingDate={timestampToDate(startingSnapshot?.timestamp ?? null)}
+        startingDate={assessmentDate(startingSnapshot?.formData.assessedAt, timestampToDate(startingSnapshot?.timestamp ?? null))}
         currentScores={currentRadar}
         currentOverall={currentOverall}
         currentDate={lastAssessmentDate}
         goal={goalScores}
         trendPoints={sortedSnapshots.map((s) => ({
-          at: timestampToDate(s.timestamp) ?? new Date(),
+          at: assessmentDate(s.formData.assessedAt, timestampToDate(s.timestamp)) ?? new Date(0),
           score: s.overallScore,
         }))}
       />
@@ -1059,7 +1060,7 @@ function ActivityTimeline({ snapshots }: { snapshots: NonNullable<ClientDetailOu
       </p>
       <ul className="flex flex-col gap-3">
         {snapshots.map((s, i) => {
-          const date = timestampToDate(s.timestamp);
+          const date = assessmentDate(s.formData.assessedAt, timestampToDate(s.timestamp));
           const isPillar = (s.type ?? '').toString().startsWith('pillar') || (s.type ?? '').toString().startsWith('partial');
           return (
             <li key={s.id ?? `${i}`} className="flex items-start gap-3">

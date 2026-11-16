@@ -1,3 +1,4 @@
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatSnapshotTypeLabel } from '@/services/assessmentHistory';
@@ -51,7 +52,7 @@ export default function ClientHistory() {
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-sm font-medium text-foreground">
-                {snapshot.timestamp?.toDate?.()?.toLocaleDateString?.() ?? '—'}
+                {assessmentDate(snapshot.formData.assessedAt, snapshot.timestamp?.toDate?.())?.toLocaleDateString() ?? '—'}
               </span>
               <span className="text-xs text-muted-foreground font-medium tracking-wide">
                 {formatSnapshotTypeLabel(snapshot.type)}

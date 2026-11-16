@@ -1,3 +1,4 @@
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 /**
  * PostureComparisonCard
  *
@@ -50,7 +51,7 @@ export function PostureComparisonCard({ snapshots }: PostureComparisonCardProps)
       })
       .map((s) => ({
         snapshotId: s.id ?? '',
-        date: s.timestamp?.toDate?.() ?? new Date(0),
+        date: assessmentDate(s.formData.assessedAt, s.timestamp?.toDate?.()) ?? new Date(0),
         overallScore: s.overallScore ?? 0,
         images: extractImages(s),
       }));
