@@ -2,13 +2,12 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// One Assess UI Kit card spec: rounded-[20px], solid hairline border,
-// flat (no shadow). Every surface using <Card> now matches the kit.
+// One Assess workspace card: restrained radius, hairline border, no shadow.
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-[20px] bg-card border border-border text-card-foreground",
+      "rounded-lg bg-card border border-border text-card-foreground",
       className,
     )}
     {...props}

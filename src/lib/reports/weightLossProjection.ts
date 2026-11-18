@@ -28,10 +28,27 @@ const HEALTHY_BF_FLOOR = {
   unknown: 0.24,
 } as const;
 
+/**
+ * A training block can go leaner than the year-long destination — a client who asks to lose
+ * weight should always see progress within reason. Matches the lean-cut slowdown in rates.ts.
+ */
+const PLAN_BF_FLOOR = {
+  male: 0.12,
+  female: 0.2,
+  unknown: 0.16,
+} as const;
+
+export type BodyFatFloor = 'healthy' | 'plan';
+
+export function bodyFatFloorFraction(sex: ProjectionSex, floor: BodyFatFloor): number {
+  return floor === 'plan' ? PLAN_BF_FLOOR[sex] : HEALTHY_BF_FLOOR[sex];
+}
+
 const CUT_ANNUAL_BODYWEIGHT_FRACTION = 0.16;
 const CUT_FAT_MASS_FRACTION = 0.55;
 
-const RECOMP_RATE_FACTOR = 0.55;
+const RECOMP_HIGH_BF_THRESHOLD = 28;
+const RECOMP_LOW_BF_FACTOR = 0.65;
 const RECOMP_ANNUAL_BODYWEIGHT_FRACTION = 0.12;
 const RECOMP_FAT_MASS_FRACTION = 0.35;
 
@@ -41,9 +58,19 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function effectiveWeeklyLossKg(baseWeeklyRateKg: number, protectMuscle: boolean): number {
+/** 0.5 kg/week already preserves muscle at high body fat; leaner cuts slow more. */
+export function recompRateFactor(bodyFatPct: number | undefined): number {
+  if (bodyFatPct != null && bodyFatPct >= RECOMP_HIGH_BF_THRESHOLD) return 0.8;
+  return RECOMP_LOW_BF_FACTOR;
+}
+
+export function effectiveWeeklyLossKg(
+  baseWeeklyRateKg: number,
+  protectMuscle: boolean,
+  bodyFatPct?: number,
+): number {
   const raw = Math.max(0, baseWeeklyRateKg);
-  return protectMuscle ? round2(raw * RECOMP_RATE_FACTOR) : round2(raw);
+  return protectMuscle ? round2(raw * recompRateFactor(bodyFatPct)) : round2(raw);
 }
 
 /**
@@ -55,9 +82,12 @@ export function healthyMinimumWeightKg(options: {
   heightCm?: number;
   sex?: ProjectionSex;
   bodyFatPct?: number;
+  /** 'healthy' for year-long destinations (default); 'plan' for a single training block. */
+  bodyFatFloor?: BodyFatFloor;
 }): number {
   const { currentWeightKg, heightCm, bodyFatPct } = options;
   const sex: ProjectionSex = options.sex ?? 'unknown';
+  const bfFloor = bodyFatFloorFraction(sex, options.bodyFatFloor ?? 'healthy');
   const floors: number[] = [];
 
   if (heightCm != null && heightCm >= 120 && heightCm <= 230) {
@@ -67,7 +97,7 @@ export function healthyMinimumWeightKg(options: {
 
   if (bodyFatPct != null && bodyFatPct > 5 && bodyFatPct < 70) {
     const leanKg = currentWeightKg * (1 - bodyFatPct / 100);
-    floors.push(leanKg / (1 - HEALTHY_BF_FLOOR[sex]));
+    floors.push(leanKg / (1 - bfFloor));
   }
 
   if (floors.length === 0) return 0;
@@ -87,7 +117,11 @@ export function projectWeightLossKg(options: {
   protectMuscle?: boolean;
 }): { lossKg: number; endWeightKg: number; weeklyRateKg: number } {
   const { currentWeightKg, weeks, bodyFatPct, heightCm, sex, protectMuscle = false } = options;
-  const weeklyRateKg = effectiveWeeklyLossKg(options.weeklyRateKg, protectMuscle);
+  const weeklyRateKg = effectiveWeeklyLossKg(
+    options.weeklyRateKg,
+    protectMuscle,
+    options.bodyFatPct,
+  );
   const uncapped = weeklyRateKg * Math.max(0, weeks);
   const fatMass =
     bodyFatPct != null && bodyFatPct > 0 ? (currentWeightKg * bodyFatPct) / 100 : null;
@@ -102,9 +136,11 @@ export function projectWeightLossKg(options: {
     heightCm,
     sex,
     bodyFatPct,
+    bodyFatFloor: weeks >= WEIGHT_LOSS_WEEKS.oneYear ? 'healthy' : 'plan',
   });
   const healthyCap = healthyFloor > 0 ? Math.max(0, currentWeightKg - healthyFloor) : Number.POSITIVE_INFINITY;
-  const timeCap = weeks >= WEIGHT_LOSS_WEEKS.oneYear ? Math.min(annualCap, fatCap) : fatCap;
+  // A training block is bounded by the weekly rate and the healthy floor; fat-share caps are for year-long projections.
+  const timeCap = weeks >= WEIGHT_LOSS_WEEKS.oneYear ? Math.min(annualCap, fatCap) : Number.POSITIVE_INFINITY;
   const cap = Math.min(timeCap, healthyCap);
   const lossKg = Math.max(0, Math.min(uncapped, cap));
   return { lossKg, endWeightKg: currentWeightKg - lossKg, weeklyRateKg };

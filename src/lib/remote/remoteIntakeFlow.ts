@@ -1,4 +1,3 @@
-import { parqQuestions } from '@/components/ParQQuestionnaire';
 import type { BasicInfoState } from '@/components/remote/steps/RemoteBasicInfoStep';
 import {
   basicFieldNeedsClientInput,
@@ -6,6 +5,7 @@ import {
 } from '@/lib/remote/remoteIntakePrefill';
 import type { LifestyleRemoteState } from '@/components/remote/PublicRemoteLifestyleFields';
 import { ASSESSMENT_LABELS, ASSESSMENT_OPTIONS } from '@/constants/assessment';
+import { ASSESSMENT_COPY } from '@/constants/assessmentCopy';
 
 const P6 = ASSESSMENT_LABELS.P6;
 
@@ -41,6 +41,7 @@ export type RemoteIntakeScreen =
       options: SelectOption[];
       readOnly?: boolean;
       domain: 'basic' | 'lifestyle';
+      optional?: boolean;
     }
   | {
       id: string;
@@ -49,7 +50,6 @@ export type RemoteIntakeScreen =
       fields: { field: keyof LifestyleRemoteState; label: string; placeholder?: string }[];
       domain: 'lifestyle';
     }
-  | { id: string; kind: 'parq'; questionId: string; label: string }
   | { id: 'goals'; kind: 'goals'; label: string; options: SelectOption[] }
   | {
       id: 'trainingFrequency';
@@ -71,14 +71,13 @@ const LIFESTYLE_SELECTS: {
   field: keyof LifestyleRemoteState;
   label: string;
   options: SelectOption[];
+  optional?: boolean;
 }[] = [
   { field: 'activityLevel', label: P1.activityLevel, options: selectOptions(ASSESSMENT_OPTIONS.activityLevel) },
   { field: 'sleepArchetype', label: P1.sleepArchetype, options: selectOptions(ASSESSMENT_OPTIONS.sleepArchetype) },
   { field: 'stressLevel', label: P1.stressLevel, options: selectOptions(ASSESSMENT_OPTIONS.stressLevel) },
   { field: 'nutritionHabits', label: P1.nutritionHabits, options: selectOptions(ASSESSMENT_OPTIONS.nutritionHabits) },
   { field: 'hydrationHabits', label: P1.hydrationHabits, options: selectOptions(ASSESSMENT_OPTIONS.hydrationHabits) },
-  { field: 'alcoholFrequency', label: P1.alcoholFrequency, options: selectOptions(ASSESSMENT_OPTIONS.alcoholFrequency) },
-  { field: 'medicationsFlag', label: P1.medicationsFlag, options: selectOptions(ASSESSMENT_OPTIONS.medicationsFlag) },
 ];
 
 export function buildRemoteIntakeScreens(params: {
@@ -204,6 +203,7 @@ export function buildRemoteIntakeScreens(params: {
       label: row.label,
       options: row.options,
       domain: 'lifestyle',
+      optional: row.optional,
     });
   }
 
@@ -220,17 +220,6 @@ export function buildRemoteIntakeScreens(params: {
   }
 
 
-  if (params.allowedKeys.has('medicationsNotes')) {
-    screens.push({
-      id: 'lifestyle_medicationsNotes',
-      kind: 'text',
-      field: 'medicationsNotes',
-      label: P1.medicationsNotes,
-      placeholder: 'List medications or supplements',
-      domain: 'lifestyle',
-    });
-  }
-
   if (params.allowedKeys.has('clientGoals')) {
     screens.push({
       id: 'goals',
@@ -246,16 +235,6 @@ export function buildRemoteIntakeScreens(params: {
       kind: 'trainingFrequency',
       label: P6.trainingFrequency,
       options: selectOptions(ASSESSMENT_OPTIONS.trainingFrequency),
-    });
-  }
-
-  for (const q of parqQuestions) {
-    if (q.conditional && params.gender !== q.conditional.showWhen.value) continue;
-    screens.push({
-      id: `parq_${q.id}`,
-      kind: 'parq',
-      questionId: q.id,
-      label: q.question,
     });
   }
 
@@ -280,10 +259,12 @@ export function isScreenValid(
   screen: RemoteIntakeScreen,
   basic: BasicInfoState,
   lifestyle: LifestyleRemoteState,
-  parq: Record<string, string>,
+  _parq: Record<string, string>,
   posturePaths: Partial<Record<string, string>>,
   goals: PreAssessmentGoalsState,
 ): boolean {
+  void _parq;
+  void posturePaths;
   switch (screen.kind) {
     case 'welcome':
       return true;
@@ -297,6 +278,7 @@ export function isScreenValid(
       return typeof v === 'string' && v.trim().length > 0;
     }
     case 'select': {
+      if (screen.optional) return true;
       const v =
         screen.domain === 'basic'
           ? basic[screen.field as keyof BasicInfoState]
@@ -305,8 +287,6 @@ export function isScreenValid(
     }
     case 'group':
       return screen.fields.every((f) => lifestyle[f.field].trim().length > 0);
-    case 'parq':
-      return (parq[screen.questionId] ?? '').trim().length > 0;
     case 'goals':
       return goals.selectedGoals.length > 0;
     case 'trainingFrequency':
@@ -321,7 +301,6 @@ export function isScreenValid(
 export function screenTitle(screen: RemoteIntakeScreen): string | undefined {
   if (screen.kind === 'welcome') return undefined;
   if (screen.kind === 'group') return screen.title;
-  if (screen.kind === 'parq') return screen.label;
   if (screen.kind === 'posture') return undefined;
   if (screen.kind === 'dateOfBirth') return undefined;
   if (
@@ -346,8 +325,8 @@ export function screenSubtitle(screen: RemoteIntakeScreen): string | undefined {
   if (screen.kind === 'goals') {
     return 'Pick up to two.';
   }
-  if (screen.kind === 'parq') {
-    return 'Your coach reviews this before your session.';
+  if (screen.kind === 'select' && screen.optional) {
+    return ASSESSMENT_COPY.REMOTE_INTAKE_OPTIONAL_HINT;
   }
   if (screen.kind === 'text' && screen.readOnly) {
     return 'We already have this from your coach — tap Next to confirm.';

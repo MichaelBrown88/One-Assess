@@ -31,6 +31,8 @@ export interface FormData {
    *  physiological rate calculation in coach notes + ARC milestones.
    *  Values: '0' / '1' / '2' / '3' / '4' / '5+'. */
   trainingFrequency: string;
+  /** Coach-chosen lifting week for the sent AXIS report: '3' | '4' | '5'. */
+  reportLiftingSessions: string;
   /** Self-reported training experience — drives novice/intermediate/advanced
    *  rate adjustments. Values: 'beginner' (<1y) / 'intermediate' (1-3y) /
    *  'advanced' (3+y). */
@@ -260,6 +262,7 @@ export const initialFormData: FormData = {
   goalLevelFitness: '',
   goalDeadline: '',
   trainingFrequency: '',
+  reportLiftingSessions: '',
   trainingExperience: '',
   activityLevel: '',
   sleepArchetype: '',

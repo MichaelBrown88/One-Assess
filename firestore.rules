@@ -475,6 +475,11 @@ service cloud.firestore {
       allow write: if isPlatformAdmin();
     }
 
+    match /studio-snapshots/{orgId} {
+      allow read: if isPlatformAdmin();
+      allow write: if false;
+    }
+
     // =========================================================
     // PLATFORM CONFIG  (feature flags, maintenance mode)
     // Public read so unauthenticated users can see maintenance page.

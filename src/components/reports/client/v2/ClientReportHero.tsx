@@ -14,6 +14,7 @@ export interface ClientReportHeroProps {
   overall: number;
   previousOverall: number | null;
   welcome: string;
+  goalLabels?: string[];
   radarData: RadarData[];
   previousRadarData?: RadarData[];
   orgName?: string;
@@ -36,6 +37,7 @@ export function ClientReportHero({
   overall,
   previousOverall,
   welcome,
+  goalLabels = [],
   radarData,
   previousRadarData,
   orgName,
@@ -69,6 +71,7 @@ export function ClientReportHero({
         {CLIENT_REPORT_COPY.v2DocumentTitle}
       </p>
 
+      {goalLabels.length ? <p className="mt-3 text-center text-sm font-medium text-foreground">{CLIENT_REPORT_COPY.v2PrimaryGoalPrefix}: {goalLabels.join(' · ')}</p> : null}
       <div
         className={cn(
           'mt-8 grid grid-cols-1 gap-8',

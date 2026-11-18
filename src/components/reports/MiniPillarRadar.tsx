@@ -1,28 +1,37 @@
 import React from 'react';
-import { CHART_HEX, CHART_PILLAR_COLOR_ORDER } from '@/lib/design/chartColors';
+import { CHART_HEX } from '@/lib/design/chartColors';
+import { scoreGradeHex } from '@/lib/scoring/scoreColor';
 import { cn } from '@/lib/utils';
 
 interface MiniPillarRadarProps {
   /** Five scores: Body, Strength, Cardio, Movement, Lifestyle. */
   scores: number[];
   size?: number;
-  /** Outline = goal / target slot (dashed hull). */
+  /** Outline = empty / target slot (dashed hull). */
   variant?: 'filled' | 'outline';
   className?: string;
+  /** Overall AXIS score — hull colour matches the client report radar. */
+  overallScore?: number;
 }
 
 function point(cx: number, cy: number, r: number, angle: number) {
   return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
 }
 
+function averageScore(scores: number[]): number {
+  if (scores.length === 0) return 0;
+  return scores.reduce((sum, s) => sum + Math.max(0, Math.min(100, s)), 0) / scores.length;
+}
+
 /**
- * Compact five-pillar radar — semantic pillar colours, no labels.
+ * Compact five-pillar radar — same filled, score-coloured hull as the AXIS report.
  */
 export function MiniPillarRadar({
   scores,
   size = 96,
   variant = 'filled',
   className,
+  overallScore,
 }: MiniPillarRadarProps) {
   const cx = size / 2;
   const cy = size / 2;
@@ -30,6 +39,7 @@ export function MiniPillarRadar({
   const n = Math.max(scores.length, 5);
   const ang = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
   const isOutline = variant === 'outline';
+  const hullColor = scoreGradeHex(overallScore ?? averageScore(scores));
 
   const vertices = scores.slice(0, n).map((s, i) => {
     const r = (Math.max(0, Math.min(100, s)) / 100) * baseR;
@@ -57,10 +67,9 @@ export function MiniPillarRadar({
         fill="none"
         stroke={CHART_HEX.gridLight}
         strokeWidth={1}
-        opacity={0.8}
+        opacity={0.85}
       />
       {Array.from({ length: n }, (_, i) => {
-        const color = CHART_PILLAR_COLOR_ORDER[i % CHART_PILLAR_COLOR_ORDER.length];
         const p = point(cx, cy, baseR, ang(i));
         return (
           <line
@@ -69,50 +78,34 @@ export function MiniPillarRadar({
             y1={cy}
             x2={p.x}
             y2={p.y}
-            stroke={color}
-            strokeWidth={0.6}
-            opacity={0.35}
+            stroke={CHART_HEX.gridLight}
+            strokeWidth={0.9}
+            opacity={0.7}
           />
         );
       })}
       <polygon
         points={hullPts}
-        fill={isOutline ? 'none' : 'hsl(var(--foreground) / 0.05)'}
-        stroke="none"
+        fill={isOutline ? 'none' : hullColor}
+        fillOpacity={isOutline ? 0 : 0.2}
+        stroke={hullColor}
+        strokeWidth={isOutline ? 1.2 : 1.6}
+        strokeLinejoin="round"
+        strokeDasharray={isOutline ? '3 2' : undefined}
+        opacity={isOutline ? 0.75 : 1}
       />
-      {vertices.length >= 2
-        ? vertices.map((v, i) => {
-            const next = vertices[(i + 1) % vertices.length];
-            const color = CHART_PILLAR_COLOR_ORDER[i % CHART_PILLAR_COLOR_ORDER.length];
-            return (
-              <line
-                key={`edge-${i}`}
-                x1={v.x}
-                y1={v.y}
-                x2={next.x}
-                y2={next.y}
-                stroke={color}
-                strokeWidth={isOutline ? 1.1 : 1.5}
-                strokeDasharray={isOutline ? '3 2' : undefined}
-                strokeLinecap="round"
-                opacity={isOutline ? 0.75 : 0.9}
-              />
-            );
-          })
-        : null}
-      {vertices.map((p, i) => {
-        const color = CHART_PILLAR_COLOR_ORDER[i % CHART_PILLAR_COLOR_ORDER.length];
-        return (
-          <circle
-            key={`v-${i}`}
-            cx={p.x}
-            cy={p.y}
-            r={2.5}
-            fill={color}
-            opacity={isOutline ? 0.55 : 1}
-          />
-        );
-      })}
+      {vertices.map((p, i) => (
+        <circle
+          key={`v-${i}`}
+          cx={p.x}
+          cy={p.y}
+          r={size >= 80 ? 3 : 2}
+          fill={hullColor}
+          stroke="hsl(var(--card))"
+          strokeWidth={1.5}
+          opacity={isOutline ? 0.55 : 1}
+        />
+      ))}
     </svg>
   );
 }

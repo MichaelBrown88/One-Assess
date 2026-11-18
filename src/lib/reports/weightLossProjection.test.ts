@@ -31,7 +31,7 @@ describe('healthyMinimumWeightKg', () => {
 });
 
 describe('projectWeightLossKg', () => {
-  const ibrahim = {
+  const sample = {
     currentWeightKg: 81.2,
     weeklyRateKg: 0.6,
     bodyFatPct: 31.2,
@@ -40,15 +40,15 @@ describe('projectWeightLossKg', () => {
   };
 
   it('never prints a 58.5 kg year target for a typical adult male cut', () => {
-    const y1 = projectWeightLossKg({ ...ibrahim, weeks: WEIGHT_LOSS_WEEKS.oneYear });
+    const y1 = projectWeightLossKg({ ...sample, weeks: WEIGHT_LOSS_WEEKS.oneYear });
     expect(y1.endWeightKg).toBeGreaterThan(68);
     expect(formatKg1(y1.endWeightKg)).not.toBe('58.5');
     expect(formatKg1(y1.lossKg)).not.toBe('22.7');
   });
 
   it('keeps 4-month on the weekly rate and does not undershoot the healthy floor at 1 year', () => {
-    const m4 = projectWeightLossKg({ ...ibrahim, weeks: WEIGHT_LOSS_WEEKS.fourMonths });
-    const y1 = projectWeightLossKg({ ...ibrahim, weeks: WEIGHT_LOSS_WEEKS.oneYear });
+    const m4 = projectWeightLossKg({ ...sample, weeks: WEIGHT_LOSS_WEEKS.fourMonths });
+    const y1 = projectWeightLossKg({ ...sample, weeks: WEIGHT_LOSS_WEEKS.oneYear });
     expect(formatKg1(m4.lossKg)).toBe('9.6');
     expect(y1.lossKg).toBeGreaterThanOrEqual(m4.lossKg - 0.05);
     expect(y1.endWeightKg).toBeLessThanOrEqual(m4.endWeightKg + 0.05);
@@ -58,18 +58,34 @@ describe('projectWeightLossKg', () => {
 
   it('slows the cut when muscle-building is also a goal so year weight stays athletic', () => {
     const m4 = projectWeightLossKg({
-      ...ibrahim,
+      ...sample,
       weeks: WEIGHT_LOSS_WEEKS.fourMonths,
       protectMuscle: true,
     });
     const y1 = projectWeightLossKg({
-      ...ibrahim,
+      ...sample,
       weeks: WEIGHT_LOSS_WEEKS.oneYear,
       protectMuscle: true,
     });
 
-    expect(m4.weeklyRateKg).toBe(0.33);
+    expect(m4.weeklyRateKg).toBe(0.48);
     expect(y1.lossKg).toBeLessThan(12);
     expect(y1.endWeightKg).toBeGreaterThan(70);
+  });
+
+  it('slows a leaner recomp more than a high-body-fat recomp', () => {
+    const highBf = projectWeightLossKg({
+      ...sample,
+      weeks: WEIGHT_LOSS_WEEKS.fourMonths,
+      protectMuscle: true,
+    });
+    const leaner = projectWeightLossKg({
+      ...sample,
+      bodyFatPct: 18,
+      weeks: WEIGHT_LOSS_WEEKS.fourMonths,
+      protectMuscle: true,
+    });
+    expect(leaner.weeklyRateKg).toBeLessThan(highBf.weeklyRateKg);
+    expect(leaner.weeklyRateKg).toBe(0.39);
   });
 });

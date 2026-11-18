@@ -2,30 +2,31 @@ import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assess
 import { useMemo } from 'react';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring';
-import type { CoachPlan } from '@/lib/recommendations';
 import { determineArchetype } from '@/lib/clientArchetypes';
 import { CATEGORY_ORDER, niceLabel } from '../ClientReportConstants';
 import { useGapAnalysisData } from '../useGapAnalysisData';
 import { calculateAge } from '@/lib/scoring';
 import { calculateBodyRecomposition, getTargetBodyFatFromLevel, getBodyFatRange } from '@/lib/utils/bodyRecomposition';
 import { getEffectiveGoalLevels } from '@/lib/goals/achievableLandmarks';
+import { clientReportHasCapturedData } from '@/lib/reports/clientReportHasCapturedData';
+import { formatAssessmentReportDate } from '@/lib/reports/formatAssessmentReportDate';
 
 export interface UseClientReportDataProps {
   scores: ScoreSummary;
   goals?: string[];
   formData?: FormData;
-  assessmentDate?: Date | null;
   previousScores?: ScoreSummary | null;
   previousFormData?: FormData;
+  assessmentDate?: Date | null;
 }
 
 export function useClientReportData({
   scores,
   goals,
   formData,
-  assessmentDate,
   previousScores,
   previousFormData,
+  assessmentDate,
 }: UseClientReportDataProps) {
   const safeScores = useMemo(() => {
     if (scores && scores.categories) return scores;
@@ -199,17 +200,7 @@ export function useClientReportData({
                     primaryGoal === 'build-strength' ? 'Strength' :
                     primaryGoal === 'improve-fitness' ? 'Fitness' : 'General Health';
   
-  const hasAnyData = useMemo(() => {
-    if (!formData) return false;
-    const hasBodyComp = !!(formData.inbodyWeightKg && parseFloat(formData.inbodyWeightKg || '0') > 0);
-    const hasStrength = !!(formData.pushupMaxReps && parseFloat(formData.pushupMaxReps || '0') > 0) ||
-                        !!(formData.pushupsOneMinuteReps && parseFloat(formData.pushupsOneMinuteReps || '0') > 0);
-    const hasCardio = !!(formData.cardioRestingHr && parseFloat(formData.cardioRestingHr || '0') > 0);
-    const hasPosture = !!(formData.postureAiResults || formData.postureHeadOverall || formData.postureShouldersOverall);
-    const hasLifestyle = !!(formData.sleepQuality || formData.stressLevel || formData.hydrationHabits || 
-                           formData.nutritionHabits || (formData.stepsPerDay && parseFloat(formData.stepsPerDay || '0') > 0));
-    return hasBodyComp || hasStrength || hasCardio || hasPosture || hasLifestyle;
-  }, [formData]);
+  const hasAnyData = useMemo(() => clientReportHasCapturedData(formData), [formData]);
   
   const overallRadarData = useMemo(() => {
     return orderedCats.map(cat => ({
@@ -254,10 +245,10 @@ export function useClientReportData({
   // previousGapAnalysisData only contains meaningful values if previousFormData exists.
   // If not, it mirrors current data (no animation needed).
   
-  const reportDate = useMemo(() => {
-    const date = resolveAssessmentDate(formData?.assessedAt, assessmentDate);
-    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ?? '';
-  }, [formData?.assessedAt, assessmentDate]);
+  const reportDate = useMemo(
+    () => formatAssessmentReportDate(resolveAssessmentDate(formData?.assessedAt, assessmentDate)),
+    [formData?.assessedAt, assessmentDate],
+  );
 
   return {
     safeScores,

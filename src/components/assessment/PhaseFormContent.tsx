@@ -35,6 +35,7 @@ import { ROUTES } from '@/constants/routes';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
 import { ASSESSMENT_SETUP_COPY } from '@/constants/assessmentSetupCopy';
+import { POSTURE_STUDIO_MODAL_COPY } from '@/constants/coachPostureCapture';
 import type { PostureCompanionData } from '@/lib/types/companion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -262,8 +263,17 @@ export const PhaseFormContent = ({
     usePhaseFormSubmitLabels(formData, isPartialAssessment);
 
   const openPreResultsReview = useCallback(() => {
+    // Posture uploads live in the companion session; leaving for Results while
+    // the modal is open risks dropping in-flight Storage + analysis writes.
+    if (showPostureCompanion) {
+      toast({
+        title: POSTURE_STUDIO_MODAL_COPY.RESULTS_BLOCKED_TITLE,
+        description: POSTURE_STUDIO_MODAL_COPY.RESULTS_BLOCKED_BODY,
+      });
+      return;
+    }
     setReviewCheckpointOpen(true);
-  }, []);
+  }, [showPostureCompanion, toast]);
 
   // Skip empty phases (e.g. filtered-out equipment phases or org-filtered lifestyle phases)
   useEffect(() => {

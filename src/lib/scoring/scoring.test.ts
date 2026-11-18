@@ -217,6 +217,19 @@ describe('scoreLifestyle', () => {
     );
     expect(result.details.find((d) => d.id === 'activity')?.score).toBe(100);
   });
+
+  it('does not score alcohol — skipped or answered leaves the lifestyle average unchanged', () => {
+    const skipped = scoreLifestyle(lifestyleForm({ alcoholFrequency: '' }), 30, 'male');
+    const daily = scoreLifestyle(lifestyleForm({ alcoholFrequency: 'daily' }), 30, 'male');
+    expect(skipped.score).toBe(daily.score);
+    expect(skipped.details.some((d) => d.id === 'alcohol')).toBe(false);
+  });
+
+  it('does not treat alcohol-only answers as an assessed lifestyle pillar', () => {
+    const result = scoreLifestyle({ ...initialFormData, alcoholFrequency: 'daily' }, 30, 'male');
+    expect(result.assessed).toBe(false);
+    expect(result.score).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ import type { ClientProfile, Sex, TrainingExperience } from './rates';
 export function buildClientProfile(formData: FormData, scores?: ScoreSummary): ClientProfile {
   return {
     sex: parseSex(formData.gender),
-    age: parseAge(formData.dateOfBirth),
+    age: parseAge(formData.dateOfBirth, formData.assessedAt),
     bodyWeightKg: parseFloatSafe(formData.inbodyWeightKg) ?? 80,
     bodyFatPct: parseFloatSafe(formData.inbodyBodyFatPct),
     heightCm: parseFloatSafe(formData.heightCm),
@@ -30,11 +30,11 @@ function parseSex(gender: string | undefined): Sex {
   return 'unknown';
 }
 
-function parseAge(dob: string | undefined): number {
+function parseAge(dob: string | undefined, assessedAt?: string): number {
   if (!dob) return 35; // safe default; rates degrade gracefully at unknown age
   const d = new Date(dob);
   if (Number.isNaN(d.getTime())) return 35;
-  return Math.max(15, Math.min(90, Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000))));
+  return Math.max(15, Math.min(90, Math.floor(((assessedAt && Number.isFinite(Date.parse(assessedAt)) ? Date.parse(assessedAt) : Date.now()) - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000))));
 }
 
 function parseFloatSafe(v: string | undefined): number | undefined {

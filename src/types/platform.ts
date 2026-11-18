@@ -292,7 +292,7 @@ export interface PlatformMaintenanceSettings {
   is_maintenance_mode?: boolean;
 }
 
-/** Dismissible product announcement shown via FeatureAnnouncementBanner. */
+/** Optional product announcement banner. */
 export interface PlatformAnnouncement {
   /** Unique id — dismissals are tracked per-id in localStorage */
   id: string;

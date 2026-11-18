@@ -25,6 +25,8 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   const activityLevel = (form.activityLevel || '').toLowerCase();
   const caffeineHour = parseCaffeineHour(form.lastCaffeineIntake);
 
+  // Alcohol is optional (often skipped in regions where it is not asked).
+  // Never include it in the lifestyle average — empty, skipped, or answered.
   const hasLifestyleData = !!(sleepArchetype || sleepQ || sleepC || stress || hydration || nutrition || steps > 0 || sedentary > 0 || activityLevel);
 
   if (!hasLifestyleData) {

@@ -24,6 +24,7 @@ import { logger } from '@/lib/utils/logger';
 import { validateOrganizationId } from '@/lib/utils/validateOrganizationId';
 import type { UserProfile } from '@/types/auth';
 import { computeScores } from '@/lib/scoring';
+import { buildAssessmentComparison, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 
 export interface SnapshotSummary {
   id: string;
@@ -52,6 +53,7 @@ export type PublicReportDoc = {
   expiresAt?: Timestamp | null;
   formData: FormData;
   previousFormData?: FormData;
+  assessmentComparison?: AssessmentComparison;
   snapshotSummaries?: SnapshotSummary[];
   /** AI-generated 2-sentence progress summary — written after coach first shares the report */
   changeNarrative?: string;
@@ -134,8 +136,35 @@ export async function publishPublicReport(params: {
   const ref = doc(getDb(), COLLECTIONS.PUBLIC_REPORTS, shareToken);
   const snapshot = await getDoc(ref);
 
-  const safeFormData = sanitizeFormDataForPublic(formData);
+  let reportForm = formData;
+  // The immediate debrief may still hold the pre-save form without its capture date.
+  // Recover it only from an exactly matching saved form, never from the save clock.
+  if (!formData.assessedAt && formData.fullName) {
+    try {
+      const { getCurrentAssessment, normalizeForComparison } = await import('./assessmentHistory');
+      const saved = await getCurrentAssessment(coachUid, formData.fullName, validOrgId);
+      if (saved?.formData.assessedAt
+        && JSON.stringify(normalizeForComparison(sanitizeFormDataForPublic(saved.formData)))
+          === JSON.stringify(normalizeForComparison(sanitizeFormDataForPublic(formData)))) {
+        reportForm = { ...formData, assessedAt: saved.formData.assessedAt };
+      }
+    } catch (error) {
+      logger.warn('Saved capture date unavailable; leaving comparison empty', 'PUBLIC_REPORT', { error });
+    }
+  }
+  const safeFormData = sanitizeFormDataForPublic(reportForm);
   const latestOverallScore = computeScores(safeFormData).overall;
+  // Resolve authenticated, org-scoped history here; public viewers never read it.
+  let assessmentComparison: AssessmentComparison | null = null;
+  if (reportForm.assessedAt && reportForm.fullName) {
+    try {
+      const { getSnapshots } = await import('./assessmentHistory');
+      const sessions = await getSnapshots(coachUid, reportForm.fullName, 100, validOrgId);
+      assessmentComparison = buildAssessmentComparison(reportForm, sessions);
+    } catch (error) {
+      logger.warn('Previous assessment unavailable; publishing without measured changes', 'PUBLIC_REPORT', { error });
+    }
+  }
 
   // Never treat a re-save of the same assessment as a "previous" one —
   // that leaked "improved since last time" onto first-assessment AXIS reports.
@@ -157,6 +186,7 @@ export async function publishPublicReport(params: {
     visibility,
     formData: sanitizeForFirestore(safeFormData) as FormData,
     latestOverallScore,
+    assessmentComparison: assessmentComparison ?? deleteField(),
     updatedAt: serverTimestamp(),
     expiresAt: null, // No expiry by default
     previousFormData: priorFormData
@@ -180,6 +210,7 @@ export async function publishPublicReport(params: {
       await setDoc(snapshotRef, sanitizeForFirestore({
         schemaVersion: 1,
         formData: safeFormData,
+        ...(assessmentComparison ? { assessmentComparison } : {}),
         overallScore,
         timestamp: serverTimestamp(),
         type: snapshotType,
@@ -193,7 +224,7 @@ export async function publishPublicReport(params: {
       const newSummary: SnapshotSummary = {
         id: snapshotId,
         score: overallScore,
-        date: Timestamp.fromDate(assessmentDate(formData.assessedAt) ?? new Date()),
+        date: Timestamp.fromDate(assessmentDate(reportForm.assessedAt) ?? new Date()),
         type: snapshotType,
       };
       const updatedSummaries = [newSummary, ...existingSummaries].slice(0, 50);
@@ -212,7 +243,7 @@ export async function publishPublicReport(params: {
 export async function getPublicSnapshot(
   token: string,
   snapshotId: string,
-): Promise<{ formData: FormData; overallScore: number } | null> {
+): Promise<{ formData: FormData; overallScore: number; assessmentComparison?: AssessmentComparison } | null> {
   try {
     const ref = doc(getDb(), COLLECTIONS.PUBLIC_REPORTS, token, COLLECTIONS.PUBLIC_REPORT_SNAPSHOTS, snapshotId);
     const snap = await getDoc(ref);
@@ -220,6 +251,7 @@ export async function getPublicSnapshot(
     const data = snap.data();
     return {
       formData: data.formData as FormData,
+      assessmentComparison: data.assessmentComparison as AssessmentComparison | undefined,
       overallScore: typeof data.overallScore === 'number' ? data.overallScore : 0,
     };
   } catch (err) {

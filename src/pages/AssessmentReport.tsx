@@ -8,9 +8,7 @@ import AppShell from '@/components/layout/AppShell';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { generateBodyCompInterpretation } from '@/lib/recommendations';
-import { Loader2, Share2, MoreVertical, ArrowLeft, Edit2, Plus, Eye, AlertTriangle } from 'lucide-react';
-import { STORAGE_KEYS } from '@/constants/storageKeys';
+import { Loader2, Share2, MoreVertical, ArrowLeft, Edit2, Plus } from 'lucide-react';
 import {
   removeAssessmentPhaseIndex,
   removeEditAssessment,
@@ -29,12 +27,10 @@ import { ShareWithClientReportDialog } from '@/components/reports/ShareWithClien
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 const ClientReport = lazy(() => import('@/components/reports/ClientReport'));
-const CoachReport = lazy(() => import('@/components/reports/CoachReport'));
 
 import { ROUTES, COACH_ASSESSMENT_QUERY } from '@/constants/routes';
 import { COACH_ASSESSMENT_REPORT_NAV } from '@/constants/assessmentCopy';
 import { UI_COMMAND_MENU } from '@/constants/ui';
-
 const AssessmentReport = () => {
   const { id } = useParams();
   const { user, profile } = useAuth();
@@ -44,17 +40,16 @@ const AssessmentReport = () => {
   const {
     formData,
     scores,
-    plan,
     previousScores,
+    comparison,
     previousFormData,
     loading,
     error,
-    planError,
     allSnapshots,
+    assessmentDate,
   } = useAssessmentLogic(id);
 
   const versionSelector = useVersionSelector(allSnapshots);
-  const [previewingClientView, setPreviewingClientView] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [versionSelectorExpanded, setVersionSelectorExpanded] = useState(false);
 
@@ -82,12 +77,12 @@ const AssessmentReport = () => {
       searchParams.get(COACH_ASSESSMENT_QUERY.OPEN_SHARE_MODAL) ===
       COACH_ASSESSMENT_QUERY.OPEN_SHARE_VALUE;
     if (!wantsShare) return;
-    if (loading || !formData || !scores || !plan) return;
+    if (loading || !formData || !scores) return;
     setShareModalOpen(true);
     const next = new URLSearchParams(searchParams);
     next.delete(COACH_ASSESSMENT_QUERY.OPEN_SHARE_MODAL);
     setSearchParams(next, { replace: true });
-  }, [loading, formData, scores, plan, searchParams, setSearchParams]);
+  }, [loading, formData, scores, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (loading) return;
@@ -126,42 +121,6 @@ const AssessmentReport = () => {
     );
   }
 
-  // Handle Plan Generation Failure gracefully
-  if (planError) {
-     return (
-      <AppShell title="Assessment report" variant="full-width">
-        <div className="flex flex-col items-center justify-center py-12 sm:py-20 bg-amber-50 rounded-xl border border-amber-200 p-4 sm:p-8 text-center max-w-2xl mx-auto mt-4 sm:mt-10">
-          <div className="bg-amber-100 p-3 rounded-full mb-4">
-             <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden />
-           </div>
-          <h3 className="text-base sm:text-lg font-bold text-amber-900 mb-2">Report Generation Issue</h3>
-          <p className="text-sm sm:text-base text-amber-700 mb-6">We encountered an issue creating the AI Coach Plan. The raw assessment data is safe, but the recommendations could not be generated.</p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
-            <Button variant="outline" onClick={() => window.location.reload()} className="w-full sm:w-auto">Retry</Button>
-            <Button onClick={() => navigate(ROUTES.DASHBOARD)} className="w-full sm:w-auto">
-              Return to {UI_COMMAND_MENU.HOME}
-            </Button>
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (!plan) {
-    return (
-      <AppShell title="Assessment report">
-        <div className="flex flex-col items-center justify-center py-20 bg-background rounded-xl">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="text-sm font-medium text-muted-foreground">Generating Report...</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  // Calculate generic body comp for display logic
-  const bodyComp = generateBodyCompInterpretation(formData, scores);
-  const highlightCategory = sessionStorage.getItem(STORAGE_KEYS.HIGHLIGHT_CATEGORY) || undefined;
-
   const navigateToDashboard = () => {
     if (formData?.fullName) {
       navigate(`/client/${encodeURIComponent(formData.fullName)}`);
@@ -174,12 +133,17 @@ const AssessmentReport = () => {
     ? COACH_ASSESSMENT_REPORT_NAV.BACK_TO_CLIENT_ARIA
     : COACH_ASSESSMENT_REPORT_NAV.BACK_TO_DASHBOARD_ARIA;
 
-  const navigateToEdit = () => {
-    if (!id || !formData) return;
+  const navigateToEdit = async () => {
+    if (!formData?.fullName?.trim()) return;
+    // assessmentId must be the client slug (org/clients/{slug}), not a session
+    // timestamp from /coach/assessments/:id — otherwise edit save looks up a
+    // missing summary doc and surfaces Sync Error.
+    const { generateClientSlug } = await import('@/services/clientProfiles');
+    const clientSlug = generateClientSlug(formData.fullName) || id || 'unnamed-client';
     writeEditAssessmentPayload({
-      assessmentId: id,
+      assessmentId: clientSlug,
       formData: formData,
-      clientName: formData.fullName,
+      clientName: formData.fullName.trim(),
     });
     removePartialAssessment();
     removePrefillClient();
@@ -252,18 +216,9 @@ const AssessmentReport = () => {
             : []),
           { label: 'Report' },
         ]} />
-        <div className="flex items-center justify-between">
-          <h1 className="text-base sm:text-lg font-bold text-foreground truncate">
-            {formData.fullName || 'Assessment'}
-          </h1>
-          <button
-            onClick={() => setPreviewingClientView((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground-secondary transition-colors shrink-0 ml-3"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            {previewingClientView ? 'Back to coach view' : 'Preview client view'}
-          </button>
-        </div>
+        <h1 className="text-base sm:text-lg font-bold text-foreground truncate">
+          {formData.fullName || 'Assessment'}
+        </h1>
       </div>
 
       <div
@@ -317,33 +272,24 @@ const AssessmentReport = () => {
               <p className="text-sm font-medium text-muted-foreground">Generating Report...</p>
             </div>
           }>
-            {previewingClientView ? (
-              <ClientReport
-                scores={versionSelector.selectedScores ?? scores}
-                goals={Array.isArray((versionSelector.selectedFormData ?? formData).clientGoals) ? (versionSelector.selectedFormData ?? formData).clientGoals : []}
-                formData={versionSelector.selectedFormData ?? formData}
-                previousScores={versionSelector.previousScores ?? previousScores}
-                previousFormData={(versionSelector.previousFormData ?? previousFormData) ?? undefined}
-                assessmentDate={allSnapshots[versionSelector.selectedIndex]?.date}
-                standalone={true}
-                coachActions={{
-                  onShare: () => setShareModalOpen(true),
-                  onSendToClient: () => setShareModalOpen(true),
-                }}
-                reportMeta={{
-                  coachName: profile?.displayName ?? user?.displayName ?? undefined,
-                  assessmentNumber: allSnapshots?.length || undefined,
-                }}
-              />
-            ) : (
-              <CoachReport
-                plan={plan}
-                scores={versionSelector.selectedScores ?? scores}
-                bodyComp={bodyComp ?? undefined}
-                formData={versionSelector.selectedFormData ?? formData}
-                highlightCategory={highlightCategory}
-              />
-            )}
+            <ClientReport
+              comparison={versionSelector.selectedFormData ? versionSelector.comparison : comparison}
+              scores={versionSelector.selectedScores ?? scores}
+              goals={Array.isArray((versionSelector.selectedFormData ?? formData).clientGoals) ? (versionSelector.selectedFormData ?? formData).clientGoals : []}
+              formData={versionSelector.selectedFormData ?? formData}
+              previousScores={versionSelector.previousScores ?? previousScores}
+              previousFormData={(versionSelector.previousFormData ?? previousFormData) ?? undefined}
+              assessmentDate={allSnapshots[versionSelector.selectedIndex]?.date ?? assessmentDate}
+              standalone={true}
+              coachActions={{
+                onShare: () => setShareModalOpen(true),
+                onSendToClient: () => setShareModalOpen(true),
+              }}
+              reportMeta={{
+                coachName: profile?.displayName ?? user?.displayName ?? undefined,
+                assessmentNumber: allSnapshots?.length || undefined,
+              }}
+            />
           </Suspense>
         </div>
       </div>

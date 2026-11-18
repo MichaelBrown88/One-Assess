@@ -1,5 +1,6 @@
 import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 import type { PostureFindingRecord, PostureFindingSeverity, PostureFindingViewId } from '@/lib/types/postureFindings';
+import { withCurrentPostureCopy } from '@/lib/posture/buildStructuredPostureFindings';
 
 const SEV_ORDER: Record<PostureFindingSeverity, number> = {
   aligned: 0,
@@ -18,7 +19,7 @@ export function aggregatePostureFindings(
   const merged = new Map<string, PostureFindingRecord>();
   for (const view of VIEWS) {
     const r = results[view];
-    const list = r?.structuredFindings ?? [];
+    const list = (r?.structuredFindings ?? []).map(withCurrentPostureCopy);
     for (const f of list) {
       if (f.severity === 'aligned') continue;
       const prev = merged.get(f.id);

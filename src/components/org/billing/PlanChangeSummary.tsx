@@ -132,13 +132,7 @@ export function PlanChangeSummary({
       : CHECKOUT_FLOW_COPY.billingSubscribeContinue;
 
   return (
-    <Card className={cn(
-      'h-fit rounded-xl border bg-background shadow-none transition-all duration-300',
-      'lg:sticky lg:top-20',
-      hasChanges
-        ? 'border-primary/30 ring-1 ring-primary/10'
-        : 'border-border/70',
-    )}>
+    <Card className="h-fit rounded-lg border border-border bg-card shadow-none">
       <CardHeader className="pb-3 pt-4 px-4 sm:px-5 space-y-0">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-secondary">
@@ -232,7 +226,7 @@ export function PlanChangeSummary({
             {/* CTA */}
             <Button
               type="button"
-              className="w-full rounded-xl font-semibold h-11 text-sm"
+              className="w-full rounded-lg font-semibold h-11 text-sm"
               onClick={onConfirm}
               disabled={loading || !hasChanges}
             >
@@ -253,7 +247,7 @@ export function PlanChangeSummary({
         ) : (
           /* Empty state */
           <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
               <SlidersHorizontal className="h-5 w-5 text-foreground-secondary" aria-hidden />
             </div>
             <p className="text-sm text-foreground-secondary max-w-[200px] leading-relaxed">

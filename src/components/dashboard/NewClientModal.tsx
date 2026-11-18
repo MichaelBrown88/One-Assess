@@ -150,7 +150,7 @@ export function NewClientModal({ open, onOpenChange, organizationId }: NewClient
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl sm:rounded-[28px]">
+      <DialogContent className="max-h-[90vh] gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl sm:rounded-lg">
         <div className="flex flex-col overflow-y-auto p-7">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-xl font-bold tracking-tight text-foreground">

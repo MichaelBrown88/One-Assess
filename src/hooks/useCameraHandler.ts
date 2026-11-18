@@ -50,6 +50,7 @@ export function useCameraHandler({
         if (result.fields && Object.keys(result.fields).length > 0) {
           setOcrReviewData(result.fields);
         } else {
+          // Missing required fields or empty parse — retake / enter manually
           setOcrFailReason('unreadable');
         }
       } catch (err) {
@@ -75,8 +76,8 @@ export function useCameraHandler({
   // any remaining fields and advances manually (no auto phase jump).
   const applyOcrData = useCallback(() => {
     if (ocrReviewData) {
-      // Set flag to show analyzer fields after OCR data is applied
-      updateFormData({ ...ocrReviewData, showAnalyzerFields: 'yes' });
+      // InBody fields are always visible on P2 — no hide toggle.
+      updateFormData({ ...ocrReviewData });
       setOcrReviewData(null);
       toast({ title: OCR_COPY.APPLIED_TITLE, description: OCR_COPY.APPLIED_BODY });
     }

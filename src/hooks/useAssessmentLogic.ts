@@ -1,3 +1,4 @@
+import { buildAssessmentComparison, selectPreviousAssessment, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -5,8 +6,6 @@ import { getCoachAssessment } from '@/services/coachAssessments';
 import { publishPublicReport } from '@/services/publicReports';
 import type { FormData } from '@/contexts/FormContext';
 import { computeScores, buildRoadmap, type ScoreSummary, type RoadmapPhase } from '@/lib/scoring';
-import { generateCoachPlan, type CoachPlan } from '@/lib/recommendations';
-import { STORAGE_KEYS } from '@/constants/storageKeys';
 import { logger } from '@/lib/utils/logger';
 import type { SnapshotInput } from '@/hooks/useVersionSelector';
 
@@ -15,16 +14,17 @@ import type { SnapshotInput } from '@/hooks/useVersionSelector';
  * Explicitly typed to prevent 'any' type bleed
  */
 export interface AssessmentLogicState {
+  comparison: AssessmentComparison | null;
   formData: FormData | null;
   scores: ScoreSummary | null;
   roadmap: RoadmapPhase[];
-  plan: CoachPlan | null;
   previousScores: ScoreSummary | null;
   previousFormData: FormData | null;
   loading: boolean;
   error: string | null;
-  planError: boolean;
   allSnapshots: SnapshotInput[];
+  /** Original assessment date from the session/snapshot — not today's date. */
+  assessmentDate: Date | null;
 }
 
 /**
@@ -37,16 +37,16 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
   const { user, profile } = useAuth();
   
   const [state, setState] = useState<AssessmentLogicState>({
+    comparison: null,
     formData: null,
     scores: null,
     roadmap: [],
-    plan: null,
     previousScores: null,
     previousFormData: null,
     loading: true,
     error: null,
-    planError: false,
-    allSnapshots: []
+    allSnapshots: [],
+    assessmentDate: null,
   });
 
   const publishedKeyRef = useRef<string | null>(null);
@@ -62,7 +62,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
     
     (async () => {
       try {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        setState(prev => ({ ...prev, loading: true, error: null, comparison: null, previousFormData: null, previousScores: null }));
         
         // 1. Fetch Assessment Data
         // clientNameOverride (from outlet context) takes priority over URL query param.
@@ -147,13 +147,15 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
         // 3. Compute Scores
         const scores = computeScores(fd);
         const roadmap = buildRoadmap(scores, fd);
+        const loadedDate = data.createdAt;
         
         if (isMounted) {
             setState(prev => ({ 
                 ...prev, 
                 formData: fd, 
                 scores, 
-                roadmap
+                roadmap,
+                assessmentDate: loadedDate,
             }));
         }
 
@@ -162,7 +164,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
              const clientNameForLookup = clientNameQuery || fd.fullName;
              if (clientNameForLookup) {
                 const { getSnapshots } = await import('@/services/assessmentHistory');
-                const snapshots = await getSnapshots(user.uid, clientNameForLookup, 50, profile?.organizationId);
+                const snapshots = await getSnapshots(user.uid, clientNameForLookup, 100, profile?.organizationId);
                 
                 // Each snapshot displays its own historical formData — no
                 // posture overlay. Re-analyses update current/state but not
@@ -189,36 +191,43 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
                   };
                 });
 
-                if (mapped.length === 0 && resolveAssessmentDate(fd.assessedAt, data.createdAt)) {
+                if (mapped.length === 0 && loadedDate) {
                   mapped = [{
                     id: assessmentId ?? '',
                     score: scores.overall,
-                    date: resolveAssessmentDate(fd.assessedAt, data.createdAt) ?? new Date(0),
+                    date: loadedDate,
                     type: 'full-assessment',
                     formData: fd,
                   }];
                 }
+
+                const matched = assessmentId
+                  ? mapped.find((s) => s.id === assessmentId)
+                  : undefined;
+                const snapshotDate = resolveAssessmentDate(fd.assessedAt, matched?.date ?? mapped[0]?.date ?? loadedDate);
                 
                 if (isMounted) {
-                  const prevFormData = snapshots.length > 1 && snapshots[1]?.formData ? snapshots[1].formData : null;
+                  const prevFormData = selectPreviousAssessment(fd, snapshots)?.formData ?? null;
                   const prevScores = prevFormData ? computeScores(prevFormData) : null;
-                  setState(prev => ({ ...prev, previousScores: prevScores, previousFormData: prevFormData, allSnapshots: mapped }));
+                  setState(prev => ({
+                    ...prev,
+                    comparison: buildAssessmentComparison(fd, snapshots),
+                    previousScores: prevScores,
+                    previousFormData: prevFormData,
+                    allSnapshots: mapped,
+                    assessmentDate: snapshotDate ?? loadedDate,
+                  }));
                 }
              }
         } catch (e) {
             logger.warn('Failed to fetch snapshots', e);
         }
 
-        // 5. Generate Plan (Async)
-        try {
-            const plan = await generateCoachPlan(fd, scores);
-            if (isMounted) setState(prev => ({ ...prev, plan, loading: false }));
-        } catch (planErr) {
-            logger.error('Plan generation failed', planErr);
-            if (isMounted) setState(prev => ({ ...prev, planError: true, loading: false }));
+        if (isMounted) {
+            setState(prev => ({ ...prev, loading: false }));
         }
-        
-        // 6. Publish Public Report (Background)
+
+        // 5. Publish Public Report (Background)
         // When using the 'latest' lookup path, assessmentId may be undefined.
         // Fall back to the resolved slug so publishPublicReport always has a stable key.
         const publishId = assessmentId ?? resolvedAssessmentId;

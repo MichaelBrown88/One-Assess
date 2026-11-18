@@ -7,13 +7,14 @@ import { Camera, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type PhaseField, type PhaseSection } from '@/lib/phaseConfig';
 import { shouldShowField } from '@/lib/utils/equipmentFieldFilter';
 import { hasActiveBaselineSession } from '@/lib/assessment/baselineSession';
+import { shouldSkipGripMethodStep } from '@/lib/assessment/gripMethodPrefill';
 import { FieldControl } from './FieldControl';
 import {
   MovementPatternCapture,
   type MovementPatternSectionId,
 } from '@/components/assessment/movement/MovementPatternCapture';
 import { CardioRunSheet } from '@/components/assessment/cardio/CardioRunSheet';
-import { shouldSkipGripMethodStep } from '@/lib/assessment/gripMethodPrefill';
+import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
 
 const MOVEMENT_PATTERN_SECTIONS = new Set<MovementPatternSectionId>([
   'overhead-squat',
@@ -138,6 +139,12 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
     });
   }, [currentStep, formData]);
 
+  const isSkippableStep = Boolean(
+    currentStep &&
+      currentStep.length === 1 &&
+      currentStep[0].skippable,
+  );
+
   const handleNext = () => {
     if (isLastField) {
       onComplete();
@@ -216,7 +223,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
     );
   }
 
-  // P3 renders as one continuous run sheet (RHR → protocol → timer → peak → recovery)
+  // P3: three HR inputs + coach protocol note (no in-app timers)
   if (section.id === 'fitness-assessment') {
     return (
       <CardioRunSheet
@@ -242,7 +249,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
   }
 
   const movementPattern = currentStep[0].pattern;
-  const isBodyCompSection = section.id === 'body-comp';
+  const isBodyCompSection = section.id === 'inbody-results';
   // The OCR photo fills analyzer numbers — don't offer it while the coach is
   // on the tape-measurement step, where a printout photo makes no sense.
   const isTapeMeasurementStep = currentStep[0].pairId === 'tape-measurements';
@@ -336,20 +343,6 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
           ))}
         </div>
 
-        {/* Body comp: optional manual analyzer entry opt-in at bottom */}
-        {isBodyCompSection && isLastField && formData.showAnalyzerFields !== 'yes' && (
-          <div className="mt-6 pt-4 border-t border-border flex flex-wrap items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => updateFormData({ showAnalyzerFields: 'yes' })}
-              className="h-9 px-4 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground-secondary gap-2"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              Enter analyzer numbers (optional)
-            </Button>
-          </div>
-        )}
-
         {/* Navigation */}
         <div className="flex items-center justify-between mt-12 pt-8 border-t border-border/60">
           <Button
@@ -370,15 +363,21 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
             )}
             <Button
               onClick={handleNext}
-              disabled={postureMissingPhotos || (!hasValue && currentStep.some(f => f.required))}
+              disabled={postureMissingPhotos || (!hasValue && !isSkippableStep && currentStep.some(f => f.required))}
               className={`h-12 px-8 rounded-lg font-bold transition-all ${
-                !postureMissingPhotos && (hasValue || !currentStep.some(f => f.required))
+                !postureMissingPhotos && (hasValue || isSkippableStep || !currentStep.some(f => f.required))
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               }`}
             >
-              {isLastField ? 'Section Complete' : 'Next Step'}
-              <ChevronRight className="ml-2 h-5 w-5" />
+              {isSkippableStep && !hasValue
+                ? PHASE_FORM_COPY.SKIP_QUESTION
+                : isLastField
+                  ? 'Section Complete'
+                  : 'Next Step'}
+              {!(isSkippableStep && !hasValue) ? (
+                <ChevronRight className="ml-2 h-5 w-5" />
+              ) : null}
             </Button>
           </div>
         </div>

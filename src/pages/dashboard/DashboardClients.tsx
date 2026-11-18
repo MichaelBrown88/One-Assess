@@ -38,7 +38,7 @@ export default function DashboardClients() {
       <WorkspaceBreadcrumb current="Clients" />
 
       <header className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Clients</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-[1.85rem]">Clients</h1>
         <p className="text-sm text-muted-foreground">
           {total === 0
             ? 'No clients yet — create one from the New assessment button to get started.'
@@ -46,8 +46,8 @@ export default function DashboardClients() {
         </p>
       </header>
 
-      {/* Kit stat-row: 4 cards, 12px gap */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="grid grid-cols-2 divide-y divide-border lg:grid-cols-4 lg:divide-x lg:divide-y-0">
         <WorkspaceKpiCard label="Active clients" value={total > 0 ? String(total) : '—'} />
         <WorkspaceKpiCard
           label="On track"
@@ -69,10 +69,10 @@ export default function DashboardClients() {
           label="Reports shared"
           value={reportsSharedPct === null ? '—' : `${reportsSharedPct}%`}
         />
+        </div>
       </div>
 
-      {/* Client table wrapped in the kit's panel container */}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-[20px] border border-border bg-card">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card">
         <UnifiedClientTable
           loadingData={ctx.loadingData}
           clients={ctx.filteredClients}

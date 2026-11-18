@@ -227,6 +227,7 @@ export const NOTIFICATIONS = {
 export const SYSTEM_STATS = {
   collection: () => 'platform-stats' as const,
   globalMetrics: () => 'platform-stats/global-metrics' as const,
+  ownerPulse: () => 'platform-stats/owner-pulse' as const,
 } as const;
 
 // ---------------------------------------------------------------------------

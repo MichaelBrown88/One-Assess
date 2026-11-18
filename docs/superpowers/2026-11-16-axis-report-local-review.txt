@@ -1,0 +1,107 @@
+AXIS REPORT LOCAL REVIEW CHECKPOINT
+16 November 2026
+
+Implementation follows the unchanged plan at:
+docs/superpowers/plans/2026-11-16-axis-report-audit-and-roadmap.txt
+
+Review locally:
+http://127.0.0.1:8080/preview/sample-report
+
+Version reconciliation
+
+Built on develop at 27c50d81ed988620512d5615919414e94aa65a7d, which already
+contains the other chat's merged assessment resume, original-date, first-report
+comparison and stale-page fixes. No reset, stash, history rewrite or production
+data write was used. Today's report implementation supersedes the older report
+comparison/projection behaviour while retaining those unrelated fixes.
+
+The pre-existing .claude/launch.json edit and assessment-draft-resume plan were
+preserved byte-for-byte. The report plan was also preserved byte-for-byte.
+Initial hashes and patch are in /tmp/one-assess-report-20261116-checkpoint/.
+
+Local implementation
+
+One proposed training week feeds the gap tables, goal plan and nutrition guide.
+Future columns show estimated cumulative changes, not promised landing values.
+Body composition reconciles total weight, fat, muscle and other lean mass.
+Recovery assumptions use captured habits, not the number of training visits.
+Each stated goal has weekly actions, tracking and a review point. Conditioning
+fits within the proposed visits. Movement shows observed needs only.
+
+The forecast rates are conservative planning assumptions, not validated
+individual prediction intervals. One-month interpolation is a planning guide.
+The retained adjusted-weight nutrition safeguard is disclosed when applied.
+
+Verification
+
+67 test files / 396 tests passed; application TypeScript, affected-file ESLint,
+git diff --check and the production build passed. Browser review covered
+desktop, mobile and tablet, light and dark, plus a separately labelled synthetic
+female example. No posture photos exist in the sample fixture, so that fixture
+cannot validate the photo layout. The existing development App Check 403 did
+not prevent fixture rendering; live retrieval/email were not tested.
+
+The sample preview uses the repository's captured-baseline fixture with its
+documented provenance, not a fresh production database read.
+
+Approval boundary
+
+Plan stages 1-6 are ready for local review. Stage 7 (PDF/email companion) follows
+content approval. Stage 8 (preview deployment) follows local approval. Nothing
+was deployed, pushed, emailed or written to Firebase during this implementation.
+
+FOLLOW-UP CLARITY REVIEW
+
+The next local revision uses plain client report labels, removes unused
+three-session copy, adds an example training week and four review checkpoints,
+and simplifies the posture dialog to one selected finding. Mobile uses one
+scrolling surface and keeps the entire photo visible.
+
+The local preview now reads the client's saved current assessment with
+four posture photos/analyses. Its original date comes from the sole session
+2026-09-08T05-59-20-588Z, rather than the current document's later save timestamp.
+This replaces the simplified fixture for local review, so some scores, test
+readings and food estimates differ. There is only one saved assessment session;
+no historical measured change is displayed or invented. Historical comparison
+is specified in the separate report-clarity-review plan for follow-up.
+
+The read-only snapshot is in the operating system's temporary directory, not
+the repository or public assets. Only loopback development requests can access
+the local review endpoint. Foreign-origin requests and direct filesystem access
+were checked; production bundles contain neither the endpoint nor photo URLs.
+No Firebase writes were made. The original plan and existing edits are intact.
+
+Validation: 68 test files / 398 tests pass, application TypeScript and the build
+pass, and affected lint has no errors (two photo/UI token warnings). Desktop,
+mobile and tablet posture interaction and full roadmap were reviewed locally.
+Nothing deployed or pushed. The browser is left on the complete local roadmap.
+
+MEASURED COMPARISON REVIEW
+
+The requested measured-change display is now implemented in the body-composition,
+strength and fitness tables and tape figure. A shared selector requires dated,
+saved full assessments for the same client and skips re-saves, partial captures,
+undated legacy rows and future captures. It selects the nearest earlier capture,
+using the latest saved version of that capture. assessmentDateCorrections remain
+applied by the existing history service; save timestamps are never capture dates.
+
+Public reports and public history snapshots receive a versioned whitelist of
+numeric readings and provenance. They never query coach-private history. Legacy
+previousFormData is still ignored. Stale/mismatched payloads and mismatched test
+protocols fail closed. Publishing tests use mocked Firebase, not live writes.
+
+Local review example:
+http://127.0.0.1:8080/preview/sample-report?example=progress#pillar-body-comp
+Both captures are explicitly synthetic. the client's saved baseline has no invented
+prior assessment. The comparison UI was checked on desktop, mobile and tablet,
+including dark mode and expanded tape measurements. 70 test files / 413 tests,
+application TypeScript, affected-file lint and production build passed.
+
+Release remains blocked on the user's local-report review approval. No push,
+deployment, merge to main or production data writes occurred. The recovery chat
+supplied a release handover at:
+/Users/michael/Documents/One Assess Release Handover/2026-11-16/release-handover.txt
+Its assessedAt, original-date, draft-resume and prior-assessment fixes remain in
+the shared develop history. Its reported main-only commits (8e8db31 and fc172e6)
+still need deliberate reconciliation at release time; no reset/force-push is
+appropriate. Consult that handover for combined Functions/rules/indexes scope.

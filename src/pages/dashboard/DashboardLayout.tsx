@@ -81,13 +81,9 @@ export default function DashboardLayout() {
     });
   }, []);
 
+  // Close the mobile drawer on any route change (including Clients → client detail).
   useEffect(() => {
-    const p = location.pathname;
-    const inWorkspace =
-      p === ROUTES.DASHBOARD ||
-      p.startsWith(ROUTES.DASHBOARD_CLIENTS) ||
-      p.startsWith(ROUTES.DASHBOARD_TEAM);
-    if (!inWorkspace) setMobileSidebarOpen(false);
+    setMobileSidebarOpen(false);
   }, [location.pathname]);
 
   const {
@@ -191,7 +187,8 @@ export default function DashboardLayout() {
     path === ROUTES.DASHBOARD ||
     path.startsWith(ROUTES.DASHBOARD_CLIENTS) ||
     path.startsWith(ROUTES.DASHBOARD_TEAM) ||
-    path.startsWith(ROUTES.SETTINGS);
+    path.startsWith(ROUTES.SETTINGS) ||
+    path.startsWith(ROUTES.BILLING);
 
   const sidebarProps = {
     clientCount: dashboardData.analytics?.totalClients ?? 0,

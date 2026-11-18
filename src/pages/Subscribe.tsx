@@ -64,7 +64,7 @@ export default function Subscribe() {
           <p className="font-semibold text-foreground">{SUBSCRIBE_COPY.bulletsTitle}</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>{SUBSCRIBE_COPY.bulletCapacity}</li>
-            <li>{SUBSCRIBE_COPY.bulletAi}</li>
+            <li>{SUBSCRIBE_COPY.bulletReports}</li>
             <li>{SUBSCRIBE_COPY.bulletBranding}</li>
           </ul>
         </div>

@@ -15,32 +15,23 @@ export const PHASE_FORM_COPY = {
   FOOTER_PROFESSIONAL_SUFFIX: 'Professional v2.1 • Confidential Client Data',
   FOOTER_DEFAULT_ORG_NAME: 'One Assess',
   NO_PHASES_CONFIGURED: 'This assessment has no sections set up yet. Go to Settings to configure your assessment phases.',
+  SKIP_QUESTION: 'Skip',
 } as const;
 
-/** Copy for the single-flow cardio run sheet (P3). */
+/** Copy for the P3 fitness capture sheet (three HR readings + coach protocol note). */
 export const CARDIO_RUN_SHEET_COPY = {
   KICKER: 'Fitness test',
-  INTRO: 'One continuous flow: resting heart rate, the test, then the one-minute recovery reading.',
+  INTRO: 'Record three heart rates. Time the test yourself on the treadmill or a watch.',
+  PROTOCOL_HEADING: 'How to run the test',
+  PROTOCOL_INSTRUCTION:
+    'Client seated and calm for resting heart rate first. Then a 3-minute incline walk at speed 5 / incline 10. Note peak heart rate at the end of the walk, sit them down, and take recovery heart rate after 1 minute.',
   RESTING_LABEL: 'Resting heart rate',
   RESTING_HINT: 'Seated and calm for at least 5 minutes before you record it.',
-  PROTOCOL_LABEL: 'Test protocol',
-  PROTOCOL_AUTO_HINT: 'Step test selected — no cardio equipment configured for this studio.',
-  TEST_LABEL: 'Test',
-  TEST_HINT: 'Pace off the machine\u2019s own display. Start here when the client begins — stopping starts the one-minute recovery countdown automatically.',
-  TEST_START: 'Start test',
-  TEST_STOP: 'Stop test',
-  TEST_RUNNING: 'Test running',
-  TEST_DONE: 'Test done — take the peak heart rate. Recovery countdown is running.',
   PEAK_LABEL: 'Peak heart rate',
-  RECOVERY_TIMER_LABEL: '1-minute recovery',
-  RECOVERY_HINT: 'Starts on its own when you stop the test. Sit the client down and record heart rate when it hits zero.',
-  RECOVERY_START: 'Start recovery timer',
-  RECOVERY_RUNNING: 'Client seated — measuring recovery',
-  RECOVERY_DONE: 'Take the recovery heart rate now.',
+  PEAK_HINT: 'Highest reading at the end of the 3-minute walk.',
   RECOVERY_LABEL: 'Recovery heart rate',
-  RESET_TIMER: 'Reset',
+  RECOVERY_HINT: 'One minute after the walk ends, still seated.',
   BPM_UNIT: 'bpm',
   COMPLETE: 'Section complete',
-  COMPLETE_HINT_PROTOCOL: 'Choose a test protocol to finish this section.',
   BACK: 'Back',
 } as const;

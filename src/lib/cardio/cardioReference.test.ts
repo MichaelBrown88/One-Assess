@@ -9,7 +9,7 @@ import {
 } from './cardioReference';
 
 describe('cardioReference', () => {
-  it('maps Ibrahim-age into the 26–35 bracket', () => {
+  it('maps sample-client age into the 26–35 bracket', () => {
     expect(ageBracketFor(31)).toBe('26-35');
   });
 
@@ -34,7 +34,7 @@ describe('cardioReference', () => {
     expect(classifyPeakWalkBand(152, 31)).toBe('poor');
   });
 
-  it('builds a debrief chart for Ibrahim-like inputs', () => {
+  it('builds a debrief chart for sample-client inputs', () => {
     const chart = buildCardioReference({
       age: 31,
       gender: 'male',

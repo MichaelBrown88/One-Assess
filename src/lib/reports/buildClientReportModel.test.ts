@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildClientReportModel } from './buildClientReportModel';
+import { buildTapeMeasurementRows } from './clientProgressionProjections';
 import { CLIENT_COPY_FORBIDDEN } from './sanitizeClientReportCopy';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring';
 import type { GapAnalysisData } from '@/components/reports/useGapAnalysisData';
+import { CLIENT_PLAN_WEEKS } from '@/constants/clientReport';
 
 const formData = {
   inbodyWeightKg: '81.2',
@@ -11,7 +13,7 @@ const formData = {
   skeletalMuscleMassKg: '31.5',
   heightCm: '175',
   gender: 'male',
-  dateOfBirth: '1995-03-25',
+  dateOfBirth: '1995-01-15',
   clientGoals: ['weight-loss', 'build-muscle', 'improve-fitness'],
   cardioRestingHr: '75',
   cardioPeakHr: '152',
@@ -72,17 +74,17 @@ const gapAnalysisData: GapAnalysisData[] = [
 ];
 
 describe('buildClientReportModel', () => {
-  it('prints a 12-week promise and Fitness level as the 0–100 score, not VO2', () => {
+  it('prints a plan-length promise and Fitness level as the 0–100 score, not VO2', () => {
     const model = buildClientReportModel({
       scores,
       formData,
       goals: formData.clientGoals,
       gapAnalysisData,
-      clientName: 'Ibrahim Al Tuwaijri',
+      clientName: 'Sample Client',
       reportDate: 'Sep 13, 2026',
     });
 
-    expect(model.goalPromise).toMatch(/12 weeks/);
+    expect(model.goalPromise).toMatch(new RegExp(`${CLIENT_PLAN_WEEKS} weeks`));
     expect(model.goalPromise).not.toMatch(CLIENT_COPY_FORBIDDEN);
     expect(model.goalPromise.toLowerCase()).not.toMatch(/four months|\bin a year\b|90-day/);
     expect(model.radarData).toHaveLength(5);
@@ -96,10 +98,14 @@ describe('buildClientReportModel', () => {
       .find((p) => p.scoringId === 'bodyComp')
       ?.progressionRows.find((r) => r.name === 'Body weight');
     expect(weightRow?.twelveWeeks).toBeDefined();
+    expect(weightRow?.oneMonth).toBeDefined();
     expect(Number(weightRow!.twelveWeeks)).toBeCloseTo(model.roadmapTarget!.targetWeightKg!, 0);
+    expect(Number(weightRow!.oneMonth)).toBeGreaterThan(Number(weightRow!.twelveWeeks));
+    expect(Number(weightRow!.oneMonth)).toBeLessThan(Number(weightRow!.current));
+    expect(model.planSmartGoals.some((g) => g.id === 'bc-weight')).toBe(true);
 
     expect(model.priorityFocus).toEqual({ label: 'Body composition', score: 62 });
-    expect(model.welcome).toMatch(/Among men aged 26–35/i);
+    expect(model.welcome).toMatch(/for men aged 26–35/i);
     expect(model.welcome.split(/[.!?]+/).filter((s) => s.trim()).length).toBeLessThanOrEqual(3);
     expect(model.welcome.toLowerCase()).not.toMatch(/focus this block|improved|last time|last assessment/);
   });
@@ -115,7 +121,7 @@ describe('buildClientReportModel', () => {
       } as FormData,
       goals: formData.clientGoals,
       gapAnalysisData,
-      clientName: 'Ibrahim Al Tuwaijri',
+      clientName: 'Sample Client',
       reportDate: 'Sep 13, 2026',
     });
 
@@ -133,7 +139,7 @@ describe('buildClientReportModel', () => {
       } as unknown as FormData,
       goals: formData.clientGoals,
       gapAnalysisData,
-      clientName: 'Ibrahim Al Tuwaijri',
+      clientName: 'Sample Client',
       reportDate: 'Sep 13, 2026',
     });
     expect(withLegacyKey.posture?.images.back).toContain('https://');
@@ -148,7 +154,7 @@ describe('buildClientReportModel', () => {
       } as unknown as FormData,
       goals: formData.clientGoals,
       gapAnalysisData,
-      clientName: 'Ibrahim Al Tuwaijri',
+      clientName: 'Sample Client',
       reportDate: 'Sep 13, 2026',
     });
     expect(analysisOnly.posture).not.toBeNull();
@@ -161,13 +167,13 @@ describe('buildClientReportModel', () => {
       formData: { ...formData, clientGoals: ['build-muscle'] } as FormData,
       goals: ['build-muscle'],
       gapAnalysisData,
-      clientName: 'Ibrahim Al Tuwaijri',
+      clientName: 'Sample Client',
       reportDate: 'Sep 13, 2026',
     });
     expect(model.goalPromise).toMatch(/build muscle/i);
     expect(model.goalPromise).not.toMatch(/kg off the scale/i);
-    expect(model.roadmapCards.find((c) => c.pillar === 'bodyComp')?.prescriptions.join(' ')).toMatch(
-      /holds or slowly rises/i,
+    expect(model.roadmapCards.find((c) => c.goalId === 'build-muscle')?.how).toMatch(
+      /protein/i,
     );
   });
 
@@ -180,8 +186,52 @@ describe('buildClientReportModel', () => {
       clientName: 'Sara',
       reportDate: 'Sep 13, 2026',
     });
-    expect(model.welcome).toMatch(/Among women aged/i);
-    expect(model.welcome).not.toMatch(/Among men aged/);
+    expect(model.welcome).toMatch(/for women aged/i);
+    expect(model.welcome).not.toMatch(/for men aged/);
     expect(model.goalPromise).toMatch(/add muscle|kg off the scale/i);
+  });
+
+  it('carries captured tape and peak HR into the AXIS tables and never surfaces alcohol', () => {
+    const model = buildClientReportModel({
+      scores,
+      formData: {
+        ...formData,
+        alcoholFrequency: 'never',
+        waistCm: '91.5',
+        hipsCm: '111',
+        shouldersCm: '118',
+        cardioPeakHr: '152',
+        sleepArchetype: 'good',
+        stressLevel: 'moderate',
+      } as FormData,
+      goals: formData.clientGoals,
+      gapAnalysisData,
+      clientName: 'Sample Client',
+      reportDate: 'Sep 8, 2026',
+    });
+
+    expect(model.reportDate).toBe('Sep 8, 2026');
+    const bodyComp = model.pillars.find((p) => p.scoringId === 'bodyComp');
+    expect(bodyComp?.progressionRows.find((r) => r.name === 'Waist')).toBeUndefined();
+    const tape = buildTapeMeasurementRows({
+      ...formData,
+      waistCm: '91.5',
+      hipsCm: '111',
+      shouldersCm: '118',
+    } as FormData);
+    expect(tape.find((r) => r.name === 'Waist')?.current).toBe('91.5');
+    expect(tape.find((r) => r.name === 'Hips')?.current).toBe('111.0');
+
+    const cardio = model.pillars.find((p) => p.scoringId === 'cardio');
+    expect(cardio?.progressionRows.find((r) => r.name === 'Peak heart rate')).toEqual({
+      name: 'Peak heart rate',
+      unit: 'bpm',
+      current: '152',
+      oneMonth: '–',
+      twelveWeeks: '–',
+    });
+
+    const { formData: _formData, ...visible } = model;
+    expect(JSON.stringify(visible)).not.toMatch(/alcohol/i);
   });
 });

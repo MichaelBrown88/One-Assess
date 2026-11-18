@@ -34,9 +34,9 @@ import {
   handleAIUsageChange,
 } from './aggregation';
 import { snapshotPlatformMetrics, resetAssessmentsThisMonth, computeOrgHealthSummaries, writeMonthlyRollup } from './metricsHistory';
+import { rebuildOwnerConsole as rebuildOwnerConsoleData, recordStudioFullAssessment, refreshStudioNeedsYouFlags } from './ownerConsoleSync';
 import { checkPlatformHealth } from './platformHealth';
 import { runPopulationAnalytics } from './populationAnalytics';
-import { pushApexProductMetricsFromFirestore } from './pushApexProductMetrics';
 import {
   getAssessmentChartDataCallable,
   getAssessmentsThisMonthCallable,
@@ -231,6 +231,11 @@ export const onAssessmentCompleted = onDocumentWritten(
 
     const { orgId, clientSlug } = event.params;
     await handleAssessmentCompletedTrigger(orgId, clientSlug, afterData as Record<string, unknown>);
+    try {
+      await recordStudioFullAssessment(orgId, afterData as Record<string, unknown>);
+    } catch (error) {
+      logger.error('[ownerConsole] assessment snapshot failed', error);
+    }
   }
 );
 
@@ -414,18 +419,9 @@ export const firstAiUseEmailTrigger = onDocumentWritten(
  */
 export const snapshotMetricsHistory = onSchedule(
   { schedule: 'every day 01:00', timeZone: 'UTC' },
-  snapshotPlatformMetrics,
-);
-
-/**
- * Daily push of aggregate platform metrics to APEX OS (os.one-assess.com → Supabase).
- * Runs 01:15 UTC — after snapshotMetricsHistory (01:00) so history + APEX see same day’s rollups.
- * Requires APEX_PRODUCT_ANALYTICS_SECRET in functions env (see docs/INTEGRATION_APEX_OS.md).
- */
-export const pushApexProductMetricsScheduled = onSchedule(
-  { schedule: 'every day 01:15', timeZone: 'UTC', timeoutSeconds: 120 },
   async () => {
-    await pushApexProductMetricsFromFirestore();
+    await snapshotPlatformMetrics();
+    await refreshStudioNeedsYouFlags();
   },
 );
 
@@ -496,6 +492,20 @@ export const rebuildPlatformMetricsHistory = onCall(
 export const rebuildSystemStats = onCall(
   { enforceAppCheck: false },
   rebuildSystemStatsCallable,
+);
+
+export const rebuildOwnerConsole = onCall(
+  { enforceAppCheck: false, timeoutSeconds: 120 },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required.');
+    }
+    const adminDoc = await admin.firestore().doc(`platform-admins/${request.auth.uid}`).get();
+    if (!adminDoc.exists) {
+      throw new HttpsError('permission-denied', 'Platform admin access required.');
+    }
+    return rebuildOwnerConsoleData();
+  },
 );
 
 export const getAICostsMTD = onCall(
@@ -680,20 +690,6 @@ export const computePopulationAnalyticsNow = onCall(
     if (!adminDoc.exists) throw new Error('Platform admin access required.');
     await runPopulationAnalytics();
     return { success: true };
-  },
-);
-
-/**
- * Manual trigger: push global_metrics aggregates to APEX OS (platform admin only).
- */
-export const pushApexProductMetricsNow = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 60 },
-  async (request) => {
-    if (!request.auth?.uid) throw new Error('Authentication required.');
-    const db = admin.firestore();
-    const adminDoc = await db.doc(`platform-admins/${request.auth.uid}`).get();
-    if (!adminDoc.exists) throw new Error('Platform admin access required.');
-    return pushApexProductMetricsFromFirestore();
   },
 );
 

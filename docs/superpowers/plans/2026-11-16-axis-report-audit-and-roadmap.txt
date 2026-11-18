@@ -1,0 +1,164 @@
+AXIS REPORT AUDIT AND IMPLEMENTATION PLAN
+16 November 2026
+Status: audit and proposed plan only. No application changes or deployment.
+
+Decision
+
+Replace the sales comparison with one goal-led, 16-week planning path. Keep a useful, compact action plan inside the report. Once its content and numbers are approved, offer a printable PDF of that same plan through the existing report email. Do not create an independently calculated second roadmap or an additional email sequence.
+
+The takeaway should be worth keeping even if the lead never becomes a client. Its value is knowing what to prioritise, what to do each week, and how to recognise progress. Coaching adds exercise selection, technique feedback, progression, accountability and adjustments based on actual results. Do not deliberately make the free guidance incomplete to manufacture dependence.
+
+Scope and evidence
+
+- Reviewed the supplied screenshot and the current develop checkout.
+- Traced ClientReport -> buildClientReportModel -> ClientReportV2Layout, the progression calculations, roadmap cards, nutrition target, and report email handler.
+- Inspected the local /preview/sample-report page at desktop and 390px mobile widths. This is the repository's sample-client fixture; it is not a fresh production database read. It has no posture photographs, so photo layout was not visually audited.
+- Current local report already renders Now | 1 month | 16 weeks. The old DebriefProgressionTable and SessionSpeedupLine remain in the source, but no active report imports were found. The screenshot therefore differs from this checkout. Production, preview-channel versions and browser caching were not checked; do not assert a cache diagnosis without checking them.
+- Ran reportProjectionInvariants, clientRoadmapCards and buildClientReportModel tests: 3 files, 16 tests passed. These establish selected code invariants, not clinical validity or the accuracy of individual forecasts.
+- The fixture rendered despite a Firebase App Check 403 in the development browser. Live report retrieval and email delivery were not exercised. No emails sent.
+- Screenshots: output/playwright/report-audit-roadmap-desktop.png, report-audit-roadmap-mobile.png, report-audit-strength-mobile.png.
+
+Audit findings, in priority order
+
+1. Projection certainty is the main trust problem.
+   The current local report prints weight 81.2 -> 73.2 kg, muscle 31.5 -> 34.7 kg, push-ups 28 -> 50, and grip 42 -> 56.4 kg as precise week-16 values. They look like promised destinations. A generic disclaimer elsewhere does not fix that presentation. These are model outputs, not demonstrated individual outcomes.
+   Evidence: src/lib/reports/clientProgressionProjections.ts; src/components/reports/client/v2/ClientProgressionTable.tsx; runtime fixture.
+   Remedy: retain measured baselines, then show explicitly labelled estimated changes or planning ranges. Do not invent a target body weight that the client did not request. A requested target can be acknowledged separately without promising it by week 16.
+
+2. Session assumptions are optimistic and entangled with unrelated behaviour.
+   weeklyMuscleGainForSessions sets 3 sessions to 0.1 kg/week and 4 to 0.2; weeklyWeightLossForSessions sets 0.3 and 0.5 kg/week. These assumptions explain the screenshot's approximately 2x and 1.7x pitch. lifestyleFactorForSessions returns 1 for 4+ sessions, automatically assuming sleep/stress improvements have happened. Hiding the comparison does not remove these assumptions.
+   Evidence: src/lib/physiology/rates.ts, particularly weeklyMuscleGainForSessions, weeklyWeightLossForSessions and lifestyleFactorForSessions.
+   Remedy: distinguish planned training from measured recovery habits; document the basis and uncertainty of rates. Never imply that an extra gym visit itself doubles muscle growth. A 2019 meta-analysis found no meaningful hypertrophy difference from frequency when training volume was equated: https://pubmed.ncbi.nlm.nih.gov/30558493/. This supports removing the causal frequency pitch, not assigning a replacement individual gain rate.
+
+3. Related body-composition figures need reconciliation.
+   The fixture implies total fat-free mass of about 55.9 kg now and 54.9 kg at week 16, while skeletal muscle rises by 3.2 kg. That implies roughly 4.2 kg less non-muscle fat-free mass, without an explanation. This is not proof that the biological outcome is impossible; it exposes independent assumptions that need reconciliation before presenting a persuasive recomposition forecast.
+   Evidence: the weight-loss branch in clientProgressionProjections.ts uses an 88% fat share of scale loss while projecting muscle separately.
+   Remedy: derive weight, fat mass, body-fat percentage, muscle and remaining fat-free mass coherently from one projection. Retain healthy backstops, goal-specific rates and combined-goal handling.
+
+4. The roadmap is more slogan than reference tool.
+   The existing cards say “Add muscle while you cut” and “Keep your fitness sharp”, followed by broad advice. Most are not measurable despite being called SMART goals. Someone returning to this in week 5 still lacks a clear record of what to track and when to review it. “Keep your fitness sharp” also underserves an explicit improve-fitness goal.
+   Evidence: src/lib/reports/clientRoadmapCards.ts and runtime roadmap.
+   Remedy: one concise entry per stated goal: intended progress, weekly action, success measure, and review timing. Healthy results get congratulated without cancelling a stated improvement goal.
+
+5. Weekly commitment is ambiguous.
+   The heading says “4 sessions a week”, muscle advice says four lifting days, and fitness advice adds two easy sessions. It is unclear whether the client needs four or six separate visits. Different projection helpers also add cardio to training frequency.
+   Evidence: src/lib/reports/plannedTraining.ts and clientRoadmapCards.ts.
+   Remedy: define lifting sessions, conditioning work and total visits explicitly in one plan object. Explain whether cardio happens within a visit or separately. Preserve the current default of four, or five for clients already training five-plus, as a proposed assumption rather than a falsely recorded commitment. Do not reintroduce a package selector.
+
+6. The space problem is partly presentation.
+   The roadmap uses a large inset primary card, oversized goal sentences, numbered coloured rails and large vertical gaps. It repeats session and weight-pace information. It takes substantial space while saying little. On a 390px screen, the numeric table truncates meaningful labels to “Upper-bod...” and “Core streng...”.
+   Evidence: ClientRoadmapSection.tsx; ClientProgressionTable.tsx uses truncate for numeric row labels; saved screenshots.
+   Remedy: compact document rows with shared alignment, readable wrapping and restrained spacing. Keep all stated goals visible without opening cards. Let the report scroll rather than shrink type to fit an arbitrary screen height. Do not add more nested boxes.
+
+7. The hero does not visibly lead with the client's goals.
+   The model builds goal labels and a goal promise, but the rendered hero receives the generic score summary. The plan appears after all pillars. The reader first encounters assessment findings, not their stated reason for coming.
+   Evidence: buildClientReportModel.ts and ClientReportV2Layout.tsx.
+   Remedy: put a short goal line alongside the existing score/radar/summary composition. Preserve the two-to-three-sentence summary and avoid another competing hero panel.
+
+8. Movement has drifted back into a forecast table.
+   movementProgressionRows advances each observed pattern by one grade; the renderer gives it a 16-week destination. It is not an individual evidence-based prediction. The builder also includes good observed patterns.
+   Remedy: show only observed patterns needing work, their practical relevance and an actionable focus. Preserve the shared Movement/Posture band. Do not promise a grade transition.
+
+9. A separate PDF requires actual product work.
+   functions/src/share.ts currently sends an HTML/text email with a report link. It does not attach a roadmap PDF. Existing naming/comments mentioning artifacts are not evidence of implemented PDF delivery.
+   Remedy: approve the report content first; then reuse its public-safe model for server-generated PDF export. Do not send an extra email or introduce a second content source.
+
+Recommended client-facing structure
+
+1. Hero: name/date, stated goals, score + radar, short results summary.
+2. Pillars: what was measured and why it matters. Measurable areas retain the simple temporal gap; movement is findings-only; lifestyle remains the actionable table; tape stays collapsible.
+3. Your 16-week plan: a compact reference section containing:
+   - One clearly described training week.
+   - One entry for every stated goal, with a measurable progress direction and a concrete action.
+   - One shared nutrition strip, only when appropriate and supported by captured inputs.
+   - A short review rhythm: establish the routine, check the trend at one month, review the block at week 16. These are review points, not guaranteed progress stages.
+   - One soft invitation explaining the coach's ongoing role.
+
+Gap table contract
+
+Metric | Now | 1 month: estimated change | 16 weeks: estimated change
+
+- Now contains the actual measured value and unit.
+- Future cells use cumulative change from the same baseline, not monthly pace mixed with total change.
+- Body-fat changes say “percentage points”, avoiding confusion with relative percent change.
+- Strength changes can show percentage improvement with the actual reps/kg/seconds change underneath, all calculated from the same unrounded model. Do not add duplicate test metrics.
+- Show estimated ranges only where the underlying evidence and model support them. Do not create arbitrary +/- margins and call them confidence intervals. Otherwise use a qualitative review objective until a defensible range exists.
+- Do not convert a healthy minimum into a target or add unsolicited end weights. Healthy areas outside the client's goals can say Maintain.
+- Peak heart rate remains a captured result, not a projected target. Do not add new metric rows.
+- Put one concise assumption line adjacent to the table: planned week, consistent habits, and review after the first month. Avoid repeating a disclaimer on every row.
+- The one-month checkpoint need not assume biological progress is perfectly linear. If interpolation is retained, label it as a planning guide and document that limitation.
+
+Reference-plan content example (structure, not a new numeric prescription)
+
+Weight loss
+  Progress: the individual's reviewed loss range, preserving the client's muscle goal.
+  Each week: follow the shared food target and agreed training week; log comparable weigh-ins and look at the trend rather than one reading.
+  Review: at one month, compare the trend, energy and training performance before changing the plan.
+
+Build muscle
+  Progress: the individual's reviewed muscle range and relevant captured strength tests.
+  Each week: follow the training split and protein target; record exercises, loads and reps so progress is visible.
+  Review: check technique and whether performance is improving; use comparable measurement conditions at the block review.
+
+Improve fitness
+  Progress: the reviewed fitness range with a plain-language explanation of its practical meaning.
+  Each week: specify where the planned conditioning fits, its starting duration and a talking-pace cue, adjusted to the actual client and documented model assumptions.
+  Review: compare the same assessment protocol at the planned checkpoints. Avoid treating a derived score as a directly measured physiological quantity.
+
+These examples define the information required. Do not ship generic exercise dosing or fabricated ranges merely to fill a template. Keep the same useful plan for leads and paying clients; do not add a separate “starting on your own” section.
+
+PDF recommendation
+
+Keep the core guidance in the report. Give the approved plan its own print layout, aiming for one readable A4/Letter page and allowing a second page when multiple goals require it. It should be easy to save, print and refer to without hunting through the entire assessment. It is a concise companion, not a workout manual or a repeated full report.
+
+Use the existing report email for the report link and this takeaway. No second email is needed merely because there are two formats. The same assessment snapshot, calculation version, goals, assumptions and date must produce both. Include a link back to the full report. Do not add automatic sends, marketing sequences, separate roadmap editing, new reassessment UI, AI generation or ARC branding.
+
+Implementation sequence
+
+[ ] 1. Verify the report version being viewed.
+    Compare current local, production and the user's relevant preview if available. Confirm that debrief, public report and demo share the v2 layout. Record the build/version evidence before attributing the screenshot to caching. Retire unused comparison UI and copy once references are verified; retain shared calculation utilities still used elsewhere.
+
+[ ] 2. Establish a single goal-led plan/projection model.
+    Resolve sessions and cardio placement once. Include source baseline, assessment date, stated goals, assumptions, calculated changes and evidence/confidence limitations. Remove automatic recovery improvements at four sessions; review frequency, minimum-gain and body-composition assumptions. Keep physiology changes scoped and cover dependent consumers. Use evidence-supported conservative ranges instead of multiplying existing optimistic endpoints by an arbitrary margin.
+    Primary files: plannedTraining.ts, rates.ts, clientProgressionProjections.ts, clientNinetyDayTarget.ts, buildClientReportModel.ts, clientRoadmapCards.ts.
+    Also review age calculations based on Date.now(): reopening a historical assessment should not silently revise its original plan.
+
+[ ] 3. Resolve nutrition consistency in the same model.
+    Derive pace, calories and macros once; expose assumptions consistently. Preserve Mifflin-based calculations, healthy floors and goal-specific intake. The current macroReferenceWeightKg silently caps reference weight at BMI 30, differing from the documented 2.2 g/kg body-weight cut rule. Resolve and document that conflict explicitly; do not silently remove a protective cap or describe adjusted weight as total body weight. Ensure rounding and carbohydrate floors do not make macro energy materially disagree with printed calories.
+
+[ ] 4. Implement the readable gap and compact plan.
+    Update ClientProgressionTable, ClientPillarBrief, ClientRoadmapSection, ClientRoadmapSupport, ClientReportV2Layout/hero and central copy. Make goal copy measurable and specific; wrap mobile labels. Remove the movement forecast table. Preserve alternating report bands, score-coloured badges/radar, lifestyle table and sex-matched tape figure. Do not reintroduce plan metric tables, copy buttons or coach hand-entry controls.
+
+[ ] 5. Verify content and calculations.
+    Add meaningful tests for recovery assumptions, coherent body-composition changes, cross-surface equality, goal combinations, date stability, missing data and safe bounds. Exercise lean/high-body-fat clients, both sexes, older clients, beginners/advanced trainees, 0/3/4/5+ current frequency and already-healthy metrics. Assert that healthy non-goals remain maintenance and missing measurements never become invented targets. Verify no 3/4/5 comparison, faster claim, invented end weight, em dash or unmeasured metric appears in client output.
+    Run targeted tests, npm run typecheck, affected-file lint and the production build. Keep compiled functions/lib excluded from Vitest.
+
+[ ] 6. Show the local report on real assessment data for approval.
+    Use /preview/sample-report with its documented provenance; verify against the intended saved assessment if needed. Show desktop/tablet/mobile, light/dark, the gap tables and entire plan. Include a properly sex-matched second example, rather than claiming the fixture's gender toggle constitutes validation for another client. Do not deploy until the local number/layout example is approved, as required by AGENTS.md.
+
+[ ] 7. Add the printable/email companion after content approval.
+    Use a Cloud Function for PDF generation and the existing Resend path for explicit delivery. Reuse a public-safe, versioned snapshot; enforce coach/organisation ownership. Preserve token-based access and avoid putting private client files at guessable public paths. Make generation retryable without automatically duplicating emails. Keep the report link usable if export fails and surface attachment failure clearly to the coach. Inspect every rendered PDF page for clipping, page breaks, legibility and exact numeric parity. An email transport test must use an explicitly authorised test recipient.
+    This step extends delivery, not the amount of advice or the calculation model. Exact shared-library/export wiring should follow an inspection of the Functions build boundary.
+
+[ ] 8. Release through the existing workflow.
+    After local approval, deploy the substantive frontend change using npm run deploy:preview and return the Hosting channel URL. If PDF/email Functions change, deploy those through firebase deploy as well; hosting-only deployment is insufficient. Do not merge to main or release production without the release instruction. Normal development work remains on develop.
+
+Acceptance criteria
+
+- A client can identify their goal, proposed training week, first actions and review method without a coach explaining the document again.
+- All stated goals are represented, with no contradictory cut/bulk/maintenance advice.
+- A reasonable 16-week opportunity is expressed without promising a destination or disguising a best case as an expected result.
+- The report, nutrition strip and PDF agree numerically and use the same assumptions.
+- Long test names remain readable on mobile; no pricing-card comparison, oversized roadmap hero or hidden essential advice.
+- Coaching's value is clear through ongoing individual support, not withheld basic information.
+
+Source notes
+
+- Training frequency evidence: Schoenfeld et al., 2019, https://pubmed.ncbi.nlm.nih.gov/30558493/. Supports caution about attributing growth to frequency alone; does not validate the app's individual forecasts.
+- CDC, Steps for Losing Weight, https://www.cdc.gov/healthy-weight-growth/losing-weight/index.html. Supports gradual progress, specific actions, monitoring and adjustment. General guidance does not justify giving every assessed client the same loss rate.
+
+Implementation handoff
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+Use the checklist above rather than regenerating a duplicate task list. The local report approval gate precedes every deployment of number/layout changes.

@@ -28,7 +28,7 @@ export interface ClientProfile {
   sex: Sex;
   /** Age in years — affects every rate (recovery + cardiovascular response). */
   age: number;
-  /** Body weight in kg — drives weight-loss rate (% of BW/week). */
+  /** Body weight in kg — scales muscle-gain rate vs an 80 kg baseline. */
   bodyWeightKg: number;
   /** Height in cm — used to floor weight-loss projections at a healthy BMI. */
   heightCm?: number;
@@ -61,8 +61,14 @@ interface RateResult {
 
 // ─── Modulators ──────────────────────────────────────────────────────
 
+/** Hard ceiling for any cut (Helms 2014: 0.5–1% body weight/week). */
+export const FAT_LOSS_MAX_BODYWEIGHT_FRACTION_PER_WEEK = 0.01;
+
+/** Aragon beginner ceiling: ~1–1.5% body weight a month. Best-case weeks never exceed it. */
+export const MUSCLE_GAIN_MAX_BODYWEIGHT_FRACTION_PER_MONTH = 0.015;
+
 /**
- * Frequency multiplier — how much faster progress goes when the client
+ * Frequency multiplier — strength and cardio response when the client
  * trains more often. Caps because recovery becomes the limiter.
  */
 function frequencyMultiplier(freq: number): number {
@@ -72,6 +78,41 @@ function frequencyMultiplier(freq: number): number {
   if (freq === 3) return 1.3;
   if (freq === 4) return 1.5;
   return 1.6;                     // 5+ sessions: diminishing returns
+}
+
+/** Conservative planning adjustment for additional practice, not a measured dose-response. */
+export function trainingDoseVsThree(sessions: number): number {
+  if (sessions >= 5) return 1.15;
+  if (sessions >= 4) return 1.1;
+  return 1;
+}
+
+/** Planning prior: modest additional activity, with the same diet; not a session sales comparison. */
+export function weeklyWeightLossForSessions(liftingSessions: number): number {
+  if (liftingSessions >= 5) return 0.4;
+  if (liftingSessions >= 4) return 0.35;
+  return 0.3;
+}
+
+/** Conservative novice planning prior. Frequency alone does not establish extra hypertrophy.
+ * Frequency evidence: https://pubmed.ncbi.nlm.nih.gov/30558493/.
+ * Individual kg outcomes are uncertain; do not label this an evidence-derived prediction interval.
+ */
+export function weeklyMuscleGainForSessions(sessionsPerWeek: number): number {
+  if (sessionsPerWeek >= 5) return 0.1;
+  if (sessionsPerWeek >= 4) return 0.1;
+  if (sessionsPerWeek >= 3) return 0.1;
+  if (sessionsPerWeek >= 1) return 0.05;
+  return 0;
+}
+
+/** Leaner clients cut slower to protect muscle. */
+function leanCutFactor(sex: Sex, bodyFatPct: number | undefined): number {
+  if (bodyFatPct == null) return 1;
+  const offset = sex === 'female' ? 8 : 0;
+  if (bodyFatPct >= 20 + offset) return 1;
+  if (bodyFatPct >= 12 + offset) return 0.8;
+  return 0.6;
 }
 
 /**
@@ -106,6 +147,14 @@ function lifestyleMultiplier(profile: ClientProfile): number {
   return factor;
 }
 
+/**
+ * Recovery reflects the captured lifestyle at every training frequency.
+ * Scheduling an extra visit does not establish improved sleep or stress.
+ */
+export function lifestyleFactorForSessions(profile: ClientProfile, _sessions: number): number {
+  return lifestyleMultiplier(profile);
+}
+
 function confidenceFromProfile(profile: ClientProfile): Confidence {
   let score = 0;
   if (profile.bodyFatPct != null) score++;
@@ -121,24 +170,23 @@ function confidenceFromProfile(profile: ClientProfile): Confidence {
 // ─── Weight loss ─────────────────────────────────────────────────────
 
 /**
- * Sustainable weight loss rate as % of body weight per week. Higher when
- * obese (more leeway), lower when lean (need to preserve muscle).
+ * Conservative weight-loss planning prior, slower when
+ * already lean, never above 1% of body weight a week.
  *
  * Refs: Helms et al. 2014, ISSN sport nutrition position stand 2017.
  */
-export function weeklyWeightLossKg(profile: ClientProfile, targetLossKg: number): RateResult {
+export function weeklyWeightLossKg(
+  profile: ClientProfile,
+  targetLossKg: number,
+  opts: { liftingSessions?: number } = {},
+): RateResult {
   const bw = profile.bodyWeightKg;
   const bf = profile.bodyFatPct;
-  let pctPerWeek: number;
-  if (bf != null && bf >= 30) pctPerWeek = 0.0085;        // ~0.85%/wk for obese
-  else if (bf != null && bf >= 20) pctPerWeek = 0.0065;   // ~0.65%/wk for above-avg
-  else if (bf != null && bf >= 12) pctPerWeek = 0.005;    // ~0.5%/wk for average
-  else if (bf != null) pctPerWeek = 0.003;                // 0.3%/wk for lean
-  else pctPerWeek = 0.0055;                                // 0.55% default when BF% unknown
-
-  const lifestyle = lifestyleMultiplier(profile);
-  const age = ageMultiplier(profile.age);
-  const ratePerWeek = bw * pctPerWeek * lifestyle * age;
+  const sessions = opts.liftingSessions ?? 3;
+  const perWeek = weeklyWeightLossForSessions(sessions) * leanCutFactor(profile.sex, bf) * lifestyleMultiplier(profile);
+  const ceiling = bw > 0 ? bw * FAT_LOSS_MAX_BODYWEIGHT_FRACTION_PER_WEEK : Infinity;
+  // Round down so the 1%-a-week ceiling is never exceeded by rounding.
+  const ratePerWeek = Math.floor(Math.min(perWeek, ceiling) * 100 + 1e-9) / 100;
   const weeks = ratePerWeek > 0 ? Math.ceil(targetLossKg / ratePerWeek) : Infinity;
 
   return {
@@ -154,26 +202,37 @@ export function weeklyWeightLossKg(profile: ClientProfile, targetLossKg: number)
 // ─── Muscle gain ─────────────────────────────────────────────────────
 
 /**
- * Monthly muscle-gain rate in kg. Drops sharply with experience.
- * Female rate ≈ half male. Concurrent fat loss halves again.
+ * Monthly muscle-gain planning rate in kg (4 weeks). Female rate ≈ half male;
+ * experience and age 45+ slow it. Overweight beginners build muscle in a
+ * deficit; this model halves the planning rate throughout a cut.
  *
  * Refs: McDonald genetic potential model; Schoenfeld hypertrophy reviews.
  */
+/**
+ * Smallest monthly gain shown when building muscle is a stated goal (4-week month, 3 sessions,
+ * scaled up with the training dose). Advanced lifters and older women still gain ~0.1 kg a
+ * month; printing 0.0 would tell a client who asked for muscle that they can't build any.
+ */
+const GOAL_MIN_MUSCLE_KG_PER_MONTH = 0.1;
+
 export function monthlyMuscleGainKg(
   profile: ClientProfile,
-  opts: { concurrentFatLoss?: boolean } = {},
+  opts: { concurrentFatLoss?: boolean; muscleGoal?: boolean } = {},
 ): RateResult {
   const expMul = experienceMultiplier(profile.trainingExperience);
   const sexMul = profile.sex === 'female' ? 0.5 : 1;
-  const ageMul = ageMultiplier(profile.age);
-  const freqMul = frequencyMultiplier(profile.trainingFrequency);
-  const lifestyle = lifestyleMultiplier(profile);
+  const ageMul = profile.age >= 45 ? ageMultiplier(profile.age) : 1;
+  const weekly = weeklyMuscleGainForSessions(profile.trainingFrequency) * expMul * sexMul * ageMul;
+  const ceiling = profile.bodyWeightKg * MUSCLE_GAIN_MAX_BODYWEIGHT_FRACTION_PER_MONTH * expMul * sexMul;
+  let rate = Math.min(weekly * 4, ceiling) * lifestyleMultiplier(profile);
 
-  // Beginner male novice baseline: ~0.9 kg/month for a moderate-bodyweight trainee.
-  const baseline = 0.9 * (profile.bodyWeightKg / 80);
-  let rate = baseline * expMul * sexMul * ageMul * freqMul * lifestyle;
+  if (opts.concurrentFatLoss) {
+    rate *= 0.5;
+  }
 
-  if (opts.concurrentFatLoss) rate *= 0.5;
+  if (opts.muscleGoal && profile.trainingFrequency >= 3) {
+    rate = Math.max(rate, GOAL_MIN_MUSCLE_KG_PER_MONTH * trainingDoseVsThree(profile.trainingFrequency));
+  }
 
   return {
     rate: round(rate, 2),
@@ -219,11 +278,14 @@ export function vo2max8WeekGainPct(profile: ClientProfile, currentVo2: number): 
  * Monthly strength gain (% of current 1RM). Novices see 5-10%/mo,
  * advanced trainees see < 1%/mo on most lifts.
  */
-export function monthlyStrengthGainPct(profile: ClientProfile): RateResult {
+export function monthlyStrengthGainPct(
+  profile: ClientProfile,
+  opts: { lifestyleSessions?: number } = {},
+): RateResult {
   const expMul = experienceMultiplier(profile.trainingExperience);
   const ageMul = ageMultiplier(profile.age);
   const freqMul = frequencyMultiplier(profile.trainingFrequency);
-  const lifestyle = lifestyleMultiplier(profile);
+  const lifestyle = lifestyleFactorForSessions(profile, opts.lifestyleSessions ?? profile.trainingFrequency);
 
   // Beginner baseline: 7%/month
   const pct = 7 * expMul * ageMul * freqMul * lifestyle;

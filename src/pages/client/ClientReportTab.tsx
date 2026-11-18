@@ -37,9 +37,11 @@ export default function ClientReportTab() {
     formData,
     scores,
     previousScores,
+    comparison,
     previousFormData,
     loading,
     error,
+    assessmentDate,
   } = useAssessmentLogic(assessmentId, clientName);
 
   const scoreDelta =
@@ -62,10 +64,10 @@ export default function ClientReportTab() {
 
   if (!assessmentId && !clientName) {
     return (
-      <div className="rounded-2xl border border-border bg-muted p-8 text-center">
-        <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+      <div className="rounded-lg border border-border bg-muted p-8 text-center">
+        <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground-secondary">No assessment yet</p>
-        <p className="text-xs text-muted-foreground mt-1">Complete an assessment to see the client report here.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Complete an assessment to see the client report here.</p>
       </div>
     );
   }
@@ -81,7 +83,7 @@ export default function ClientReportTab() {
 
   if (error || !formData || !scores) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+      <div className="rounded-lg border border-border bg-card p-6 text-center">
         <p className="text-sm text-foreground-secondary">{error ?? 'Report not available.'}</p>
       </div>
     );
@@ -102,11 +104,13 @@ export default function ClientReportTab() {
         }
       >
         <ClientReport
+          comparison={comparison}
           scores={scores}
           goals={goals}
           formData={formData}
           previousScores={previousScores ?? undefined}
           previousFormData={previousFormData ?? undefined}
+          assessmentDate={assessmentDate}
           standalone={true}
         />
       </Suspense>

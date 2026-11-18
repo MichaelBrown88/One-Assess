@@ -57,13 +57,13 @@ export const CONFIG = {
     GEMINI: {
       MODEL_NAME: (() => {
         const v = import.meta.env.VITE_GEMINI_MODEL;
-        return typeof v === 'string' && v.trim() !== '' ? v.trim() : 'gemini-2.5-flash';
+        return typeof v === 'string' && v.trim() !== '' ? v.trim() : 'gemini-3.5-flash';
       })(),
       BACKEND: "VertexAIBackend", // Internal Firebase AI backend
-      /** Posture narrative after MediaPipe metrics — 3.x-class default; override with VITE_GEMINI_POSTURE_FEEDBACK_MODEL if your project uses a different ID. */
+      /** Posture narrative after MediaPipe metrics — override with VITE_GEMINI_POSTURE_FEEDBACK_MODEL if your project uses a different ID. */
       POSTURE_FEEDBACK_MODEL_NAME: (() => {
         const v = import.meta.env.VITE_GEMINI_POSTURE_FEEDBACK_MODEL;
-        return typeof v === 'string' && v.trim() !== '' ? v.trim() : 'gemini-3-flash-preview';
+        return typeof v === 'string' && v.trim() !== '' ? v.trim() : 'gemini-3.5-flash';
       })(),
       /**
        * Firebase AI Logic backend for Gemini Live.

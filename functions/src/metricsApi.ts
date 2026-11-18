@@ -600,7 +600,7 @@ export async function seedAIConfigCallable(
   if (!adminDoc.exists) throw new Error('Platform admin access required.');
 
   const configDoc: AIConfigDoc = {
-    modelId: 'gemini-2.5-flash',
+    modelId: 'gemini-3.5-flash',
     provider: 'gemini',
     status: 'active',
     deprecationMessage: null,

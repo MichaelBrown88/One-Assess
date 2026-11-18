@@ -132,6 +132,14 @@
       ]
     },
     {
+      "collectionGroup": "studio-snapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "needsYou", "order": "ASCENDING" },
+        { "fieldPath": "needsYouAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "clients",
       "queryScope": "COLLECTION",
       "fields": [

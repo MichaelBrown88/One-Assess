@@ -55,12 +55,12 @@ export function ClientOverviewEmpty({ name, variant, onPrimaryAction, busy }: Cl
         </p>
       </header>
 
-      <section className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+      <section className="rounded-lg border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04)] sm:p-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
           {UI_CLIENT_DETAIL.OVERVIEW_WHATS_NEXT}
         </p>
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
             <Icon className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1 space-y-3">

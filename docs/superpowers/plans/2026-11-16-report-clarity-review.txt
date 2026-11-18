@@ -1,0 +1,38 @@
+REPORT CLARITY REVIEW
+16 November 2026
+
+This revision records the user's follow-up direction. The original audit plan
+is unchanged. Work remains local for review; no deployment or email delivery.
+
+Keep the existing score/radar composition, five pillar tables and collapsible
+tape figure. Use plain names in the client report: Assessment report, Overall
+score, Your five areas. Internal identifiers and scoring remain unchanged.
+Remove unused three-session copy rather than reintroducing a package selector.
+
+Show the complete existing goal plan and add a compact review rhythm covering
+the whole 16 weeks: establish the routine, review at one month, practise and
+adjust through the middle of the block, repeat the assessment at week 16.
+These are actions/checkpoints, not promised biological stages or a fabricated
+personal workout prescription. Keep every stated goal visible.
+
+Restore the missing review evidence: the client's saved record has four posture
+views and analyses; the repository fixture has none. Use a read-only saved
+snapshot solely for local review. Private data must not enter Git, public assets
+or a production build. Clearly distinguish the real snapshot from the fixture.
+
+Simplify posture detail to one selected finding at a time, with photo, why it
+matters, possible contributors and practical correction. Keep all findings
+reachable by named buttons. Use one scrolling mobile surface, a visible close
+action, and a smaller image so guidance is not hidden below a 55vh photo.
+Do not label an unanalyzed photograph as balanced. No new diagnostic claims.
+
+Future assessment comparison is a separate follow-up, not invented demo data.
+Add dated measured change beside current readings and tape callouts only when
+a distinct earlier completed assessment exists. Keep actual change separate
+from projected change, match units/protocols, and treat resaves/photo updates as
+the same assessment. Retain first-assessment protections and public-data
+boundaries. Do not rebuild reassessment entry flows merely for this display.
+
+Verify the local saved-snapshot report, complete roadmap, posture interaction,
+mobile scrolling and labels. Run affected tests/typecheck/build. Present the
+local result and remaining limitations before considering deployment.

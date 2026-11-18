@@ -12,28 +12,16 @@ export interface WorkspaceKpiCardProps {
 }
 
 /**
- * One Assess UI Kit "stat" card — used across every workspace page (Today,
- * Clients, etc.). Kit spec:
- * - rounded 20px, 1px border, padding 16px 18px
- * - label 11px uppercase tracking 0.08em
- * - value 28px / 700 / line 1.1 / -0.015em
- * - trend 12px semibold inline-flex with arrow
- *
- * Trend colour follows score semantics: green = good signal, amber = needs
- * attention. Don't use for unrelated colour cues.
+ * One Assess workspace stat cell — used in a divided pulse band
+ * (Clients roster, owner console). Hairline structure, not nested cards.
  */
 export function WorkspaceKpiCard({ label, value, trend, className }: WorkspaceKpiCardProps) {
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-1.5 rounded-[20px] border border-border bg-card px-[18px] py-4',
-        className,
-      )}
-    >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <div className={cn('flex flex-col gap-1 px-4 py-4 sm:px-5', className)}>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
-      <div className="text-[28px] font-bold leading-[1.1] tracking-[-0.015em] text-foreground tabular-nums">
+      <div className="text-2xl font-semibold leading-none tracking-tight text-foreground tabular-nums">
         {value}
       </div>
       {trend ? (

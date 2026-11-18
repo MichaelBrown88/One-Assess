@@ -10,7 +10,7 @@ describe('prepareFormDataForPersistence', () => {
   it('keeps https storage URLs and drops data-URL photos', () => {
     const form = {
       ...createEmptyAssessmentForm(),
-      fullName: 'Ibrahim',
+      fullName: 'Sam',
       postureImages: {
         front: `data:image/jpeg;base64,${'A'.repeat(80)}`,
         back: 'https://firebasestorage.googleapis.com/v0/b/app/o/back.jpg',
@@ -27,7 +27,7 @@ describe('prepareFormDataForPersistence', () => {
       back: 'https://firebasestorage.googleapis.com/v0/b/app/o/back.jpg',
       'side-left': 'https://firebasestorage.googleapis.com/v0/b/app/o/left.jpg',
     });
-    expect(persisted.fullName).toBe('Ibrahim');
+    expect(persisted.fullName).toBe('Sam');
   });
 
   it('drops the sanitiser placeholder so reports do not think a photo exists', () => {

@@ -77,6 +77,9 @@ export const ASSESSMENT_COPY = {
   REMOTE_INTAKE_WELCOME_PRIVACY: 'Only you and your coach can see what you submit.',
   REMOTE_INTAKE_DOB_TITLE: 'When were you born?',
   REMOTE_INTAKE_DOB_HINT: 'Scroll day, month, and year.',
+  REMOTE_INTAKE_SKIP: 'Skip',
+  REMOTE_INTAKE_OPTIONAL_HINT:
+    'Optional — skip if it does not apply. It will not appear on your report.',
   REMOTE_INTAKE_POSTURE_TITLE: 'Quick body photos',
   REMOTE_INTAKE_POSTURE_BODY:
     'Your phone guides four standing shots — front, back, and each side.',

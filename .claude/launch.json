@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "fitness-flow-form",
+      "name": "one-assess",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 8082
+      "port": 8080
     }
   ]
 }

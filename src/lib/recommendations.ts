@@ -5,7 +5,6 @@
  * for backwards compatibility.
  */
 
-export type { CoachPlan, BodyCompInterpretation } from './recommendations/types';
+export type { CoachPlan } from './recommendations/types';
 export { EXERCISES } from './recommendations/exercisePresets';
 export { generateCoachPlan } from './recommendations/coachPlanGenerator';
-export { generateBodyCompInterpretation } from './recommendations/bodyCompInterpretation';

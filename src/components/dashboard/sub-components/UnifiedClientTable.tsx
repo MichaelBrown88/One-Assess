@@ -471,7 +471,9 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                       <div className="flex items-center gap-2.5">
                         {(() => {
                           const bs = pillarRadarScoresForClient(client);
-                          return bs ? <MiniPillarRadar scores={bs} size={36} /> : null;
+                          return bs ? (
+                            <MiniPillarRadar scores={bs} size={36} overallScore={client.latestScore} />
+                          ) : null;
                         })()}
                         <AxisScorePill score={client.latestScore} />
                       </div>
@@ -505,7 +507,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
       {/* Mobile card layout — inset from the outer panel edges */}
       <div className="space-y-2 px-3 pb-3 sm:hidden">
         {loadingData ? (
-          <div className="rounded-2xl bg-card shadow-sm p-6">
+          <div className="border border-border bg-card p-6">
             <div className="flex flex-col items-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
               <span className="text-sm font-medium text-muted-foreground">Loading clients...</span>
@@ -543,7 +545,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                 key={client.id}
                 role="button"
                 tabIndex={0}
-                className={`cursor-pointer rounded-2xl bg-card shadow-sm p-4 transition-colors active:bg-muted/50 ${dimClass}`}
+                className={`cursor-pointer border border-border bg-card p-4 transition-colors active:bg-muted/50 ${dimClass}`}
                 style={{ minHeight: 44 }}
                 onClick={() => navigate(`/client/${encodeURIComponent(client.name)}`)}
                 onKeyDown={(e) => {
@@ -597,7 +599,9 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {(() => {
                     const bs = pillarRadarScoresForClient(client);
-                    return bs ? <MiniPillarRadar scores={bs} size={32} /> : null;
+                    return bs ? (
+                      <MiniPillarRadar scores={bs} size={32} overallScore={client.latestScore} />
+                    ) : null;
                   })()}
                   <AxisScorePill score={client.latestScore} />
                   {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} />}

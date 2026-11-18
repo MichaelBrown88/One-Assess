@@ -218,7 +218,7 @@ These rules prevent permanent technical debt:
 
 ## 🤖 CTO AGENT INTEGRATION
 
-When the CTO agent (in APEX OS) provides feedback:
+When a CTO review agent provides feedback:
 
 1. It will provide ready-to-paste Cursor prompts
 2. Each prompt is scoped to a specific file and issue

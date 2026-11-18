@@ -13,7 +13,6 @@ const completeIntake = {
   recentActivity: 'currently-training',
   trainingHistory: 'beginner',
   activityLevel: 'moderate',
-  parq1: 'no',
 } as FormData;
 
 describe('studioSessionSteps', () => {

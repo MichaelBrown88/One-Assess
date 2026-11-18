@@ -32,6 +32,11 @@ export interface PhaseField {
    * Undefined (no key) = always shown.
    */
   orgConfigKey?: string;
+  /**
+   * When true, Next stays enabled with an empty value and the primary
+   * action reads Skip. Empty answers are omitted from scoring and the client report.
+   */
+  skippable?: boolean;
   pattern?: string; // Movement pattern (e.g., 'Hip Hinge', 'Lunge')
   side?: 'left' | 'right'; // For side-by-side comparison
   pairId?: string; // To group fields together on one screen

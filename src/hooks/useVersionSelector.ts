@@ -1,3 +1,4 @@
+import { buildAssessmentComparison, selectPreviousAssessment, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 import { useState, useMemo, useCallback } from 'react';
 import { computeScores, buildRoadmap, type ScoreSummary, type RoadmapPhase } from '@/lib/scoring';
 import type { FormData } from '@/contexts/FormContext';
@@ -12,6 +13,7 @@ export interface SnapshotInput {
 }
 
 interface UseVersionSelectorResult {
+  comparison: AssessmentComparison | null;
   selectedIndex: number;
   currentPage: number;
   totalPages: number;
@@ -62,37 +64,34 @@ export function useVersionSelector(allSnapshots: SnapshotInput[]): UseVersionSel
   const getTrend = useCallback((globalIndex: number): 'up' | 'down' | 'neutral' => {
     if (globalIndex >= totalCount - 1) return 'neutral';
     const current = allSnapshots[globalIndex];
-    const previous = allSnapshots[globalIndex + 1];
+    const previous = current ? selectPreviousAssessment(current.formData, allSnapshots) : null;
     if (!current || !previous) return 'neutral';
-    if (current.score > previous.score) return 'up';
-    if (current.score < previous.score) return 'down';
+    if (current.score > computeScores(previous.formData).overall) return 'up';
+    if (current.score < computeScores(previous.formData).overall) return 'down';
     return 'neutral';
   }, [allSnapshots, totalCount]);
 
-  const { selectedFormData, selectedScores, selectedRoadmap, previousFormData, previousScores } = useMemo(() => {
+  const { selectedFormData, selectedScores, selectedRoadmap, previousFormData, previousScores, comparison } = useMemo(() => {
     const snap = allSnapshots[selectedIndex];
     if (!snap?.formData) {
-      return { selectedFormData: null, selectedScores: null, selectedRoadmap: null, previousFormData: null, previousScores: null };
+      return { comparison: null, selectedFormData: null, selectedScores: null, selectedRoadmap: null, previousFormData: null, previousScores: null };
     }
 
     const scores = computeScores(snap.formData);
     const roadmap = buildRoadmap(scores, snap.formData);
 
-    let prevFd: FormData | null = null;
-    let prevScores: ScoreSummary | null = null;
-    if (selectedIndex < totalCount - 1 && allSnapshots[selectedIndex + 1]?.formData) {
-      prevFd = allSnapshots[selectedIndex + 1].formData;
-      prevScores = computeScores(prevFd);
-    }
+    const prevFd = selectPreviousAssessment(snap.formData, allSnapshots)?.formData ?? null;
+    const prevScores = prevFd ? computeScores(prevFd) : null;
 
     return {
+      comparison: buildAssessmentComparison(snap.formData, allSnapshots),
       selectedFormData: snap.formData,
       selectedScores: scores,
       selectedRoadmap: roadmap,
       previousFormData: prevFd,
       previousScores: prevScores,
     };
-  }, [allSnapshots, selectedIndex, totalCount]);
+  }, [allSnapshots, selectedIndex]);
 
   const handleSelect = useCallback((index: number) => {
     const clamped = Math.max(0, Math.min(index, totalCount - 1));
@@ -114,6 +113,7 @@ export function useVersionSelector(allSnapshots: SnapshotInput[]): UseVersionSel
   }, [totalPages]);
 
   return {
+    comparison,
     selectedIndex,
     currentPage,
     totalPages,

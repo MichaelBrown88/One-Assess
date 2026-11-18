@@ -3,7 +3,7 @@
  * Used by AssessmentReport and ShareReportModal.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { requestShareArtifacts, sendReportEmail, type ShareArtifacts } from '@/services/share';
 import { UI_TOASTS } from '@/constants/ui';
@@ -31,6 +31,10 @@ export function useReportShare({ assessmentId: id, formData, user, profile, over
     coach: null,
   });
   const [shareLoading, setShareLoading] = useState(false);
+
+  useEffect(() => {
+    setShareCache({ client: null, coach: null });
+  }, [formData?.reportLiftingSessions]);
 
   const ensureShareArtifacts = useCallback(
     async (view: 'client' | 'coach' = 'client') => {

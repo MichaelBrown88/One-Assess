@@ -6,6 +6,7 @@ import { logAIUsage } from '@/services/aiUsage';
 import { auth } from '@/services/firebase';
 import { logger } from '@/lib/utils/logger';
 import { isFeatureEnabled } from '@/services/platform/platformConfig';
+import { FEATURE_FLAGS } from '@/constants/platform';
 import { FeatureDisabledError } from './postureAnalysis';
 import { checkAndDecrementAICredit, AICreditExhaustedError } from '@/lib/ai/creditGate';
 import { downscaleBodyCompImage } from './ocrImagePrep';
@@ -17,13 +18,26 @@ export interface OcrResult {
   provider: 'local' | 'gemini' | 'pattern';
 }
 
+/** Core fields that must be present before opening the review dialog. */
 export const REQUIRED_SCAN_FIELDS: (keyof FormData)[] = [
   'inbodyWeightKg',
   'skeletalMuscleMassKg',
   'inbodyBodyFatPct',
-  'visceralFatLevel',
-  'inbodyScore'
 ];
+
+const VALID_BODY_COMP_FIELDS = [
+  'heightCm', 'inbodyScore', 'inbodyWeightKg', 'skeletalMuscleMassKg',
+  'bodyFatMassKg', 'inbodyBodyFatPct', 'inbodyBmi', 'totalBodyWaterL',
+  'waistHipRatio', 'visceralFatLevel', 'bmrKcal', 'segmentalTrunkKg',
+  'segmentalArmLeftKg', 'segmentalArmRightKg', 'segmentalLegLeftKg', 'segmentalLegRightKg',
+] as const;
+
+export function hasRequiredScanFields(fields: Partial<FormData>): boolean {
+  return REQUIRED_SCAN_FIELDS.every((key) => {
+    const v = fields[key];
+    return typeof v === 'string' && v.trim().length > 0;
+  });
+}
 
 /**
  * Fast Gemini-only OCR.
@@ -88,15 +102,8 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult> {
   const data = JSON.parse(aiText.substring(startIdx, endIdx + 1)) as Record<string, unknown>;
   const cleanFields: Partial<FormData> = {};
   
-  const validBodyCompFields = [
-    'heightCm', 'inbodyScore', 'inbodyWeightKg', 'skeletalMuscleMassKg',
-    'bodyFatMassKg', 'inbodyBodyFatPct', 'inbodyBmi', 'totalBodyWaterL',
-    'waistHipRatio', 'visceralFatLevel', 'bmrKcal', 'segmentalTrunkKg',
-    'segmentalArmLeftKg', 'segmentalArmRightKg', 'segmentalLegLeftKg', 'segmentalLegRightKg'
-  ];
-  
   for (const [key, value] of Object.entries(data)) {
-    if (value !== null && validBodyCompFields.includes(key)) {
+    if (value !== null && (VALID_BODY_COMP_FIELDS as readonly string[]).includes(key)) {
       (cleanFields as Record<string, string>)[key] = String(value);
     }
   }
@@ -112,18 +119,14 @@ async function runGeminiOcr(imageSrc: string): Promise<OcrResult> {
 }
 
 /**
- * Main OCR entry point - Gemini-first for speed, with robust error handling
- * 
- * Strategy: Go straight to Gemini for reliability. Tesseract was too slow
- * to load and often failed. We can revisit local OCR later with a pre-loaded
- * web worker if needed.
- * 
- * Downscale only — never crop, never reuse another client’s cached numbers.
+ * Main OCR entry point - Gemini-first for speed, with robust error handling.
+ * Full-frame downscale only — never crop, never reuse another client's cached numbers.
+ * Credits are charged only after a usable parse (required core fields present).
  */
 export async function processBodyCompScan(imageSrc: string, organizationId?: string): Promise<OcrResult> {
   const coachUid = auth.currentUser?.uid || 'anonymous';
 
-  const ocrEnabled = await isFeatureEnabled('ocr_enabled');
+  const ocrEnabled = await isFeatureEnabled(FEATURE_FLAGS.OCR_ENABLED);
   if (!ocrEnabled) {
     logger.warn('[OCR] Body composition OCR feature is disabled via kill switch');
     throw new FeatureDisabledError('Report Photo Import');
@@ -131,12 +134,18 @@ export async function processBodyCompScan(imageSrc: string, organizationId?: str
 
   try {
     const preparedImage = await downscaleBodyCompImage(imageSrc);
+    const geminiResult = await runGeminiOcr(preparedImage);
+
+    if (!hasRequiredScanFields(geminiResult.fields)) {
+      logger.warn('[OCR] Parse missing required core fields', {
+        keys: Object.keys(geminiResult.fields),
+      });
+      return { fields: {}, rawText: '', confidence: 0, provider: 'gemini' };
+    }
 
     if (organizationId) {
       await checkAndDecrementAICredit(organizationId);
     }
-
-    const geminiResult = await runGeminiOcr(preparedImage);
 
     return {
       fields: geminiResult.fields,

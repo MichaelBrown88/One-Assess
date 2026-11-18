@@ -22,11 +22,11 @@ export const CATEGORY_HEX: Record<string, string> = {
 };
 
 export const CATEGORY_EXPLANATIONS: Record<string, string> = {
-  bodyComp: "Your body's makeup—muscle, fat, and water. Think of it as the foundation for everything else.",
+  bodyComp: "Your body's makeup: muscle, fat, and water. Think of it as the foundation for everything else.",
   strength: "How strong you are and how long you can sustain effort. This affects daily activities and injury prevention.",
   cardio: "Your heart and lung capacity. This determines how efficiently your body uses oxygen during activity.",
   movementQuality: "How well your joints move and how your body holds itself. Better movement quality means fewer aches and more efficient movement.",
-  lifestyle: "Your daily habits—sleep, stress, nutrition, hydration, and activity. These are the foundation that makes everything else work better.",
+  lifestyle: "Your daily habits: sleep, stress, nutrition, hydration, and activity. These are the foundation that makes everything else work better.",
 };
 
 export const PROGRAM_PHASES = [
@@ -46,7 +46,7 @@ export const PROGRAM_PHASES = [
     key: 'performance',
     title: 'Performance Development',
     color: 'bg-[hsl(var(--brand-accent))]',
-    text: 'Translate base capacity into performance—better pace, higher outputs, stronger lifts.',
+    text: 'Turn your new base into performance: better pace, more output, stronger lifts.',
   },
   {
     key: 'specialisation',

@@ -10,6 +10,7 @@
  */
 
 import { SCORE_THRESHOLDS } from '@/lib/constants';
+import { CHART_HEX } from '@/lib/design/chartColors';
 
 export type ScoreGrade = 'green' | 'amber' | 'red';
 
@@ -18,6 +19,17 @@ export function scoreGrade(score: number): ScoreGrade {
   if (score >= SCORE_THRESHOLDS.EXCELLENT) return 'green';
   if (score >= SCORE_THRESHOLDS.GOOD) return 'amber';
   return 'red';
+}
+
+const GRADE_HEX: Record<ScoreGrade, string> = {
+  green: CHART_HEX.scoreGreen,
+  amber: CHART_HEX.scoreAmber,
+  red: CHART_HEX.scoreRed,
+};
+
+/** SVG / canvas fill for radars and plots — same traffic-light as the AXIS report. */
+export function scoreGradeHex(score: number): string {
+  return GRADE_HEX[scoreGrade(score)];
 }
 
 /**

@@ -5,6 +5,7 @@ import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import os from "node:os";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { vitePwaCoachManifest } from "./src/constants/productBranding";
@@ -38,10 +39,30 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     fs: {
-      deny: ['.git/**', 'node_modules/**', 'firebase.json', 'stackhawk.yml']
+      deny: ['.git/**', '**/.cursor/**', '**/one-assess-local-report-review.json', 'node_modules/**', 'firebase.json', 'stackhawk.yml']
     }
   },
   plugins: [
+    mode === 'development' && {
+      name: 'local-saved-report-review',
+      apply: 'serve' as const,
+      configureServer(server: ViteDevServer) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.split('?')[0] !== '/__local_report/review') return next();
+          const loopback = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '');
+          const localHost = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(req.headers.host ?? '');
+          const sameOrigin = !req.headers.origin || req.headers.origin === `http://${req.headers.host}`;
+          const file = path.join(os.tmpdir(), 'one-assess-local-report-review.json');
+          res.setHeader('Cache-Control', 'no-store');
+          if (!loopback || !localHost || !sameOrigin || req.method !== 'GET' || !fs.existsSync(file)) {
+            res.statusCode = 404;
+            return res.end();
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.end(fs.readFileSync(file, 'utf8'));
+        });
+      },
+    },
     mode === "development" && {
       name: "debug-roadmap-ndjson",
       enforce: "pre" as const,
@@ -178,6 +199,7 @@ export default defineConfig(({ mode }) => ({
       "@shared/billing": path.resolve(__dirname, "./functions/src/shared/billing"),
       "@shared/metadataInts": path.resolve(__dirname, "./functions/src/metadataInts.ts"),
       "@shared/reportingFx": path.resolve(__dirname, "./functions/src/shared/reportingFx.ts"),
+      "@shared/ownerConsole": path.resolve(__dirname, "./functions/src/shared/ownerConsole.ts"),
     },
   },
   test: {

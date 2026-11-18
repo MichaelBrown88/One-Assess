@@ -9,18 +9,18 @@ import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring';
 import type { SnapshotSummary } from '@/services/publicReports';
 import { subscribeToPublicReport } from '@/services/publicReports';
-import { computeScores, buildRoadmap } from '@/lib/scoring';
-import { generateCoachPlan } from '@/lib/recommendations';
+import { computeScores } from '@/lib/scoring';
 import { logger } from '@/lib/utils/logger';
+import { validAssessmentComparison, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 
 export interface UsePublicReportResult {
+  comparison: AssessmentComparison | null;
   formData: FormData | null;
   scores: ScoreSummary | null;
   previousFormData: FormData | undefined;
   previousScores: ScoreSummary | null;
   snapshotSummaries: SnapshotSummary[];
   orgDetails: { name: string; logoUrl?: string } | null;
-  plan: import('@/lib/recommendations').CoachPlan | null;
   error: string | null;
   loading: boolean;
   clientName: string;
@@ -41,8 +41,8 @@ function parseDoc(
   const fd = data.formData;
   const s = computeScores(fd);
   // previousFormData on this doc is often a re-save of the same assessment.
-  // AXIS "vs last" copy must only come from a real prior assessment, which
-  // public tokens do not carry — each assessment has its own share token.
+  // Ignore that legacy field. Only the versioned numeric comparison payload
+  // may provide measured changes; it is validated separately against this capture.
   return {
     formData: fd,
     scores: s,
@@ -53,19 +53,20 @@ function parseDoc(
 }
 
 export function usePublicReport(token: string | undefined): UsePublicReportResult {
+  const [comparison, setComparison] = useState<AssessmentComparison | null>(null);
   const [formData, setFormData] = useState<FormData | null>(null);
   const [scores, setScores] = useState<ScoreSummary | null>(null);
   const [previousFormData, setPreviousFormData] = useState<FormData | undefined>(undefined);
   const [previousScores, setPreviousScores] = useState<ScoreSummary | null>(null);
   const [snapshotSummaries, setSnapshotSummaries] = useState<SnapshotSummary[]>([]);
   const [orgDetails, setOrgDetails] = useState<{ name: string; logoUrl?: string } | null>(null);
-  const [plan, setPlan] = useState<import('@/lib/recommendations').CoachPlan | null>(null);
-  const [assessmentDate, setAssessmentDate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [changeNarrative, setChangeNarrative] = useState<string | null>(null);
+  const [assessmentDate, setAssessmentDate] = useState<Date | null>(null);
 
   useEffect(() => {
+    setComparison(null);
     if (!token) {
       setError('Invalid report link.');
       setLoading(false);
@@ -75,7 +76,6 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
       setPreviousScores(null);
       setSnapshotSummaries([]);
       setOrgDetails(null);
-      setPlan(null);
       setAssessmentDate(null);
       return;
     }
@@ -86,6 +86,7 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
     const unsubscribe = subscribeToPublicReport(
       token,
       (data) => {
+        setComparison(null);
         if (!data) {
           setError('This report is no longer available or has expired.');
           setLoading(false);
@@ -95,7 +96,6 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
           setPreviousScores(null);
           setSnapshotSummaries([]);
           setOrgDetails(null);
-          setPlan(null);
           setAssessmentDate(null);
           return;
         }
@@ -108,7 +108,6 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
           setPreviousScores(null);
           setSnapshotSummaries([]);
           setOrgDetails(null);
-          setPlan(null);
           setAssessmentDate(null);
           return;
         }
@@ -118,13 +117,16 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
         }
 
         const { formData: fd, scores: s, previousFormData: prevFd, previousScores: prevS, snapshotSummaries: summaries } = parseDoc(data);
+        setComparison(validAssessmentComparison(fd, data.assessmentComparison));
         setFormData(fd);
         setScores(s);
         setPreviousFormData(prevFd);
         setPreviousScores(prevS);
         setSnapshotSummaries(summaries);
         setChangeNarrative(data.changeNarrative ?? null);
-        setAssessmentDate(resolveAssessmentDate(fd.assessedAt, summaries[0]?.date?.toDate?.() ?? data.createdAt?.toDate?.()));
+        const summaryDate = summaries[0]?.date?.toDate?.() ?? null;
+        const created = data.createdAt?.toDate?.() ?? null;
+        setAssessmentDate(resolveAssessmentDate(fd.assessedAt, summaryDate ?? created));
         setLoading(false);
 
         if (data.organizationId) {
@@ -144,10 +146,6 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
               logger.warn('[usePublicReport] Failed to fetch organization branding:', orgErr);
             });
         }
-
-        generateCoachPlan(fd, s)
-          .then((result) => setPlan(result))
-          .catch((e) => logger.error('Error generating coach plan:', e));
       },
     );
 
@@ -158,12 +156,12 @@ export function usePublicReport(token: string | undefined): UsePublicReportResul
 
   return {
     formData,
+    comparison,
     scores,
     previousFormData,
     previousScores,
     snapshotSummaries,
     orgDetails,
-    plan,
     error,
     loading,
     clientName,

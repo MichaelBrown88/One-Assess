@@ -34,9 +34,13 @@ export interface UsePostureCompanionUploadResult {
   processingStatus: ProcessingStatus;
   previewImage: PreviewImage | null;
   setPreviewImage: Dispatch<SetStateAction<PreviewImage | null>>;
+  /** Local thumbnails shown immediately after a device shot (before Storage returns). */
+  pendingPreviews: Partial<Record<ViewType, string>>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   handleLoadTestImages: () => void;
   handleFileUpload: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  /** Fire-and-forget: align/upload like manual, without blocking the next shot. */
+  queueDeviceCapture: (view: ViewType, imageDataUrl: string) => void;
 }
 
 export function usePostureCompanionUpload({
@@ -49,7 +53,9 @@ export function usePostureCompanionUpload({
   const [processingStatus, setProcessingStatus] =
     useState<ProcessingStatus>(IDLE_PROCESSING_STATUS);
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
+  const [pendingPreviews, setPendingPreviews] = useState<Partial<Record<ViewType, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inFlightRef = useRef<Partial<Record<ViewType, number>>>({});
 
   const updateProcessingStatus = useCallback((view: ViewType, stage: ProcessingStage) => {
     setProcessingStatus((prev) => ({ ...prev, [view]: stage }));
@@ -59,9 +65,89 @@ export function usePostureCompanionUpload({
     if (!isOpen) {
       setProcessingStatus(IDLE_PROCESSING_STATUS);
       setPreviewImage(null);
+      setPendingPreviews({});
       setIsLoadingTestImages(false);
+      inFlightRef.current = {};
     }
   }, [isOpen]);
+
+  const processViewImage = useCallback(
+    async (
+      view: ViewType,
+      imageDataUrl: string,
+      source: 'manual' | 'this-device' = 'this-device',
+    ): Promise<boolean> => {
+      if (!session?.id) return false;
+      if (!imageDataUrl.startsWith('data:image') && !imageDataUrl.startsWith('http')) {
+        updateProcessingStatus(view, 'error');
+        return false;
+      }
+
+      const generation = (inFlightRef.current[view] ?? 0) + 1;
+      inFlightRef.current[view] = generation;
+
+      try {
+        updateProcessingStatus(view, 'detecting');
+        const statusTimer = window.setTimeout(() => {
+          if (inFlightRef.current[view] === generation) {
+            updateProcessingStatus(view, 'analyzing');
+          }
+        }, 2000);
+
+        await updatePostureImage(
+          session.id,
+          view,
+          imageDataUrl,
+          undefined,
+          source,
+          profile?.organizationId,
+          profile,
+        );
+        window.clearTimeout(statusTimer);
+
+        if (inFlightRef.current[view] !== generation) return false;
+        updateProcessingStatus(view, 'complete');
+        setPendingPreviews((prev) => {
+          if (!(view in prev)) return prev;
+          const next = { ...prev };
+          delete next[view];
+          return next;
+        });
+        return true;
+      } catch (err) {
+        if (inFlightRef.current[view] !== generation) return false;
+        updateProcessingStatus(view, 'error');
+        logger.error(`[UPLOAD] Failed to process ${view}`, err);
+        return false;
+      }
+    },
+    [session?.id, profile, updateProcessingStatus],
+  );
+
+  const queueDeviceCapture = useCallback(
+    (view: ViewType, imageDataUrl: string) => {
+      if (!session?.id) {
+        toast({
+          title: UI_TOASTS.ERROR.NO_ACTIVE_SESSION,
+          description: UI_TOASTS.ERROR.NO_ACTIVE_SESSION_DESC,
+          variant: 'destructive',
+        });
+        return;
+      }
+      setPendingPreviews((prev) => ({ ...prev, [view]: imageDataUrl }));
+      updateProcessingStatus(view, 'detecting');
+      void processViewImage(view, imageDataUrl).then((ok) => {
+        if (!ok) {
+          toast({
+            title: UI_TOASTS.ERROR.UPLOAD_FAILED,
+            description: `Could not align the ${view} view. Tap it to retake.`,
+            variant: 'destructive',
+          });
+        }
+      });
+    },
+    [session?.id, processViewImage, toast, updateProcessingStatus],
+  );
 
   const handleLoadTestImages = useCallback(() => {
     if (!session?.id) {
@@ -181,64 +267,28 @@ export function usePostureCompanionUpload({
             return { view, success: false, error: 'No image data' };
           }
 
-          if (!testImages[view].startsWith('data:image')) {
-            updateProcessingStatus(view, 'error');
-            return { view, success: false, error: 'Invalid image data format' };
-          }
-
-          try {
-            updateProcessingStatus(view, 'detecting');
-
-            const processingPromise = (async () => {
-              const result = updatePostureImage(
-                session.id,
-                view,
-                testImages[view],
-                undefined,
-                'manual',
-                profile?.organizationId,
-                profile,
-              );
-
-              setTimeout(() => updateProcessingStatus(view, 'analyzing'), 2000);
-
-              return result;
-            })();
-
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Processing timeout after 180 seconds')), 180000),
-            );
-
-            await Promise.race([processingPromise, timeoutPromise]);
-
-            updateProcessingStatus(view, 'complete');
-            return { view, success: true };
-          } catch (err) {
-            updateProcessingStatus(view, 'error');
-            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-            return { view, success: false, error: errorMsg };
-          }
+          const ok = await processViewImage(view, testImages[view], 'manual');
+          return ok
+            ? { view, success: true }
+            : { view, success: false, error: 'Processing failed' };
         };
 
         const viewsToProcess = VIEWS.filter((view) => testImages[view]);
+        const results = await Promise.all(viewsToProcess.map((view) => processView(view)));
 
         let successCount = 0;
         let failCount = 0;
         const errors: string[] = [];
 
-        for (const view of viewsToProcess) {
-          const result = await processView(view);
-
+        for (const result of results) {
           if (result.success) {
             successCount++;
           } else {
             failCount++;
             if (result.error) {
-              errors.push(`${view}: ${result.error}`);
+              errors.push(`${result.view}: ${result.error}`);
             }
           }
-
-          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         if (successCount > 0) {
@@ -276,7 +326,7 @@ export function usePostureCompanionUpload({
         }
       }
     },
-    [session?.id, toast, profile, updateProcessingStatus],
+    [session?.id, toast, updateProcessingStatus, processViewImage],
   );
 
   return {
@@ -284,8 +334,10 @@ export function usePostureCompanionUpload({
     processingStatus,
     previewImage,
     setPreviewImage,
+    pendingPreviews,
     fileInputRef,
     handleLoadTestImages,
     handleFileUpload,
+    queueDeviceCapture,
   };
 }

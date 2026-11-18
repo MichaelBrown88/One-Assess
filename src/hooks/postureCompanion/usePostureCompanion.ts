@@ -2,13 +2,20 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/lib/utils/logger';
 import { VIEWS } from './types';
-import type { UsePostureCompanionOptions, UsePostureCompanionResult } from './types';
+import type { ProcessingStage, UsePostureCompanionOptions, UsePostureCompanionResult } from './types';
 import { usePostureCompanionSession } from './usePostureCompanionSession';
 import { usePostureCompanionConnection } from './usePostureCompanionConnection';
 import { usePostureCompanionUpload } from './usePostureCompanionUpload';
 import { isPersistableImageUrl } from '@/lib/assessment/prepareFormDataForPersistence';
 import { POSTURE_STUDIO_MODAL_COPY as COPY } from '@/constants/coachPostureCapture';
 import { useToast } from '@/hooks/use-toast';
+
+const IN_FLIGHT_STAGES = new Set<ProcessingStage>([
+  'converting',
+  'detecting',
+  'aligning',
+  'analyzing',
+]);
 
 export function usePostureCompanion({
   isOpen,
@@ -41,12 +48,16 @@ export function usePostureCompanion({
     processingStatus,
     previewImage,
     setPreviewImage,
+    pendingPreviews,
     fileInputRef,
     handleLoadTestImages,
     handleFileUpload,
+    queueDeviceCapture,
   } = usePostureCompanionUpload({ isOpen, session, profile });
 
   const autoAppliedRef = useRef(false);
+  const uploadsInFlight =
+    isLoadingTestImages || VIEWS.some((view) => IN_FLIGHT_STAGES.has(processingStatus[view]));
 
   const handleApply = useCallback((): boolean => {
     if (!session) return false;
@@ -97,11 +108,15 @@ export function usePostureCompanion({
       autoAppliedRef.current = false;
       return;
     }
-    if (!autoApplyWhenReady || autoAppliedRef.current || !hasAllImages) return;
+    // Each view's Storage URL lands before its analysis write, and closing resets
+    // in-flight tracking, so applying early dropped findings and reported live
+    // uploads as failed. Wait until every upload has settled.
+    if (!autoApplyWhenReady || autoAppliedRef.current) return;
+    if (!hasAllImages || !isComplete || uploadsInFlight) return;
     if (handleApply()) {
       autoAppliedRef.current = true;
     }
-  }, [isOpen, autoApplyWhenReady, hasAllImages, handleApply]);
+  }, [isOpen, autoApplyWhenReady, hasAllImages, isComplete, uploadsInFlight, handleApply]);
 
   const handleDirectScan = useCallback(() => {
     onRequestDeviceCapture?.();
@@ -117,13 +132,16 @@ export function usePostureCompanion({
     processingStatus,
     previewImage,
     setPreviewImage,
+    pendingPreviews,
     fileInputRef,
     placeholderImages,
     hasAllImages,
     isComplete,
+    uploadsInFlight,
     views: VIEWS,
     handleLoadTestImages,
     handleFileUpload,
+    queueDeviceCapture,
     handleApply,
     handleDirectScan,
   };

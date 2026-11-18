@@ -38,8 +38,7 @@ export function isRemoteIntakeFormComplete(formData: FormData | null | undefined
     typeof formData.trainingHistory === 'string' ? formData.trainingHistory.trim() : '';
   const activity =
     typeof formData.activityLevel === 'string' ? formData.activityLevel.trim() : '';
-  const parq1 = typeof formData.parq1 === 'string' ? formData.parq1.trim() : '';
-  return Boolean(name && recent && history && activity && parq1);
+  return Boolean(name && recent && history && activity);
 }
 
 export function hasRemotePostureCaptureComplete(formData: FormData | null | undefined): boolean {
