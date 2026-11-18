@@ -79,7 +79,8 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (tilt < 10) tiltScore = 50;
       else tiltScore = 25;
     }
-    head = Math.round((fhpScore + tiltScore) / 2);
+    // Each area only counts when it has at least one finding; missing findings are not "perfect".
+    if (headData || tiltData) head = Math.round((fhpScore + tiltScore) / 2);
 
     // Shoulders (industry standard: Normal when height difference <1 cm)
     const shoulderData = ai.front?.shoulder_alignment;
@@ -114,7 +115,9 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (deg < 20) scoliosisScore = 50;
       else scoliosisScore = 25;
     }
-    back = Math.round((kyphosisScore + lordosisScore + scoliosisScore) / 3);
+    if (kyphosisData || lordosisData || spineData) {
+      back = Math.round((kyphosisScore + lordosisScore + scoliosisScore) / 3);
+    }
 
     // Hips/Pelvis
     const pelvicSideData = ai['side-right']?.pelvic_tilt || ai['side-left']?.pelvic_tilt;
@@ -134,7 +137,7 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (lateralTilt < 8) pelvicScore = Math.min(pelvicScore, 50);
       else pelvicScore = Math.min(pelvicScore, 25);
     }
-    hips = pelvicScore;
+    if (pelvicSideData || pelvicFrontData) hips = pelvicScore;
 
     // Knees
     const kneeSideData = ai['side-right']?.knee_position || ai['side-left']?.knee_position;
@@ -153,7 +156,7 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (dev < 10) kneeFrontScore = 50;
       else kneeFrontScore = 25;
     }
-    knees = Math.min(kneeSideScore, kneeFrontScore);
+    if (kneeSideData || kneeFrontData) knees = Math.min(kneeSideScore, kneeFrontScore);
   } else {
     // Manual Posture Scoring
     head = scorePostureArray(form.postureHeadOverall, neutralScore);
