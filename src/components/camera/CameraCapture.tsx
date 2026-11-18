@@ -5,6 +5,7 @@ import { X, AlertCircle, Smartphone, Camera, RefreshCcw, Maximize2, Minimize2 } 
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/utils/logger';
 import { captureVideoFrame } from '@/lib/camera/captureVideoFrame';
+import { BODY_COMP_OCR_COPY } from '@/constants/bodyCompOcrCopy';
 
 /**
  * MANUAL SNAP VERSION
@@ -220,7 +221,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               
               <div className="absolute inset-0 flex items-center justify-center">
                 <p className="text-white/70 text-xs font-semibold text-center px-4 leading-relaxed">
-                  Align your body composition report within this frame
+                  {BODY_COMP_OCR_COPY.FRAME_HINT}
                 </p>
               </div>
             </div>

@@ -5,6 +5,7 @@
 
 export const COACH_POSTURE_CAPTURE_COPY = {
   VIEW_HEADER: (n: number, total: number, label: string) => `View ${n} of ${total} — ${label}`,
+  SINGLE_VIEW_HEADER: (label: string) => label,
   VIEW_LABELS: {
     front: 'Front',
     'side-left': 'Left side',
@@ -19,6 +20,7 @@ export const COACH_POSTURE_CAPTURE_COPY = {
   } as Record<string, string>,
   SHUTTER_ARIA: 'Take photo',
   USE_PHOTO: 'Use photo',
+  USE_PHOTO_CHECKING: 'Checking framing…',
   SAVING: 'Saving…',
   RETAKE: 'Retake',
   ALL_DONE_TITLE: 'All four views captured',
@@ -32,24 +34,32 @@ export const COACH_POSTURE_CAPTURE_COPY = {
   CAMERA_RETRY: 'Try again',
   UPLOAD_FAILED_TITLE: "Couldn't save that view",
   UPLOAD_FAILED_BODY: 'Check the connection and retake the view from the posture screen.',
+  QUALITY_GATE_FAIL_TITLE: 'Retake this view',
 } as const;
 
 /** Copy for the studio posture options modal (coach capture primary, upload secondary). */
 export const POSTURE_STUDIO_MODAL_COPY = {
   TITLE: 'Posture photos',
-  SUBTITLE: 'Capture four views — front, left side, back, right side.',
+  SUBTITLE: 'Use this device for all four views — tap, shoot, move on. Alignment runs in the background.',
   OPTION_CAPTURE: 'Capture with this device',
-  OPTION_CAPTURE_HINT: 'You hold the camera, line the client up with the guides, and confirm each shot.',
-  OPTION_UPLOAD: 'Upload photos',
+  OPTION_CAPTURE_HINT: 'Primary path: tap an empty view below. Guides help you frame; alignment matches upload.',
+  OPTION_UPLOAD: 'Upload photos instead',
   UPLOAD_HEIC_NOTE:
-    'iPhone HEIC photos are converted automatically. If upload fails, export as JPEG from Photos (Share → Save Image) and try again.',
-  GRID_HINT: 'Photos appear here as each view is captured.',
+    'HEIC photos are converted automatically. If upload fails, export as JPEG from Photos and try again.',
+  GRID_HINT: 'Tap a view to capture. You can shoot the next while the last one is still aligning.',
+  GRID_TAP_ARIA: (label: string) => `Capture ${label}`,
+  GRID_TAP_HINT: 'Tap to capture',
   APPLY: 'Apply Analysis',
+  APPLY_WAITING: 'Finishing analysis…',
   APPLY_FAILED_TITLE: "Photos aren't ready yet",
   APPLY_FAILED_BODY: 'Wait for each view to finish saving, then apply again.',
+  CLOSE_UPLOADS_TITLE: 'Still saving photos',
+  CLOSE_UPLOADS_BODY: 'Wait until all four views finish uploading before closing.',
+  RESULTS_BLOCKED_TITLE: 'Finish posture photos first',
+  RESULTS_BLOCKED_BODY: 'Close the posture screen after all four views are saved, then open results.',
   PHOTO_CTA: 'Take posture photos',
   PHOTO_BODY:
-    'Capture the four views with this device, or upload photos. Analysis runs automatically.',
+    'Capture the four views with this device (recommended), or upload photos. Analysis runs automatically.',
   PHOTO_BODY_DONE: 'Photos captured — retake if needed or continue to the next step.',
   SWITCH_MANUAL: 'Switch to manual observation',
 } as const;

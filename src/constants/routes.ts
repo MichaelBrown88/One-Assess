@@ -31,7 +31,10 @@ export const ROUTES = {
   BLOG: '/blog',
   COOKIES: '/cookies',
   DEMO: '/demo',
-  BILLING: '/billing',
+  SAMPLE_REPORT_PREVIEW: '/preview/sample-report',
+  BILLING: '/dashboard/billing',
+  /** Stripe cancel URL and emailed links — redirects to BILLING. */
+  BILLING_LEGACY: '/billing',
   BILLING_SUCCESS: '/billing/success',
   /** Guest Stripe Checkout return URLs (not the marketing pricing page). */
   CHECKOUT_SUCCESS: '/checkout/success',
@@ -47,8 +50,9 @@ export const ROUTES = {
   ADMIN: '/admin',
   ADMIN_LOGIN: '/admin/login',
   ADMIN_SETUP: '/admin/setup',
-  ADMIN_ORGANIZATIONS: '/admin/organizations',
-  ADMIN_ORGANIZATION: (orgId: string) => `/admin/organizations/${orgId}` as const,
+  ADMIN_STUDIOS: '/admin/studios',
+  ADMIN_ORGANIZATIONS: '/admin/studios',
+  ADMIN_ORGANIZATION: (orgId: string) => `/admin/studios/${orgId}` as const,
 } as const;
 
 /**

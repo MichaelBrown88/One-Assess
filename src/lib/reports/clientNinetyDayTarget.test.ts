@@ -10,6 +10,8 @@ const generalCtx = parseClientGoals(undefined, ['general-health']);
 function form(overrides: Partial<FormData>): FormData {
   return {
     inbodyWeightKg: '90',
+    skeletalMuscleMassKg: '35',
+    assessedAt: '2026-09-08T12:00:00.000Z',
     heightCm: '180',
     dateOfBirth: '1990-01-01',
     gender: 'male',
@@ -30,17 +32,17 @@ describe('buildClientNinetyDayTarget', () => {
     expect(target).not.toBeNull();
     expect(target!.direction).toBe('lose');
     expect(target!.targetWeightKg!).toBeLessThan(90);
-    // Should not vaporise more than ~10% of bodyweight in 12 weeks.
-    expect(target!.targetWeightKg!).toBeGreaterThan(81);
+    // Prescribed week, not a crash — stays around 10% of bodyweight in 12 weeks.
+    expect(target!.targetWeightKg!).toBeGreaterThan(80);
   });
 
-  it('sets protein from body weight, not skeletal muscle mass', () => {
+  it('sets protein from body weight at 2.2 g/kg on a cut, not skeletal muscle mass', () => {
     const target = buildClientNinetyDayTarget(
       form({ inbodyWeightKg: '81.2', skeletalMuscleMassKg: '31.5' }),
       undefined,
       weightLossCtx,
     );
-    expect(target!.proteinG).toBe(160);
+    expect(target!.proteinG).toBe(180);
   });
 
   it('computes daily calories and macros from height + age', () => {
@@ -82,7 +84,7 @@ describe('buildClientNinetyDayTarget', () => {
       both,
     );
     expect(target!.direction).toBe('lose');
-    expect(target!.targetWeightKg!).toBeGreaterThan(74);
+    expect(target!.targetWeightKg!).toBeGreaterThan(71);
   });
 
   it('gives a female client lower calories than a male with the same stats', () => {
@@ -98,5 +100,62 @@ describe('buildClientNinetyDayTarget', () => {
     expect(male!.direction).toBe('gain');
     expect(female!.direction).toBe('gain');
     expect(female!.targetWeightKg!).toBeLessThan(male!.targetWeightKg!);
+  });
+
+  it('does not stack a low analyzer BMR with a sedentary multiplier for a recomp client', () => {
+    const both = parseClientGoals(undefined, ['weight-loss', 'build-muscle']);
+    const target = buildClientNinetyDayTarget(
+      form({
+        inbodyWeightKg: '81.2',
+        inbodyBodyFatPct: '31.2',
+        skeletalMuscleMassKg: '31.5',
+        heightCm: '174',
+        dateOfBirth: '1995-01-15',
+        bmrKcal: '1577',
+        activityLevel: 'sedentary',
+        stepsPerDay: '5800',
+        trainingFrequency: '',
+      }),
+      undefined,
+      both,
+    );
+    expect(target!.direction).toBe('lose');
+    expect(target!.proteinG).toBe(180);
+    expect(target!.calories).toBeGreaterThanOrEqual(2200);
+    expect(target!.calories).toBeLessThanOrEqual(2400);
+    expect(target!.fatG).toBe(65);
+    expect(target!.fuelSessionsNote).toMatch(/review/i);
+  });
+
+  it('fuels a sedentary new client the same as someone already training 3×', () => {
+    const both = parseClientGoals(undefined, ['weight-loss', 'build-muscle']);
+    const sedentary = buildClientNinetyDayTarget(
+      form({
+        activityLevel: 'sedentary',
+        stepsPerDay: '3000',
+        trainingFrequency: '',
+      }),
+      undefined,
+      both,
+    );
+    const threeSessions = buildClientNinetyDayTarget(
+      form({
+        activityLevel: 'sedentary',
+        stepsPerDay: '11000',
+        trainingFrequency: '3',
+      }),
+      undefined,
+      both,
+    );
+    expect(sedentary!.calories).toBe(threeSessions!.calories);
+    expect(sedentary!.fuelSessionsNote).toBe(threeSessions!.fuelSessionsNote);
+  });
+
+  it('counts extra visits as activity on the same food', () => {
+    const both = parseClientGoals(undefined, ['weight-loss', 'build-muscle']);
+    const planned = buildClientNinetyDayTarget(form({ trainingFrequency: '' }), undefined, both);
+    const fivePlus = buildClientNinetyDayTarget(form({ trainingFrequency: '5+' }), undefined, both);
+    expect(fivePlus!.calories!).toBe(planned!.calories!);
+    expect(Math.abs(fivePlus!.weightDeltaKg!)).toBeGreaterThan(Math.abs(planned!.weightDeltaKg!));
   });
 });

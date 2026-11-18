@@ -13,9 +13,8 @@ export const SETTINGS_COPY = {
   PROFILE_ORG_READONLY_COACH:
     'Organisation name is managed by your admin. You can update your display name above.',
 
-  BILLING_CARD_TITLE: 'Billing & subscription',
-  BILLING_CARD_DESCRIPTION:
-    'Stripe checkout, client capacity, payment method, and invoices. Organization → Billing is a shorter summary for admins.',
+  BILLING_CARD_TITLE: 'Billing',
+  BILLING_CARD_DESCRIPTION: 'Plan, client capacity, payment method, and invoices.',
   BILLING_CARD_CTA: 'Open billing',
 
   BRANDING_PURCHASE_CTA: 'Purchase custom branding',

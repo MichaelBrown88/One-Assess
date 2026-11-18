@@ -85,7 +85,7 @@ function DeltaCell({ delta, invert = false }: { delta?: number; invert?: boolean
   if (delta == null || delta === 0) {
     return (
       <span className="flex h-[2.25rem] items-center justify-end text-[11px] text-muted-foreground">
-        —
+        –
       </span>
     );
   }
@@ -109,6 +109,6 @@ function DeltaCell({ delta, invert = false }: { delta?: number; invert?: boolean
 }
 
 function formatDelta(n: number): string {
-  if (Number.isNaN(n)) return '—';
+  if (Number.isNaN(n)) return '–';
   return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1);
 }

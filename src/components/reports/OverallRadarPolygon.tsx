@@ -1,6 +1,6 @@
 import React from 'react';
 import { CHART_HEX } from '@/lib/design/chartColors';
-import { scoreGrade, type ScoreGrade } from '@/lib/scoring/scoreColor';
+import { scoreGrade, scoreGradeHex, type ScoreGrade } from '@/lib/scoring/scoreColor';
 import { CLIENT_PILLAR_LABELS, SCORING_ID_TO_SECTION_ID } from '@/constants/clientReport';
 import { PILLAR_SCORE_ORDER, type RadarData } from '@/lib/reports/radarData';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,8 @@ interface OverallRadarPolygonProps {
   compact?: boolean;
   /** Moderate plot beside the AXIS score ring. */
   hero?: boolean;
+  /** Labeled plot sized for the coach client-profile hero. */
+  profile?: boolean;
   onPillarSelect?: (sectionId: string) => void;
   className?: string;
   /** Use short plain-language pillar labels on public client reports. */
@@ -18,12 +20,6 @@ interface OverallRadarPolygonProps {
   /** Overall AXIS score — drives the hull colour. Falls back to the pillar average. */
   overallScore?: number;
 }
-
-const GRADE_HEX: Record<ScoreGrade, string> = {
-  green: CHART_HEX.scoreGreen,
-  amber: CHART_HEX.scoreAmber,
-  red: CHART_HEX.scoreRed,
-};
 
 const GRADE_FG: Record<ScoreGrade, string> = {
   green: 'hsl(var(--score-green-fg))',
@@ -65,6 +61,7 @@ export default function OverallRadarPolygon({
   previousData,
   compact = false,
   hero = false,
+  profile = false,
   onPillarSelect,
   className,
   clientFacingLabels = false,
@@ -75,13 +72,13 @@ export default function OverallRadarPolygon({
 
   const scoreForColor =
     overallScore ?? data.reduce((sum, d) => sum + Math.max(0, Math.min(100, d.value)), 0) / n;
-  const hullColor = GRADE_HEX[scoreGrade(scoreForColor)];
+  const hullColor = scoreGradeHex(scoreForColor);
 
-  const size = hero ? 480 : compact ? 400 : 480;
+  const size = profile ? 340 : hero ? 480 : compact ? 400 : 480;
   const cx = size / 2;
   const cy = size / 2;
-  const baseR = hero ? 148 : compact ? 108 : 130;
-  const labelR = hero ? baseR + 36 : compact ? baseR + 28 : baseR + 38;
+  const baseR = profile ? 96 : hero ? 148 : compact ? 108 : 130;
+  const labelR = profile ? baseR + 30 : hero ? baseR + 36 : compact ? baseR + 28 : baseR + 38;
   const ang = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
 
   const vertices = data.map((d, i) => {
@@ -114,7 +111,13 @@ export default function OverallRadarPolygon({
     <div
       className={cn(
         'flex w-full items-center justify-center',
-        compact ? 'min-h-[220px]' : hero ? 'h-[17.5rem] w-full overflow-visible' : 'min-h-[260px]',
+        profile
+          ? 'h-[12.5rem] w-[12.5rem] min-h-0 overflow-visible'
+          : compact
+            ? 'min-h-[220px]'
+            : hero
+              ? 'h-[17.5rem] w-full overflow-visible'
+              : 'min-h-[260px]',
         className,
       )}
     >
@@ -122,7 +125,11 @@ export default function OverallRadarPolygon({
         viewBox={`0 0 ${size} ${size}`}
         className={cn(
           'h-full w-full max-w-full',
-          hero ? 'h-full max-h-[17.5rem] overflow-visible' : 'max-h-[320px]',
+          profile
+            ? 'h-full max-h-[12.5rem] overflow-visible'
+            : hero
+              ? 'h-full max-h-[17.5rem] overflow-visible'
+              : 'max-h-[320px]',
         )}
         role="img"
         aria-label="Five-pillar score radar"
@@ -165,7 +172,7 @@ export default function OverallRadarPolygon({
         <polygon
           points={hullPts}
           fill={hullColor}
-          fillOpacity={hero ? 0.2 : 0.16}
+          fillOpacity={hero || profile ? 0.2 : 0.16}
           stroke={hullColor}
           strokeWidth={2}
           strokeLinejoin="round"
@@ -176,7 +183,7 @@ export default function OverallRadarPolygon({
             key={`dot-${i}`}
             cx={v.x}
             cy={v.y}
-            r={hero ? 5.5 : compact ? 4.5 : 5.5}
+            r={profile ? 4 : hero ? 5.5 : compact ? 4.5 : 5.5}
             fill={hullColor}
             stroke="hsl(var(--card))"
             strokeWidth={2.5}
@@ -221,10 +228,10 @@ export default function OverallRadarPolygon({
               key={`lbl-${i}`}
               x={lp.x}
               y={lp.y + labelDy}
-              fontSize={hero ? 16 : compact ? 10 : 11}
+              fontSize={profile ? 11 : hero ? 16 : compact ? 10 : 11}
               fontWeight={700}
               textAnchor={anchor}
-              fill={hero ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
+              fill={hero || profile ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
               className={clickable ? 'cursor-pointer' : undefined}
               onClick={
                 clickable

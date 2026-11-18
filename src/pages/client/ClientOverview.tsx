@@ -1,3 +1,4 @@
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 /**
  * Client Console — Overview tab.
  *
@@ -18,22 +19,22 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  Dumbbell,
   Eye,
-  Heart,
   Plus,
-  Scale,
-  Sun,
   Trophy,
-  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { UI_CLIENT_DETAIL } from '@/constants/ui';
 import { computeScores, type ScoreSummary, type ScoreCategory } from '@/lib/scoring';
 import { determineArchetype } from '@/lib/clientArchetypes';
 import { MiniPillarRadar } from '@/components/reports/MiniPillarRadar';
-import { PillarScoreBadge } from '@/components/reports/PillarScoreBadge';
-import type { PillarKey } from '@/lib/reports/radarData';
+import OverallRadarPolygon from '@/components/reports/OverallRadarPolygon';
+import {
+  buildRadarDataFromScores,
+  PILLAR_SCORE_ORDER,
+  type PillarKey,
+  type RadarData,
+} from '@/lib/reports/radarData';
+import { CLIENT_PILLAR_LABELS } from '@/constants/clientReport';
 import type { Timestamp } from 'firebase/firestore';
 import type { FormData } from '@/contexts/FormContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -56,13 +57,7 @@ function buildClientPath(name: string, sub?: string): string {
 
 // ─── Pillar canonical order (matches the radar chart) ────────────────
 
-const PILLAR_ORDER: { id: PillarKey; label: string; short: string; icon: typeof Scale }[] = [
-  { id: 'bodyComp',        label: 'Body Composition',     short: 'Body',      icon: Scale },
-  { id: 'strength',        label: 'Functional Strength',  short: 'Strength',  icon: Dumbbell },
-  { id: 'cardio',          label: 'Metabolic Fitness',    short: 'Cardio',    icon: Heart },
-  { id: 'movementQuality', label: 'Movement Quality',     short: 'Movement',  icon: Zap },
-  { id: 'lifestyle',       label: 'Lifestyle Factors',    short: 'Lifestyle', icon: Sun },
-];
+const PILLAR_ORDER: { id: PillarKey }[] = PILLAR_SCORE_ORDER.map((id) => ({ id }));
 
 // Pillars whose baseline-completeness lives on the profile (matches the
 // existing TRACKED_PILLARS shape so the "Start X" buttons keep working).
@@ -73,6 +68,13 @@ const BASELINE_PILLARS: { id: 'bodycomp' | 'posture' | 'fitness' | 'strength' | 
   { id: 'strength',  label: 'Strength' },
   { id: 'lifestyle', label: 'Lifestyle' },
 ];
+
+const PANEL =
+  'rounded-lg border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04)]';
+const PANEL_HERO =
+  'rounded-lg border border-border bg-card p-7 shadow-[0_1px_2px_rgba(15,15,15,0.04)] sm:p-8';
+const INNER = 'rounded-md border border-border bg-card-elevated p-5';
+const EYEBROW = 'text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -141,6 +143,9 @@ export default function ClientOverview() {
     categoryChanges,
     stats,
     handleNewAssessment,
+    incompleteDraft,
+    handleFinishAssessment,
+    resuming,
     snapshots,
     profile,
   } = ctx;
@@ -169,6 +174,7 @@ export default function ClientOverview() {
 
   const overviewEmptyVariant = useMemo((): ClientOverviewEmptyVariant | null => {
     if (showCoachAxis) return null;
+    if (incompleteDraft) return 'in-progress';
     if (profile?.remoteIntakePending) return 'intake-pending';
     if (
       profile?.remoteIntakeAwaitingStudio ||
@@ -181,6 +187,7 @@ export default function ClientOverview() {
     return 'not-started';
   }, [
     showCoachAxis,
+    incompleteDraft,
     profile?.remoteIntakePending,
     profile?.remoteIntakeAwaitingStudio,
     profile?.formData,
@@ -212,6 +219,7 @@ export default function ClientOverview() {
   const startingOverall = startingSnapshot?.overallScore ?? 0;
 
   const currentRadar = useMemo(() => scoresToRadarArray(scores), [scores]);
+  const currentRadarData = useMemo(() => buildRadarDataFromScores(currentRadar), [currentRadar]);
   const currentOverall = stats?.latestScore ?? scores?.overall ?? 0;
 
   // Stated goals from the latest assessment — the Goal card shows what the
@@ -238,7 +246,7 @@ export default function ClientOverview() {
   // Last assessment date (any assessment).
   const lastAssessmentDate = useMemo(() => {
     const latest = sortedSnapshots[sortedSnapshots.length - 1];
-    return timestampToDate(latest?.timestamp ?? null);
+    return assessmentDate(latest?.formData.assessedAt, timestampToDate(latest?.timestamp ?? null));
   }, [sortedSnapshots]);
 
   // ─── Coach notes (coach-only diagnostic + prescription) ─────────
@@ -318,8 +326,9 @@ export default function ClientOverview() {
       <ClientOverviewEmpty
         name={displayClientName || clientName}
         variant={overviewEmptyVariant}
+        busy={resuming}
         onPrimaryAction={
-          overviewEmptyVariant === 'intake-pending'
+          overviewEmptyVariant === 'in-progress' ? handleFinishAssessment : overviewEmptyVariant === 'intake-pending'
             ? undefined
             : () => void handleNewAssessment()
         }
@@ -335,21 +344,22 @@ export default function ClientOverview() {
         archetype={archetype?.name}
         currentOverall={currentOverall}
         scoreChange={stats?.scoreChange ?? 0}
-        radarScores={currentRadar}
+        radarData={currentRadarData}
         lastAssessedAt={lastAssessmentDate}
         showAxisScores={showCoachAxis}
+        showBaselineDelta={sortedSnapshots.length > 1}
       />
 
       <JourneySection
         startingScores={startingScores}
         startingOverall={startingOverall}
-        startingDate={timestampToDate(startingSnapshot?.timestamp ?? null)}
+        startingDate={assessmentDate(startingSnapshot?.formData.assessedAt, timestampToDate(startingSnapshot?.timestamp ?? null))}
         currentScores={currentRadar}
         currentOverall={currentOverall}
         currentDate={lastAssessmentDate}
         goal={goalScores}
         trendPoints={sortedSnapshots.map((s) => ({
-          at: timestampToDate(s.timestamp) ?? new Date(),
+          at: assessmentDate(s.formData.assessedAt, timestampToDate(s.timestamp)) ?? new Date(0),
           score: s.overallScore,
         }))}
       />
@@ -370,6 +380,7 @@ export default function ClientOverview() {
         breakdown={categoryBreakdown}
         changes={categoryChanges}
         onPillar={() => navigate(`/dashboard/clients/${encodeURIComponent(clientName)}/report`)}
+        showDeltas={sortedSnapshots.length > 1}
       />
 
       <QuickActionsBar
@@ -390,9 +401,10 @@ interface HeroStripProps {
   archetype: string | null | undefined;
   currentOverall: number;
   scoreChange: number;
-  radarScores: number[];
+  radarData: RadarData[];
   lastAssessedAt: Date | null;
   showAxisScores: boolean;
+  showBaselineDelta: boolean;
 }
 
 function HeroStrip({
@@ -401,18 +413,18 @@ function HeroStrip({
   archetype,
   currentOverall,
   scoreChange,
-  radarScores,
+  radarData,
   lastAssessedAt,
   showAxisScores,
+  showBaselineDelta,
 }: HeroStripProps) {
   const t = tone(currentOverall);
 
   return (
-    <section className="rounded-[28px] border border-border bg-card p-7 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)] sm:p-8">
+    <section className={PANEL_HERO}>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        {/* Left: identity */}
         <div className="flex flex-col gap-3">
-          <h1 className="text-3xl font-bold tracking-[-0.020em] text-foreground sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-[-0.02em] text-foreground sm:text-4xl">
             {name}
           </h1>
 
@@ -448,9 +460,8 @@ function HeroStrip({
         {showAxisScores ? (
           <div className="flex items-center gap-6">
             <div className="text-right">
-              <p className="inline-flex items-center justify-end gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                <AxisDiamondMark />
-                Current AXIS™
+              <p className={cn(EYEBROW, 'inline-flex items-center justify-end gap-1.5')}>
+                AXIS Score™
               </p>
               <div className="mt-1 flex items-baseline justify-end gap-1">
                 <span className={cn('text-6xl font-bold leading-none tracking-[-0.025em] tabular-nums', TONE_TEXT[t])}>
@@ -460,19 +471,24 @@ function HeroStrip({
                   <span className="text-xl font-semibold text-muted-foreground">/ 100</span>
                 ) : null}
               </div>
-              {scoreChange !== 0 ? (
+              {showBaselineDelta && scoreChange !== 0 ? (
                 <p
                   className={cn(
                     'mt-1 text-[12px] font-semibold tabular-nums',
                     scoreChange > 0 ? 'text-score-green-fg' : 'text-score-red-fg',
                   )}
                 >
-                  {scoreChange > 0 ? '▲ +' : '▼ '}
+                  {scoreChange > 0 ? '+' : ''}
                   {scoreChange} since baseline
                 </p>
               ) : null}
             </div>
-            <MiniPillarRadar scores={radarScores} size={120} />
+            <OverallRadarPolygon
+              data={radarData}
+              profile
+              clientFacingLabels
+              overallScore={currentOverall}
+            />
           </div>
         ) : null}
       </div>
@@ -509,11 +525,8 @@ function JourneySection({
   trendPoints,
 }: JourneySectionProps) {
   return (
-    <section className="rounded-[28px] border border-border bg-card p-7 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)] sm:p-8">
-      <p className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        <AxisDiamondMark />
-        Journey
-      </p>
+    <section className={PANEL_HERO}>
+      <p className={cn(EYEBROW, 'mb-4')}>Journey</p>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <JourneyCard
@@ -565,12 +578,13 @@ function JourneyCard({ eyebrow, score, when, scores, variant, available, fallbac
   return (
     <div
       className={cn(
-        'flex items-center gap-4 rounded-2xl border bg-card-elevated p-5',
-        highlight ? 'border-foreground/10 shadow-[0_1px_3px_rgba(15,15,15,0.05)]' : 'border-border',
+        'flex items-center gap-4',
+        INNER,
+        highlight && 'border-foreground/10',
       )}
     >
       <div className="flex flex-col gap-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <p className={EYEBROW}>
           {eyebrow}
         </p>
         {available ? (
@@ -590,7 +604,7 @@ function JourneyCard({ eyebrow, score, when, scores, variant, available, fallbac
         )}
       </div>
       <div className="ml-auto">
-        <MiniPillarRadar scores={scores} size={92} variant={variant} />
+        <MiniPillarRadar scores={scores} size={92} variant={variant} overallScore={score} />
       </div>
     </div>
   );
@@ -609,8 +623,8 @@ function GoalCard({
 }) {
   if (goal.source === 'stated') {
     return (
-      <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card-elevated p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      <div className={cn('flex flex-col gap-2.5', INNER)}>
+        <p className={EYEBROW}>
           Goal
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -670,7 +684,7 @@ function prettifyGoal(g: string): string {
 function TrendChart({ points, goal }: { points: { at: Date; score: number }[]; goal: number | null }) {
   if (points.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card-elevated px-4 py-6 text-center text-sm text-muted-foreground">
+      <div className="rounded-md border border-dashed border-border bg-card-elevated px-4 py-6 text-center text-sm text-muted-foreground">
         No assessments captured yet — trend will appear here after the first assessment.
       </div>
     );
@@ -804,9 +818,9 @@ function AttentionCard({ missingPillars, onStartAssessment }: AttentionCardProps
   const allClear = items.length === 0;
 
   return (
-    <section className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)]">
+    <section className={PANEL}>
       <header className="mb-4 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <p className={cn(EYEBROW, 'inline-flex items-center gap-1.5')}>
           <AlertTriangle className="h-3.5 w-3.5" />
           Attention
         </p>
@@ -830,7 +844,7 @@ function AttentionCard({ missingPillars, onStartAssessment }: AttentionCardProps
             <li
               key={i}
               className={cn(
-                'rounded-2xl border p-3.5',
+                'rounded-md border p-3.5',
                 item.tone === 'amber' && 'border-score-amber-light bg-score-amber-light/40',
                 item.tone === 'red' && 'border-score-red-light bg-score-red-light/40',
                 item.tone === 'green' && 'border-score-green-light bg-score-green-light/40',
@@ -855,11 +869,11 @@ interface CoachNotesCardProps {
 
 function CoachNotesCard({ stats, loaded, onView }: CoachNotesCardProps) {
   return (
-    <section className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)]">
+    <section className={PANEL}>
       <header className="mb-4 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <p className={cn(EYEBROW, 'inline-flex items-center gap-1.5')}>
           <Eye className="h-3.5 w-3.5" />
-          Coach Notes
+          Coach notes
           <span className="ml-1 inline-flex items-center rounded-full bg-foreground/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-foreground-secondary">
             coach only
           </span>
@@ -927,16 +941,18 @@ function PillarSnapshots({
   breakdown,
   changes,
   onPillar,
+  showDeltas,
 }: {
   scores: ScoreSummary | null;
   breakdown: Record<string, number>;
   changes: Record<string, number | undefined>;
   onPillar: () => void;
+  showDeltas: boolean;
 }) {
   return (
-    <section className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)]">
+    <section className={PANEL}>
       <header className="mb-4 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <p className={cn(EYEBROW, 'inline-flex items-center gap-1.5')}>
           <ClipboardList className="h-3.5 w-3.5" />
           Pillar snapshots
         </p>
@@ -953,40 +969,29 @@ function PillarSnapshots({
         {PILLAR_ORDER.map((p) => {
           const cat: ScoreCategory | undefined = scores?.categories.find((c) => c.id === p.id);
           const displayScore = pillarDisplayScore(cat?.score ?? breakdown[p.id], cat?.assessed);
-          const change = cat?.assessed ? changes[p.id] : undefined;
-          const Icon = p.icon;
-          const badgeScore = displayScore ?? 0;
+          const change = cat?.assessed && showDeltas ? changes[p.id] : undefined;
+          const label = CLIENT_PILLAR_LABELS[p.id] ?? p.id;
           return (
             <button
               key={p.id}
               type="button"
               onClick={onPillar}
-              className="group flex flex-col gap-3 rounded-2xl border border-border bg-card-elevated p-4 text-left transition hover:border-foreground/15 hover:shadow-[0_2px_8px_rgba(15,15,15,0.05)]"
+              className="group flex flex-col gap-3 rounded-md border border-border bg-card-elevated p-4 text-left transition hover:border-foreground/15"
             >
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
-                  <Icon className="h-3.5 w-3.5" />
-                  {p.short}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.10em] text-muted-foreground">
+                  {label}
                 </span>
                 <DeltaPill diff={change} />
               </div>
-              <div className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    'text-3xl font-bold leading-none tracking-[-0.025em] tabular-nums',
-                    displayScore != null ? TONE_TEXT[tone(displayScore)] : 'text-muted-foreground',
-                  )}
-                >
-                  {displayScore ?? '—'}
-                </span>
-                {displayScore != null ? (
-                  <PillarScoreBadge pillar={p.id} score={badgeScore} size={56} />
-                ) : (
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
-                    —
-                  </span>
+              <span
+                className={cn(
+                  'text-3xl font-bold leading-none tracking-[-0.025em] tabular-nums',
+                  displayScore != null ? TONE_TEXT[tone(displayScore)] : 'text-muted-foreground',
                 )}
-              </div>
+              >
+                {displayScore ?? '—'}
+              </span>
             </button>
           );
         })}
@@ -1001,14 +1006,14 @@ function DeltaPill({ diff }: { diff: number | undefined }) {
   }
   if (diff > 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 rounded-full bg-score-green-light px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-score-green-fg">
-        ▲ +{diff}
+      <span className="text-[11px] font-semibold tabular-nums text-score-green-fg">
+        +{diff}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-score-red-light px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-score-red-fg">
-      ▼ {diff}
+    <span className="text-[11px] font-semibold tabular-nums text-score-red-fg">
+      {diff}
     </span>
   );
 }
@@ -1023,11 +1028,9 @@ function QuickActionsBar({
   onHistory: () => void;
 }) {
   return (
-    <section className="rounded-[20px] border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)] sm:p-5">
+    <section className="rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,15,15,0.04)] sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          Quick actions
-        </p>
+        <p className={EYEBROW}>Quick actions</p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={onNewAssessment} size="sm" className="h-9 gap-1.5 rounded-full">
             <Plus className="h-3.5 w-3.5" /> New assessment
@@ -1046,14 +1049,14 @@ function QuickActionsBar({
 function ActivityTimeline({ snapshots }: { snapshots: NonNullable<ClientDetailOutletContext['snapshots']> }) {
   if (snapshots.length === 0) return null;
   return (
-    <section className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)]">
-      <p className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+    <section className={PANEL}>
+      <p className={cn(EYEBROW, 'mb-4 inline-flex items-center gap-1.5')}>
         <Activity className="h-3.5 w-3.5" />
         Recent activity
       </p>
       <ul className="flex flex-col gap-3">
         {snapshots.map((s, i) => {
-          const date = timestampToDate(s.timestamp);
+          const date = assessmentDate(s.formData.assessedAt, timestampToDate(s.timestamp));
           const isPillar = (s.type ?? '').toString().startsWith('pillar') || (s.type ?? '').toString().startsWith('partial');
           return (
             <li key={s.id ?? `${i}`} className="flex items-start gap-3">
@@ -1108,25 +1111,4 @@ function buildVitals(formData: FormData | undefined): { label: string; value: st
 
 function capitalise(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
-
-// ─── AXIS diamond brand mark ─────────────────────────────────────────
-
-function AxisDiamondMark({ size = 11 }: { size?: number }) {
-  const c = size / 2;
-  const inner = size * 0.32;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-      <path
-        d={`M ${c} 0 L ${size} ${c} L ${c} ${size} L 0 ${c} Z`}
-        className="fill-foreground"
-        opacity={0.92}
-      />
-      <path
-        d={`M ${c} ${c - inner} L ${c + inner} ${c} L ${c} ${c + inner} L ${c - inner} ${c} Z`}
-        className="fill-background"
-        opacity={0.22}
-      />
-    </svg>
-  );
 }

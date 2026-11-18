@@ -3,6 +3,52 @@
  */
 
 export const ORG_BILLING_COPY = {
+  pageTitle: 'Billing',
+  pageTitleChange: 'Change plan',
+  breadcrumbStudio: 'Studio settings',
+  planSectionTitle: 'Plan',
+  usageSectionTitle: 'Usage',
+  paymentSectionTitle: 'Payment',
+  invoicesSectionTitle: 'Invoices',
+  contactSectionTitle: 'Billing contact',
+  internalPlanName: 'Free',
+  internalPrice: '\u00a30',
+  internalPlanLead: 'This organisation is on the internal plan. There is no charge.',
+  portalOpenFailedTitle: 'Could not open Stripe',
+  portalOpenFailedFallback: 'Could not open the billing portal.',
+  trialLead: (active: number, cap: number) =>
+    `Trial · ${active} of ${cap} client slots used.`,
+  trialEndsOn: (date: string) => `Trial ends ${date}.`,
+  activeLead: (price: string) => `${price} per month, billed automatically.`,
+  activeLeadNoPrice: 'Your subscription is active. Open the billing portal for invoices and payment details.',
+  pastDueLead: 'Your last payment failed. Update your payment method to keep the plan active.',
+  cancelledLead: 'Your subscription is cancelled. Resubscribe to restore full access.',
+  otherLead: 'Choose a plan to start billing.',
+  priceNone: '\u2014',
+  pricePerMonth: (price: string) => `${price} / month`,
+  clientsUsed: (active: number, cap: number) => `${active} of ${cap} client slots used`,
+  internalClientsUsed: (active: number) =>
+    `${active} active client${active === 1 ? '' : 's'}`,
+  noPaymentOnFile: 'No payment method on file yet. Choose a plan to add one at checkout.',
+  paymentManagedViaStripe: 'Card details and billing emails are managed in the billing portal.',
+  invoicesEmpty: 'Invoices appear here after your first payment.',
+  invoicesViewAll: 'View all in portal',
+  invoicesDownload: 'Download invoice',
+  cancelPlan: 'Cancel subscription',
+  cancelPlanHint: 'Cancel in the billing portal. Client data stays with you.',
+  reactivateHint: 'Resubscribe to pick up where you left off.',
+  adminOnlyTitle: 'Billing is admin-only',
+  adminOnlyBody:
+    'Billing is managed by your organisation admin. Ask them to adjust your plan or share an invoice.',
+  loadingPlan: 'Loading your plan\u2026',
+  goToDashboard: 'Go to dashboard',
+  backToDashboard: 'Back to dashboard',
+  continueSetup: 'Continue setup',
+  retry: 'Retry',
+  pastDueBannerTitle: 'Payment failed',
+  pastDueBannerBody: 'Update your card now to avoid interruption.',
+  stripeDisabledHint: 'Stripe is not configured in this environment. In production, payment management appears here.',
+
   billingPageIntroShort:
     'Your plan and usage are shown here. Change your client capacity in the packages section below.',
 

@@ -20,6 +20,7 @@ const PILLAR_SHORT: Record<string, string> = {
 export interface OverallSummaryProfile {
   dateOfBirth?: string;
   gender?: string;
+  assessedAt?: string;
 }
 
 function pillarLabel(id: string): string {
@@ -31,8 +32,11 @@ function sentenceCase(label: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function peerGroupLabel(dateOfBirth?: string, gender?: string): string | null {
-  const age = dateOfBirth ? calculateAge(dateOfBirth) : 0;
+function peerGroupLabel(dateOfBirth?: string, gender?: string, assessedAt?: string): string | null {
+  const reference = assessedAt ? Date.parse(assessedAt) : NaN;
+  const birth = dateOfBirth ? Date.parse(dateOfBirth) : NaN;
+  const age = Number.isFinite(reference) && Number.isFinite(birth)
+    ? Math.floor((reference - birth) / (365.25 * 24 * 60 * 60 * 1000)) : dateOfBirth ? calculateAge(dateOfBirth) : 0;
   const sexRaw = (gender ?? '').trim().toLowerCase();
   const sex = sexRaw === 'female' ? 'women' : sexRaw === 'male' ? 'men' : null;
   if (age > 0) {
@@ -83,7 +87,7 @@ export function buildOverallResultsSummary(
 
   const placement = clientHeroPlacementLine(
     overall,
-    peerGroupLabel(profile?.dateOfBirth, profile?.gender),
+    peerGroupLabel(profile?.dateOfBirth, profile?.gender, profile?.assessedAt),
     delta,
   );
 
@@ -113,7 +117,7 @@ export function buildClientScoreHeadline(scores: ScoreSummary): string | null {
     PILLAR_SHORT[bottom.id] ?? getPillarLabel(bottom.id, 'full').toLowerCase();
 
   if (top.id === bottom.id) {
-    return `Focus on ${topLabel} — your main lever this block.`;
+    return `Focus on ${topLabel}. It's where you'll see the biggest change this block.`;
   }
 
   if (bottom.score < 55) {

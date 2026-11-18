@@ -1,3 +1,5 @@
+import { validAssessmentComparison, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +11,6 @@ import AssessmentVersionSelector from '@/components/reports/AssessmentVersionSel
 import type { VersionSelectorSnapshot } from '@/components/reports/AssessmentVersionSelector';
 import type { FormData } from '@/contexts/FormContext';
 import { computeScores } from '@/lib/scoring';
-import { generateBodyCompInterpretation } from '@/lib/recommendations';
 import { Download, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -116,12 +117,13 @@ const PublicReportViewer = () => {
     previousFormData,
     previousScores,
     snapshotSummaries,
+    comparison,
     orgDetails,
-    plan,
     error,
     loading,
     clientName,
     changeNarrative,
+    assessmentDate,
   } = usePublicReport(token);
 
   // Consent gate — shown once per device per token (replaces PrivacyNoticeBanner).
@@ -169,6 +171,7 @@ const PublicReportViewer = () => {
       setExporting(false);
     }
   }
+  const [activeComparison, setActiveComparison] = useState<AssessmentComparison | null>(null);
   const [activeFormData, setActiveFormData] = useState<FormData | null>(null);
   const [activeScores, setActiveScores] = useState<typeof scores>(null);
   const [activePreviousFormData, setActivePreviousFormData] = useState<FormData | undefined>(undefined);
@@ -176,12 +179,13 @@ const PublicReportViewer = () => {
 
   useEffect(() => {
     if (formData && scores) {
+      setActiveComparison(comparison);
       setActiveFormData(formData);
       setActiveScores(scores);
       setActivePreviousFormData(previousFormData);
       setActivePreviousScores(previousScores);
     }
-  }, [formData, scores, previousFormData, previousScores]);
+  }, [formData, scores, previousFormData, previousScores, comparison]);
 
   const PAGE_SIZE = 9;
   const versionSnapshots = useMemo<VersionSelectorSnapshot[]>(() => {
@@ -225,16 +229,16 @@ const PublicReportViewer = () => {
   );
 
   const fetchSnapshot = useCallback(
-    async (snapshotId: string): Promise<FormData | null> => {
+    async (snapshotId: string): ReturnType<typeof getPublicSnapshot> => {
       if (!token) return null;
-      const cacheKey = ['publicSnapshot', token, snapshotId];
-      const cached = queryClient.getQueryData<FormData>(cacheKey);
+      const cacheKey = ['publicSnapshotWithComparison', token, snapshotId];
+      const cached = queryClient.getQueryData<NonNullable<Awaited<ReturnType<typeof getPublicSnapshot>>>>(cacheKey);
       if (cached) return cached;
 
       const snap = await getPublicSnapshot(token, snapshotId);
       if (!snap) return null;
-      queryClient.setQueryData(cacheKey, snap.formData);
-      return snap.formData;
+      queryClient.setQueryData(cacheKey, snap);
+      return snap;
     },
     [token, queryClient],
   );
@@ -250,33 +254,26 @@ const PublicReportViewer = () => {
 
       try {
         let fd: FormData | null;
+        let selectedComparison = comparison;
         if (clamped === 0) {
           fd = formData;
         } else {
-          fd = await fetchSnapshot(summary.id);
+          const snapshot = await fetchSnapshot(summary.id);
+          fd = snapshot?.formData ?? null;
+          selectedComparison = validAssessmentComparison(fd ?? undefined, snapshot?.assessmentComparison);
         }
         if (!fd) {
           setIsTransitioning(false);
           return;
         }
 
-        let prevFd: FormData | undefined;
-        if (clamped < snapshotSummaries.length - 1) {
-          const prevSummary = snapshotSummaries[clamped + 1];
-          if (clamped + 1 === 0) {
-            prevFd = formData;
-          } else {
-            const result = await fetchSnapshot(prevSummary.id);
-            if (result) prevFd = result;
-          }
-        }
-
         setTimeout(() => {
           const s = computeScores(fd!);
           setActiveFormData(fd);
           setActiveScores(s);
-          setActivePreviousFormData(prevFd);
-          setActivePreviousScores(prevFd ? computeScores(prevFd) : null);
+          setActiveComparison(selectedComparison);
+          setActivePreviousFormData(undefined);
+          setActivePreviousScores(null);
           setSelectedVersionIndex(clamped);
           const newPage = clamped >= paginableCount ? Math.max(0, totalPages - 1) : Math.floor(clamped / PAGE_SIZE);
           setVersionPage(newPage);
@@ -287,7 +284,7 @@ const PublicReportViewer = () => {
         setIsTransitioning(false);
       }
     },
-    [token, selectedVersionIndex, snapshotSummaries, formData, fetchSnapshot, paginableCount, totalPages],
+    [token, selectedVersionIndex, snapshotSummaries, formData, comparison, fetchSnapshot, paginableCount, totalPages],
   );
 
   const postureSnapshots = useMemo<AssessmentSnapshot[]>(() => {
@@ -388,35 +385,6 @@ const PublicReportViewer = () => {
     );
   }
 
-  const bodyComp = generateBodyCompInterpretation(formData, scores);
-
-  if (!plan) {
-    return (
-      <>
-        {helmet}
-        <AppShell
-        title={`${clientName}'s Report`}
-        mode="public"
-        publicLogoUrl={orgDetails?.logoUrl}
-        publicOrgName={orgDetails?.name}
-        showClientNav={!!token}
-        shareToken={token ?? undefined}
-        clientName={clientName}
-      >
-        <div
-          className="flex flex-col items-center justify-center py-20 px-4"
-          aria-busy="true"
-          aria-live="polite"
-        >
-          <span className="sr-only">Generating report</span>
-          <Loader2 className="h-8 w-8 text-primary mb-4 motion-safe:animate-spin" aria-hidden />
-          <p className="text-sm font-medium text-muted-foreground">Generating report…</p>
-        </div>
-      </AppShell>
-      </>
-    );
-  }
-
   const displayFormData = activeFormData ?? formData;
   const displayScores = activeScores ?? scores;
   const displayPrevFormData = activePreviousFormData ?? previousFormData;
@@ -486,12 +454,15 @@ const PublicReportViewer = () => {
           }
         >
           <ClientReport
-            scores={displayScores}
+            comparison={activeComparison}
+          scores={displayScores}
             goals={Array.isArray(displayFormData.clientGoals) ? displayFormData.clientGoals : []}
-            bodyComp={bodyComp ? { timeframeWeeks: bodyComp.timeframeWeeks } : undefined}
             formData={displayFormData}
             previousScores={displayPrevScores}
             previousFormData={displayPrevFormData}
+            assessmentDate={
+              resolveAssessmentDate(displayFormData.assessedAt, snapshotSummaries[selectedVersionIndex]?.date?.toDate?.() ?? assessmentDate)
+            }
             standalone={true}
           />
         </Suspense>
@@ -522,7 +493,7 @@ const PublicReportViewer = () => {
             Download my data
           </Button>
           <p id="gdpr-export-hint" className="sr-only">
-            GDPR Article 20 — export a copy of your assessment data
+            Download a copy of all the data from your assessment
           </p>
           {exportError ? (
             <p className="text-sm text-destructive text-center max-w-md" role="alert">
@@ -539,7 +510,7 @@ const PublicReportViewer = () => {
             <Link to={`/r/${token}/erasure`}>Request deletion</Link>
           </Button>
           <p id="gdpr-erasure-hint" className="text-[11px] text-muted-foreground text-center max-w-sm">
-            GDPR Article 17 — ask your coach to remove your data from One Assess
+            Ask your coach to remove your data from One Assess. This is your right under data protection law.
           </p>
         </div>
       )}

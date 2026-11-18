@@ -130,6 +130,54 @@
         { "fieldPath": "assessmentId", "order": "ASCENDING" },
         { "fieldPath": "visibility", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "studio-snapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "needsYou", "order": "ASCENDING" },
+        { "fieldPath": "needsYouAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hasAssessmentDraft",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "draftUpdatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "coachUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hasAssessmentDraft",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "draftUpdatedAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

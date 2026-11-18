@@ -5,7 +5,7 @@
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreCategory } from '@/lib/scoring';
 import { ASSESSMENT_LABELS, ASSESSMENT_OPTIONS } from '@/constants/assessment';
-import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
+import { CLIENT_REPORT_COPY, MOVEMENT_FINDING_COPY } from '@/constants/clientReport';
 
 const P4_LABELS = ASSESSMENT_LABELS.P4 as Record<string, string>;
 
@@ -17,6 +17,7 @@ export interface ClientMovementFindingRow {
   value: string;
   tone: MovementFindingTone;
   optionKey?: AssessmentOptionKey;
+  field?: string;
   raw?: string;
   name: string;
 }
@@ -155,6 +156,7 @@ function buildGroup(
       value,
       tone: toneForMovementValue(raw),
       optionKey,
+      field,
       raw,
       name: findingRowName(title, field, label),
     });
@@ -226,15 +228,36 @@ export function movementWorkOns(model: ClientMovementFindingsModel): Array<{
     .filter((row): row is { pattern: string; detail: string; tone: MovementFindingTone } => row != null);
 }
 
-/** One row per marked pattern: coach grade now, one grade better in 12 weeks. */
+const TONE_RANK: Record<MovementFindingTone, number> = { critical: 2, concern: 1, good: 0 };
+const MAX_OBSERVED_PER_PATTERN = 2;
+
+/** "Knees cave in, arches roll in. Fixing this keeps your knees…" — empty when the pattern looked good. */
+export function movementPatternDetail(group: ClientMovementFindingGroup): string {
+  const observed = group.rows
+    .filter((r) => r.tone !== 'good' && r.field && r.raw)
+    .sort((a, b) => TONE_RANK[b.tone] - TONE_RANK[a.tone])
+    .map((r) => MOVEMENT_FINDING_COPY.observed[r.field ?? '']?.[r.raw ?? ''])
+    .filter((line): line is string => Boolean(line))
+    .slice(0, MAX_OBSERVED_PER_PATTERN);
+  if (observed.length === 0) return '';
+  const seen = observed.join(', ');
+  const why = MOVEMENT_FINDING_COPY.why[group.id];
+  return `${seen.charAt(0).toUpperCase()}${seen.slice(1)}. ${why}`;
+}
+
+/** One row per marked pattern: coach grade now, one grade better by the end of the block. */
 export function movementProgressionRows(
   model: ClientMovementFindingsModel,
-): Array<{ name: string; current: string; twelveWeeks: string }> {
-  return model.groups.map((group) => ({
-    name: group.title,
-    current: gradeForTone(group.tone),
-    twelveWeeks: gradeForTone(nextTone(group.tone)),
-  }));
+): Array<{ name: string; current: string; twelveWeeks: string; detail?: string }> {
+  return model.groups.map((group) => {
+    const detail = movementPatternDetail(group);
+    return {
+      name: group.title,
+      current: gradeForTone(group.tone),
+      twelveWeeks: gradeForTone(nextTone(group.tone)),
+      ...(detail ? { detail } : {}),
+    };
+  });
 }
 
 function gradeForTone(tone: MovementFindingTone): string {

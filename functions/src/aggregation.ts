@@ -18,6 +18,7 @@ import {
 } from './shared/reportingFx';
 import { getLogCostFils } from './aiPricing';
 import { firestoreValueToDate as toDate } from './firestoreTimestamp';
+import { syncStudioFromOrganization } from './ownerConsoleSync';
 
 /**
  * Get Firestore instance (lazy initialization)
@@ -147,6 +148,12 @@ async function updateOrgStats(
 
   try {
     const orgRef = getDb().doc(`organizations/${orgId}`);
+    const existing = await orgRef.get();
+    if (!existing.exists) {
+      logger.warn('Skipping org stats for missing organization', { orgId });
+      return;
+    }
+
     const updates: Record<string, admin.firestore.FieldValue> = {
       'stats.lastUpdated': admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -253,6 +260,21 @@ export async function handleOrganizationChange(
       }
     }
   }
+
+  const orgId = change.after.ref.id || change.before.ref.id;
+  if (orgId) {
+    try {
+      await syncStudioFromOrganization({
+        orgId,
+        after: afterData,
+        before: beforeData,
+        isCreated,
+        isDeleted,
+      });
+    } catch (error) {
+      logger.error('Error syncing owner studio snapshot:', error);
+    }
+  }
 }
 
 /**
@@ -316,6 +338,8 @@ export async function handleAssessmentChange(
     if (!id) return;
     try {
       const orgRef = getDb().doc(`organizations/${id}`);
+      const existing = await orgRef.get();
+      if (!existing.exists) return;
       await orgRef.set(
         { 'stats.lastAssessmentDate': admin.firestore.FieldValue.serverTimestamp() },
         { merge: true }

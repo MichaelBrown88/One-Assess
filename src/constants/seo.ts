@@ -144,6 +144,13 @@ export function getDashboardSeoForPathname(pathname: string): SeoPageMeta {
       noindex: true,
     };
   }
+  if (pathname.startsWith(ROUTES.BILLING)) {
+    return {
+      title: 'Billing | One Assess',
+      description: 'Plan, capacity, payment method, and invoices.',
+      noindex: true,
+    };
+  }
   return base;
 }
 
@@ -182,11 +189,11 @@ export function getAppShellSeoForPathname(
     return { ...base, title: 'Settings | One Assess', description: 'Account, organisation, and notification preferences.' };
   }
 
-  if (path === ROUTES.BILLING) {
+  if (path === ROUTES.BILLING || path === ROUTES.BILLING_LEGACY) {
     return {
       ...base,
-      title: 'Billing & subscription | One Assess',
-      description: 'Plan, capacity, Stripe portal, and invoices.',
+      title: 'Billing | One Assess',
+      description: 'Plan, capacity, payment method, and invoices.',
     };
   }
   if (path === ROUTES.BILLING_SUCCESS) {

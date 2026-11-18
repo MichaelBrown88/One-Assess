@@ -27,7 +27,8 @@
       "@/*": ["./src/*"],
       "@shared/billing/*": ["./functions/src/shared/billing/*"],
       "@shared/reportingFx": ["./functions/src/shared/reportingFx.ts"],
-      "@shared/metadataInts": ["./functions/src/metadataInts.ts"]
+      "@shared/metadataInts": ["./functions/src/metadataInts.ts"],
+      "@shared/ownerConsole": ["./functions/src/shared/ownerConsole.ts"]
     }
   },
   "include": ["src", "functions/src/shared/billing/**/*.ts"]

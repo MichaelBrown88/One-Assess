@@ -21,7 +21,6 @@ const BASIC_INFO_KEYS = [
 const LIFESTYLE_KEYS = new Set([
   'activityLevel', 'sleepArchetype', 'stressLevel', 'nutritionHabits',
   'hydrationHabits', 'stepsPerDay', 'sedentaryHours', 'caffeineCupsPerDay',
-  'alcoholFrequency', 'medicationsFlag', 'medicationsNotes',
 ]);
 
 /** Goals captured during pre-assessment (comma-serialized clientGoals in remote submit). */
@@ -30,11 +29,6 @@ const PRE_ASSESSMENT_GOAL_KEYS = new Set([
   'trainingFrequency',
   'goalDeadline',
 ]);
-
-const PARQ_KEYS = [
-  'parq1', 'parq2', 'parq3', 'parq4', 'parq5', 'parq6', 'parq7',
-  'parq8', 'parq9', 'parq10', 'parq11', 'parq12', 'parq13', 'parqNotes',
-];
 
 const BODY_COMP_KEYS = [
   'inbodyWeightKg', 'inbodyBodyFatPct', 'bodyFatMassKg', 'inbodyBmi',
@@ -79,7 +73,6 @@ function allowedKeysForScope(scope: RemoteAssessmentScope): string[] {
     ...BASIC_INFO_KEYS,
     ...Array.from(LIFESTYLE_KEYS),
     ...Array.from(PRE_ASSESSMENT_GOAL_KEYS),
-    ...PARQ_KEYS,
     ...posturePathKeys,
   ];
 }
@@ -516,10 +509,6 @@ export async function handleSubmitRemoteAssessmentFields(
       nextForm.postureInputMode = 'manual';
     }
 
-    // Detect PAR-Q flag server-side (never submitted by client, always computed)
-    const PARQ_MEDICAL_IDS = ['parq1','parq2','parq3','parq4','parq5','parq6','parq7'];
-    const parqFlagged = PARQ_MEDICAL_IDS.some((k) => sanitized[k] === 'yes');
-
     // If the client submitted their real fullName, overwrite the top-level name
     // fields so the dashboard shows the client's own name instead of the coach-typed
     // placeholder (or the 'Unnamed client' fallback).
@@ -539,7 +528,6 @@ export async function handleSubmitRemoteAssessmentFields(
       remoteIntakeLastAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       ...nameUpdate,
-      ...(parqFlagged ? { parqFlagged: true } : {}),
     });
   });
 
@@ -741,7 +729,7 @@ export async function handleExtractRemoteBodyCompOcr(
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-3.5-flash',
     generationConfig: { responseMimeType: 'application/json' },
   });
 

@@ -1,0 +1,75 @@
+import { initialFormData, type FormData } from '@/types/assessmentForm';
+import { computeScores, type ScoreSummary } from '@/lib/scoring';
+/** Anonymised male example for local report review and tests. Never add a real client name or birth date. */
+export const SAMPLE_PREVIEW_FORM: FormData = {
+  ...initialFormData,
+  fullName: 'Sample Client',
+  dateOfBirth: '1995-01-15',
+  gender: 'male',
+  heightCm: '175',
+  clientGoals: ['weight-loss', 'build-muscle', 'improve-fitness'],
+  activityLevel: 'sedentary',
+  trainingExperience: 'beginner',
+  trainingFrequency: '',
+  stepsPerDay: '5800',
+  sedentaryHours: '9',
+  inbodyWeightKg: '81.2',
+  inbodyBodyFatPct: '31.2',
+  skeletalMuscleMassKg: '31.5',
+  waistCm: '92.4',
+  hipsCm: '104',
+  shouldersCm: '118',
+  chestCm: '104',
+  armLeftCm: '33.5',
+  armRightCm: '33.8',
+  thighLeftCm: '58',
+  thighRightCm: '58.2',
+  calfLeftCm: '38',
+  calfRightCm: '38.2',
+  cardioRestingHr: '68',
+  cardioPeakHr: '152',
+  cardioPost1MinHr: '118',
+  pushupsOneMinuteReps: '28',
+  squatsOneMinuteReps: '37',
+  plankDurationSeconds: '50',
+  gripLeftKg: '40',
+  gripRightKg: '42',
+  gripTestMethod: 'dynamometer',
+  sleepArchetype: 'fair',
+  stressLevel: 'moderate',
+  nutritionHabits: 'fair',
+  hydrationHabits: 'good',
+  caffeineCupsPerDay: '3',
+  lastCaffeineIntake: 'evening',
+  ohsSquatDepth: 'parallel',
+  ohsKneeAlignment: 'valgus',
+  ohsFeetPosition: 'pronation',
+  hingeDepth: 'fair',
+  hingeBackRounding: 'moderate',
+  lungeLeftKneeAlignment: 'caves-inward',
+  lungeRightBalance: 'fair',
+};
+
+export const SAMPLE_PREVIEW_SCORES: ScoreSummary = computeScores(SAMPLE_PREVIEW_FORM);
+
+export const SAMPLE_PREVIEW_DATE = new Date('2026-09-08T12:00:00.000Z');
+
+/** Separate synthetic adult fixture; never relabel the sample client's measurements as a female client. */
+export const FEMALE_PREVIEW_FORM: FormData = {
+  ...initialFormData,
+  fullName: 'Female example (synthetic)', dateOfBirth: '1988-04-14', gender: 'female',
+  assessedAt: SAMPLE_PREVIEW_DATE.toISOString(), heightCm: '165',
+  clientGoals: ['build-muscle', 'improve-fitness'], trainingExperience: 'intermediate',
+  trainingFrequency: '3', activityLevel: 'moderately-active', stepsPerDay: '7500',
+  inbodyWeightKg: '64', inbodyBodyFatPct: '28', skeletalMuscleMassKg: '23',
+  waistCm: '76', hipsCm: '98', shouldersCm: '101', chestCm: '89',
+  armLeftCm: '27', armRightCm: '27.2', thighLeftCm: '54', thighRightCm: '54.2',
+  calfLeftCm: '34', calfRightCm: '34.2',
+  cardioRestingHr: '70', cardioPeakHr: '149', cardioPost1MinHr: '125',
+  pushupsOneMinuteReps: '16', squatsOneMinuteReps: '31', plankDurationSeconds: '48',
+  gripLeftKg: '27', gripRightKg: '28', gripTestMethod: 'dynamometer',
+  sleepArchetype: 'good', stressLevel: 'moderate', nutritionHabits: 'good', hydrationHabits: 'good',
+  ohsSquatDepth: 'parallel', ohsKneeAlignment: 'neutral', ohsFeetPosition: 'neutral',
+  hingeDepth: 'fair', hingeBackRounding: 'moderate', lungeLeftKneeAlignment: 'neutral', lungeRightBalance: 'good',
+};
+export const FEMALE_PREVIEW_SCORES = computeScores(FEMALE_PREVIEW_FORM);

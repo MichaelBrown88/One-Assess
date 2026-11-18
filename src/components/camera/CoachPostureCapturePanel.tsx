@@ -1,113 +1,70 @@
 /**
- * Minimal coach-held posture capture: silent, no pose detection or voice.
- * Confirmed shots wait for Storage upload, then attach to the assessment.
+ * Single-view coach-held posture capture: silent, no pose detection or voice.
+ * Confirm runs a landmark quality gate, then returns the frame so the parent
+ * can process in the background.
  */
 
 import React, { useCallback, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
 import { Button } from '@/components/ui/button';
 import { Camera, Check, RotateCcw, X, Loader2 } from 'lucide-react';
-import { updatePostureImage } from '@/services/liveSessions';
-import { VIEWS, type ViewType } from '@/hooks/postureCompanion/types';
 import { PostureGuideOverlay } from './PostureGuideOverlay';
 import { COACH_POSTURE_CAPTURE_COPY as COPY } from '@/constants/coachPostureCapture';
-import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/utils/logger';
 import { captureVideoFrame } from '@/lib/camera/captureVideoFrame';
-import type { UserProfile } from '@/types/auth';
-import type { PostureCompanionData } from '@/lib/types/companion';
-import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
+import { checkCoachStillQuality } from '@/lib/camera/checkCoachStillQuality';
+import type { ViewType } from '@/hooks/postureCompanion/types';
 
 const REAR_CAMERA = { facingMode: { ideal: 'environment' as const } };
 
 interface CoachPostureCapturePanelProps {
-  sessionId: string;
-  organizationId: string;
-  profile: UserProfile;
+  view: ViewType;
   onClose: () => void;
-  onCommitted: (data: PostureCompanionData) => void;
+  /** Called with the JPEG data URL after the quality gate passes — do not await processing. */
+  onShot: (imageDataUrl: string) => void;
 }
 
 export const CoachPostureCapturePanel: React.FC<CoachPostureCapturePanelProps> = ({
-  sessionId,
-  organizationId,
-  profile,
+  view,
   onClose,
-  onCommitted,
+  onShot,
 }) => {
   const webcamRef = useRef<Webcam>(null);
-  const committedRef = useRef<Partial<Record<ViewType, { url: string; analysis: PostureAnalysisResult }>>>({});
-  const [viewIdx, setViewIdx] = useState(0);
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [cameraAttempt, setCameraAttempt] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+  const [checkingQuality, setCheckingQuality] = useState(false);
+  const [qualityError, setQualityError] = useState<string | null>(null);
 
-  const view = VIEWS[viewIdx];
   const viewLabel = COPY.VIEW_LABELS[view] ?? view;
 
   const handleShutter = useCallback(() => {
     const frame = captureVideoFrame(webcamRef.current?.video ?? null, 0.9);
     if (!frame) return;
+    setQualityError(null);
     setCaptured(frame);
   }, []);
 
   const handleUsePhoto = useCallback(async () => {
-    if (!captured || saving) return;
-    setSaving(true);
-    try {
-      const result = await updatePostureImage(
-        sessionId,
-        view,
-        captured,
-        undefined,
-        'this-device',
-        organizationId,
-        profile,
-      );
-      committedRef.current[view] = { url: result.storageUrl, analysis: result.analysis };
-
-      if (viewIdx >= VIEWS.length - 1) {
-        const images: Record<string, string> = {};
-        const analysis: Record<string, PostureAnalysisResult> = {};
-        VIEWS.forEach((id) => {
-          const item = committedRef.current[id];
-          if (item) {
-            images[id] = item.url;
-            analysis[id] = item.analysis;
-          }
-        });
-        onCommitted({
-          postureAiResults: analysis,
-          postureImages: {},
-          postureImagesStorage: images,
-        });
-        return;
-      }
-
+    if (!captured || checkingQuality) return;
+    setCheckingQuality(true);
+    setQualityError(null);
+    const result = await checkCoachStillQuality(captured, view);
+    setCheckingQuality(false);
+    if (!result.ok) {
+      setQualityError(result.reason);
       setCaptured(null);
-      setViewIdx((i) => i + 1);
-    } catch (err) {
-      logger.error('[COACH_POSTURE] Upload failed', 'PostureCapture', err);
-      toast({
-        title: COPY.UPLOAD_FAILED_TITLE,
-        description: COPY.UPLOAD_FAILED_BODY,
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
+      return;
     }
-  }, [captured, saving, sessionId, view, organizationId, profile, viewIdx, onCommitted, toast]);
+    onShot(captured);
+  }, [captured, checkingQuality, onShot, view]);
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-black">
       <div className="flex items-center justify-between px-4 py-3 text-white">
         <div>
-          <p className="text-sm font-semibold">
-            {COPY.VIEW_HEADER(viewIdx + 1, VIEWS.length, viewLabel)}
-          </p>
+          <p className="text-sm font-semibold">{COPY.SINGLE_VIEW_HEADER(viewLabel)}</p>
           {!captured && (
             <p className="mt-0.5 max-w-md text-xs text-white/70">{COPY.VIEW_HINTS[view]}</p>
           )}
@@ -118,7 +75,6 @@ export const CoachPostureCapturePanel: React.FC<CoachPostureCapturePanelProps> =
           className="text-white hover:bg-white/10 hover:text-white"
           onClick={onClose}
           aria-label={COPY.CLOSE_ARIA}
-          disabled={saving}
         >
           <X className="h-5 w-5" />
         </Button>
@@ -169,6 +125,12 @@ export const CoachPostureCapturePanel: React.FC<CoachPostureCapturePanelProps> =
             )}
           </>
         )}
+        {qualityError && (
+          <div className="absolute inset-x-4 bottom-4 rounded-lg bg-amber-500/95 px-4 py-3 text-center text-sm font-medium text-amber-950">
+            <p className="font-semibold">{COPY.QUALITY_GATE_FAIL_TITLE}</p>
+            <p className="mt-1 text-xs leading-snug">{qualityError}</p>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-4 px-4 py-5">
@@ -176,16 +138,29 @@ export const CoachPostureCapturePanel: React.FC<CoachPostureCapturePanelProps> =
           <>
             <Button
               variant="outline"
-              onClick={() => setCaptured(null)}
-              disabled={saving}
+              disabled={checkingQuality}
+              onClick={() => {
+                setCaptured(null);
+                setQualityError(null);
+              }}
               className="rounded-full border-white/30 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               {COPY.RETAKE}
             </Button>
-            <Button onClick={() => void handleUsePhoto()} disabled={saving} className="rounded-full px-8">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-              {saving ? COPY.SAVING : COPY.USE_PHOTO}
+            <Button
+              onClick={() => {
+                void handleUsePhoto();
+              }}
+              disabled={checkingQuality}
+              className="rounded-full px-8"
+            >
+              {checkingQuality ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {checkingQuality ? COPY.USE_PHOTO_CHECKING : COPY.USE_PHOTO}
             </Button>
           </>
         ) : cameraError ? null : (

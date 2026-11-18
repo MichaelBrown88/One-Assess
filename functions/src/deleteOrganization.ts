@@ -102,6 +102,7 @@ async function deleteOrgAndSubcollections(orgId: string): Promise<void> {
   }
 
   await orgRef.delete();
+  await getDb().doc(`studio-snapshots/${orgId}`).delete();
 }
 
 export async function handleDeleteOrganization(

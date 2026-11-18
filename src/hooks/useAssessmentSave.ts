@@ -182,75 +182,40 @@ export function useAssessmentSave({
             }
           : null;
         if (parsedEdit?.assessmentId && profile?.organizationId) {
-            if (parsedEdit.snapshotId) {
-              // Edit existing snapshot in place with cascade; for partial, merge with current so we don't wipe other pillars
-              const { getCurrentAssessment, updateSnapshotWithCascade } = await import('@/services/assessmentHistory');
-              const isPartialEdit = parsedEdit.editType?.startsWith('partial-');
-              let dataToSave = formData;
-              if (isPartialEdit) {
-                const current = await getCurrentAssessment(user.uid, clientName, profile.organizationId);
-                dataToSave = current?.formData && Object.keys(current.formData).length > 0
+            // Sessions are append-only in Firestore rules (coaches cannot update/delete
+            // past session docs). Edit saves must update current/state and append a new
+            // session via updateCoachAssessment — never mutate historical sessions.
+            const { generateClientSlug } = await import('@/services/clientProfiles');
+            const clientSlug = generateClientSlug(clientName) || parsedEdit.assessmentId;
+            let dataToSave = formData;
+            if (parsedEdit.editType?.startsWith('partial-')) {
+              const { getCurrentAssessment } = await import('@/services/assessmentHistory');
+              const current = await getCurrentAssessment(user.uid, clientName, profile.organizationId);
+              dataToSave =
+                current?.formData && Object.keys(current.formData).length > 0
                   ? { ...current.formData, ...formData }
                   : formData;
-              }
-              const result = await updateSnapshotWithCascade(
-                user.uid,
-                clientName,
-                parsedEdit.snapshotId,
-                dataToSave,
-                profile.organizationId
-              );
-              if (result.success) {
-                removeEditAssessment();
-                removePartialAssessment();
-                clearDraft();
-                setIsEditMode(true);
-                try {
-                  const { publishPublicReport } = await import('@/services/publicReports');
-                  await publishPublicReport({
-                    coachUid: user.uid,
-                    assessmentId: parsedEdit.assessmentId,
-                    formData: dataToSave,
-                    organizationId: profile.organizationId,
-                  });
-                } catch (pubErr) {
-                  logger.warn('[Assessment] Failed to update public report after snapshot edit', pubErr);
-                }
-                toast({
-                  title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
-                  description: result.message,
-                });
-                saveSucceeded = true;
-                await decrementSandboxTrialAfterSuccessfulSave({
-                  organizationId: profile.organizationId,
-                  isDemoAssessment,
-                  subscriptionPlan: orgSettings?.subscription?.plan ?? null,
-                });
-                setSavingId(parsedEdit.assessmentId);
-                setSaving(false);
-                return;
-              }
             }
-            // No snapshotId or update failed: fall back to full doc update (creates new snapshot)
             await updateCoachAssessment(
               user.uid,
-              parsedEdit.assessmentId,
-              formData,
+              clientSlug,
+              dataToSave,
               scores.overall,
-              profile?.organizationId,
-              profile
+              profile.organizationId,
+              profile,
             );
-            assessmentId = parsedEdit.assessmentId;
+            assessmentId = clientSlug;
             removeEditAssessment();
+            removePartialAssessment();
             clearDraft();
             setIsEditMode(true);
             toast({
               title: UI_TOASTS.SUCCESS.ASSESSMENT_UPDATED,
-              description: `Assessment for ${clientName} has been updated without changing the original date.`
+              description: `Assessment for ${clientName} has been updated.`,
             });
             saveSucceeded = true;
             await decrementSandboxTrialAfterSuccessfulSave({
-              organizationId: profile?.organizationId,
+              organizationId: profile.organizationId,
               isDemoAssessment,
               subscriptionPlan: orgSettings?.subscription?.plan ?? null,
             });
@@ -645,9 +610,13 @@ export function useAssessmentSave({
           variant: 'destructive',
         });
       } else {
+        const detail =
+          errorMessage && errorMessage !== 'undefined' && errorMessage.length < 180
+            ? errorMessage
+            : UI_TOASTS.ERROR.SYNC_ERROR_DESC;
         toast({
           title: UI_TOASTS.ERROR.SYNC_ERROR,
-          description: UI_TOASTS.ERROR.SYNC_ERROR_DESC,
+          description: detail,
           variant: 'destructive',
         });
       }
@@ -681,11 +650,11 @@ export function useAssessmentSave({
     }
   }, [isResultsPhase, user, savingId, saving, isDemoAssessment, handleSaveToDashboard]);
 
-  // Clear share cache when savingId changes
+  // Clear share cache when savingId or the sent training week changes
   useEffect(() => {
     shareCacheRef.current = { client: null, coach: null };
     setShareCache({ client: null, coach: null });
-  }, [savingId]);
+  }, [savingId, formData.reportLiftingSessions]);
 
   const ensureShareArtifacts = useCallback(async (view: 'client' | 'coach'): Promise<ShareArtifacts> => {
     if (shareCacheRef.current[view]) {

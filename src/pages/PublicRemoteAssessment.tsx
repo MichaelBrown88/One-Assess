@@ -14,7 +14,6 @@ import { RemoteIntakeWelcome } from '@/components/remote/RemoteIntakeWelcome';
 import {
   RemoteMobileChoiceField,
   RemoteMobileTextField,
-  RemoteMobileYesNoField,
 } from '@/components/remote/RemoteMobileField';
 import { RemoteMobileDateWheelPicker } from '@/components/remote/RemoteMobileDateWheelPicker';
 import { PosturePhoneCaptureGraphic } from '@/components/remote/PosturePhoneCaptureGraphic';
@@ -55,9 +54,6 @@ function lifestyleToFields(lifestyle: LifestyleRemoteState, allowed: Set<string>
     ['hydrationHabits', lifestyle.hydrationHabits],
     ['stepsPerDay', lifestyle.stepsPerDay.trim()],
     ['caffeineCupsPerDay', lifestyle.caffeineCupsPerDay.trim()],
-    ['alcoholFrequency', lifestyle.alcoholFrequency],
-    ['medicationsFlag', lifestyle.medicationsFlag],
-    ['medicationsNotes', lifestyle.medicationsNotes.trim()],
   ];
   for (const [k, v] of entries) {
     if (!allowed.has(k) || !v) continue;
@@ -66,28 +62,20 @@ function lifestyleToFields(lifestyle: LifestyleRemoteState, allowed: Set<string>
   return out;
 }
 
-function isScreenValidWithMeds(
+function isScreenValidRemote(
   screen: RemoteIntakeScreen,
   basic: BasicInfoState,
   lifestyle: LifestyleRemoteState,
-  parq: Record<string, string>,
   posturePaths: Partial<Record<RemotePostureView, string>>,
   goalsState: PreAssessmentGoalsState,
 ): boolean {
-  if (
-    screen.kind === 'text' &&
-    screen.field === 'medicationsNotes' &&
-    lifestyle.medicationsFlag !== 'yes'
-  ) {
-    return true;
-  }
   if (screen.kind === 'text' && screen.field === 'fullName') {
     return basic.fullName.trim().length >= 2;
   }
   if (screen.kind === 'text' && screen.field === 'email') {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(basic.email.trim());
   }
-  return isScreenValid(screen, basic, lifestyle, parq, posturePaths, goalsState);
+  return isScreenValid(screen, basic, lifestyle, {}, posturePaths, goalsState);
 }
 
 export default function PublicRemoteAssessment() {
@@ -106,7 +94,6 @@ export default function PublicRemoteAssessment() {
 
   const [basicInfo, setBasicInfo] = useState<BasicInfoState>(() => initialBasicFromPrefill({}));
   const [lifestyle, setLifestyle] = useState<LifestyleRemoteState>(INITIAL_LIFESTYLE_REMOTE);
-  const [parqAnswers, setParqAnswers] = useState<Record<string, string>>({});
   const [posturePaths, setPosturePaths] = useState<Partial<Record<RemotePostureView, string>>>({});
   const [posturePlan, setPosturePlan] = useState<PostureIntakePlan>(null);
   const [goals, setGoals] = useState<PreAssessmentGoalsState>(INITIAL_PRE_ASSESSMENT_GOALS);
@@ -137,19 +124,15 @@ export default function PublicRemoteAssessment() {
     };
   }, [token]);
 
-  const screens = useMemo(() => {
-    const built = buildRemoteIntakeScreens({
-      allowedKeys,
-      prefill,
-      gender: basicInfo.gender,
-    });
-    return built.filter((s) => {
-      if (s.kind === 'text' && s.field === 'medicationsNotes') {
-        return lifestyle.medicationsFlag === 'yes';
-      }
-      return true;
-    });
-  }, [allowedKeys, prefill, basicInfo.gender, lifestyle.medicationsFlag]);
+  const screens = useMemo(
+    () =>
+      buildRemoteIntakeScreens({
+        allowedKeys,
+        prefill,
+        gender: basicInfo.gender,
+      }),
+    [allowedKeys, prefill, basicInfo.gender],
+  );
 
   const currentScreen = screens[screenIndex];
   const progress = screens.length > 0 ? (screenIndex + 1) / screens.length : 0;
@@ -160,11 +143,10 @@ export default function PublicRemoteAssessment() {
   const currentValid = useMemo(() => {
     if (!currentScreen) return false;
     if (currentScreen.kind === 'posture') return postureStepReady;
-    return isScreenValidWithMeds(
+    return isScreenValidRemote(
       currentScreen,
       basicInfo,
       lifestyle,
-      parqAnswers,
       posturePaths,
       goals,
     );
@@ -172,7 +154,6 @@ export default function PublicRemoteAssessment() {
     currentScreen,
     basicInfo,
     lifestyle,
-    parqAnswers,
     posturePaths,
     goals,
     postureStepReady,
@@ -221,7 +202,6 @@ export default function PublicRemoteAssessment() {
       const fields: Record<string, string> = {
         ...basicInfo,
         ...lifestyleToFields(lifestyle, allowedKeys),
-        ...parqAnswers,
       };
       for (const [view, path] of Object.entries(posturePaths)) {
         if (path) fields[`postureRemotePath_${view}`] = path;
@@ -405,17 +385,6 @@ export default function PublicRemoteAssessment() {
             ))}
           </div>
         );
-      case 'parq':
-        return (
-          <RemoteMobileYesNoField
-            label={currentScreen.label}
-            showLabel={false}
-            value={parqAnswers[currentScreen.questionId] ?? ''}
-            onChange={(v) =>
-              setParqAnswers((prev) => ({ ...prev, [currentScreen.questionId]: v }))
-            }
-          />
-        );
       case 'goals':
         return (
           <RemoteMobileGoalPicker
@@ -468,7 +437,14 @@ export default function PublicRemoteAssessment() {
   };
 
   const primaryLabel =
-    screenIndex >= screens.length - 1 ? 'Submit' : 'Next';
+    screenIndex >= screens.length - 1
+      ? 'Submit'
+      : currentScreen?.kind === 'select' &&
+          currentScreen.optional &&
+          currentScreen.domain === 'lifestyle' &&
+          !lifestyle[currentScreen.field as keyof LifestyleRemoteState]
+        ? ASSESSMENT_COPY.REMOTE_INTAKE_SKIP
+        : 'Next';
 
   if (currentScreen?.kind === 'welcome') {
     return (

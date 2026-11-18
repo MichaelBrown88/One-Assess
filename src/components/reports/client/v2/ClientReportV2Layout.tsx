@@ -7,6 +7,7 @@ import { PostureFilmstrip } from './PostureFilmstrip';
 import { ClientPillarBrief } from './ClientPillarBrief';
 import { ClientPartialAssessmentBanner } from '../sub-components/ClientPartialAssessmentBanner';
 import type { SectionId } from '../clientReportSections';
+import { CLIENT_PLAN_COPY } from '@/constants/clientPlanCopy';
 
 interface ClientReportV2LayoutProps {
   model: ClientReportModel;
@@ -21,7 +22,7 @@ interface ClientReportV2LayoutProps {
 const BAND_PAD = 'px-6 py-8 sm:px-10 sm:py-9';
 const BAND_GREY = `${BAND_PAD} bg-report-band`;
 const BAND_WHITE = `${BAND_PAD} bg-card`;
-const BAND_PLAN = `${BAND_PAD} bg-score-green-light`;
+const BAND_PLAN = `${BAND_PAD} bg-card`;
 
 const PILLAR_BAND_ORDER: ClientReportPillarModel['scoringId'][] = [
   'bodyComp',
@@ -53,6 +54,8 @@ export function ClientReportV2Layout({
     (a, b) => PILLAR_BAND_ORDER.indexOf(a.scoringId) - PILLAR_BAND_ORDER.indexOf(b.scoringId),
   );
   const movementAssessed = pillars.some((p) => p.scoringId === 'movementQuality');
+  const showRoadmap = model.roadmapCards.length > 0;
+
 
   return (
     <div className="overflow-hidden border-y border-border xl:rounded-sm xl:border">
@@ -63,6 +66,7 @@ export function ClientReportV2Layout({
           overall={model.overall}
           previousOverall={model.previousOverall}
           welcome={model.welcome}
+          goalLabels={model.goalLabels}
           radarData={model.radarData}
           previousRadarData={model.previousRadarData}
           orgName={orgName}
@@ -78,7 +82,20 @@ export function ClientReportV2Layout({
           {showPartialAssessmentBanner && index === 0 ? (
             <ClientPartialAssessmentBanner activeSectionIds={activeSectionIds} />
           ) : null}
-          <ClientPillarBrief pillar={pillar} formData={model.formData} />
+          {index === 0 ? <p className="mb-5 max-w-prose text-xs leading-relaxed text-foreground-secondary">{CLIENT_PLAN_COPY.assumption}</p> : null}
+          <ClientPillarBrief
+            pillar={pillar}
+            formData={model.formData}
+            comparison={model.comparison}
+            nutritionTargets={
+              model.roadmapTarget
+                ? {
+                    calories: model.roadmapTarget.calories,
+                    proteinG: model.roadmapTarget.proteinG,
+                  }
+                : undefined
+            }
+          />
           {pillar.scoringId === 'movementQuality' && model.posture ? (
             <div className="mt-8 border-t border-border pt-8">
               <PostureFilmstrip posture={model.posture} embedded />
@@ -93,11 +110,12 @@ export function ClientReportV2Layout({
         </div>
       ) : null}
 
-      {model.roadmapCards.length > 0 ? (
+      {showRoadmap ? (
         <div className={BAND_PLAN}>
           <ClientRoadmapSection
             cards={model.roadmapCards}
             target={model.roadmapTarget}
+            trainingWeek={model.trainingWeek}
             embedded
           />
         </div>

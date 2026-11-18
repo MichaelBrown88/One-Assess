@@ -21,6 +21,8 @@ import { ROUTES } from '@/constants/routes';
 import { UI_TOASTS } from '@/constants/ui';
 import { functionsCallableUserMessage } from '@/lib/firebase/functionsCallableUserMessage';
 import { logger } from '@/lib/utils/logger';
+import { createBaselineClient } from '@/services/clientProfiles';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { cn } from '@/lib/utils';
 
 interface NewClientModalProps {
@@ -113,15 +115,19 @@ export function NewClientModal({ open, onOpenChange, organizationId }: NewClient
     }
   }
 
-  function handleStartInStudio() {
-    if (!isValidName || loading) return;
+  async function handleStartInStudio() {
+    if (!isValidName || !hasOrgContext || loading) return;
     setLoading('studio');
-    startBaselineAssessmentSession({
-      fullName: trimmedName,
-      ...(trimmedEmail ? { email: trimmedEmail } : {}),
-    });
-    handleClose(false);
-    navigate(ROUTES.ASSESSMENT);
+    try {
+      await createBaselineClient(trimmedName, trimmedEmail, organizationId);
+      startBaselineAssessmentSession({ fullName: trimmedName, ...(trimmedEmail ? { email: trimmedEmail } : {}) });
+      handleClose(false);
+      navigate(ROUTES.ASSESSMENT);
+    } catch (error) {
+      toast({ title: ASSESSMENT_DRAFT_COPY.NEW_ERROR, description: error instanceof Error ? error.message : ASSESSMENT_DRAFT_COPY.LOAD_ERROR, variant: 'destructive' });
+    } finally {
+      setLoading(null);
+    }
   }
 
   if (!hasOrgContext) {
@@ -144,7 +150,7 @@ export function NewClientModal({ open, onOpenChange, organizationId }: NewClient
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl sm:rounded-[28px]">
+      <DialogContent className="max-h-[90vh] gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-2xl sm:rounded-lg">
         <div className="flex flex-col overflow-y-auto p-7">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-xl font-bold tracking-tight text-foreground">

@@ -99,7 +99,7 @@ export function ScoreRing({
                 : 'text-4xl font-bold tabular-nums tracking-[-0.02em] text-foreground sm:text-[2.75rem]'
             }
           >
-            {score || '—'}
+            {score || '–'}
           </span>
           <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             / 100

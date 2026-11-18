@@ -32,10 +32,10 @@ export function CapacitySlider({
     ? selectedTier.monthlyPriceGbp
     : Math.round(selectedTier.annualPriceGbp / 12);
   const priceFormatted = formatPrice(price, 'GBP', 'en-GB');
-
-  const aiLabel = selectedTier.monthlyAiCredits === -1
-    ? 'Unlimited AI scans'
-    : `${selectedTier.monthlyAiCredits} AI scans included`;
+  const periodCaption =
+    billingPeriod === 'annual'
+      ? CHECKOUT_FLOW_COPY.leverCapacityPerMonthAnnual
+      : CHECKOUT_FLOW_COPY.billingSubscribePerMonthShort;
 
   return (
     <div className="space-y-3">
@@ -105,7 +105,7 @@ export function CapacitySlider({
                 <span>{tier.clientLimit}</span>
                 {isCurrent && (
                   <span className="text-[8px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 rounded-full">
-                    Now
+                    {CHECKOUT_FLOW_COPY.leverCapacityNow}
                   </span>
                 )}
               </button>
@@ -117,8 +117,8 @@ export function CapacitySlider({
       {/* Price readout */}
       <div className="flex items-baseline gap-1.5">
         <span className="text-2xl font-bold tabular-nums text-foreground">{priceFormatted}</span>
-        <span className="text-sm text-foreground-secondary">
-          /mo {billingPeriod === 'annual' ? 'billed yearly' : ''} \u00b7 {aiLabel}
+        <span className="text-sm text-muted-foreground">
+          {periodCaption}
         </span>
       </div>
     </div>

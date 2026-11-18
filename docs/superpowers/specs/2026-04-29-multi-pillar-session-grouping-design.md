@@ -80,7 +80,7 @@ Save loop iterates the `categories` array and stamps the corresponding `lastXDat
 
 Row UI shows the pillar set as chips:
 
-> **Faisal** — Body Comp + Strength + Lifestyle · due today
+> **Client A** — Body Comp + Strength + Lifestyle · due today
 > [Start session →]
 
 A small inline "edit" affordance lets coach drop pillars from the set before starting (e.g. de-select Strength). Default = all included.

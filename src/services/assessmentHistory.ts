@@ -23,6 +23,8 @@ import { generateClientSlug } from "@/services/clientProfiles";
 import { getPillarLabel, SCORING_TO_PARTIAL_MAP } from "@/constants/pillars";
 import type { ScoreCategory } from "@/lib/scoring/types";
 
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
+
 const MAX_SESSION_LIMIT = 100;
 
 /**
@@ -154,7 +156,7 @@ export function normalizeForComparison(obj: unknown): unknown {
   // Without this, two identical objects spread/merged in different order would hash differently.
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
-    if (key.startsWith('_')) continue;
+    if (key.startsWith('_') || key === 'assessedAt') continue;
     const value = (obj as Record<string, unknown>)[key];
     if (typeof value === 'string' && value.startsWith('data:image/') && value.length > 200) {
       result[key] = value.slice(0, 200);
@@ -184,6 +186,7 @@ export async function getCurrentAssessment(
   formData: FormData;
   overallScore: number;
   lastUpdated: Timestamp | null;
+  assessmentDateCorrections?: Record<string, string>;
   organizationId?: string;
 } | null> {
   if (!organizationId) {
@@ -199,6 +202,7 @@ export async function getCurrentAssessment(
     formData?: FormData;
     overallScore?: number;
     lastUpdated?: Timestamp;
+    assessmentDateCorrections?: Record<string, string>;
     organizationId?: string;
   };
 
@@ -212,6 +216,7 @@ export async function getCurrentAssessment(
     overallScore: typeof data.overallScore === "number" ? data.overallScore : 0,
     lastUpdated: (data.lastUpdated as Timestamp | undefined) ?? null,
     organizationId: data.organizationId,
+    assessmentDateCorrections: data.assessmentDateCorrections,
   };
 }
 
@@ -240,6 +245,13 @@ export async function updateCurrentAssessment(
 
   if (!hasFormDataChanged(oldData, formData)) return false;
 
+  let captured = assessmentDate(formData.assessedAt, assessmentDate(current?.formData.assessedAt, current?.lastUpdated?.toDate()));
+  if (!captured) {
+    const draft = await getDoc(doc(getDb(), ORGANIZATION.clients.draft(organizationId, generateClientSlug(clientName))));
+    const saved = draft.data();
+    captured = assessmentDate(saved?.formData?.assessedAt, saved?.updatedAt?.toDate?.()) ?? new Date();
+  }
+  formData = { ...formData, assessedAt: captured.toISOString() };
   const persistable = prepareFormDataForPersistence(formData);
 
   const currentRef = getCurrentStateDoc(organizationId, clientName);
@@ -250,6 +262,7 @@ export async function updateCurrentAssessment(
         formData: sanitizeForFirestore(persistable),
         overallScore: overallScore ?? 0,
         lastUpdated: serverTimestamp(),
+        ...(current?.assessmentDateCorrections ? { assessmentDateCorrections: current.assessmentDateCorrections } : {}),
         clientName: clientName || "Unnamed client",
         organizationId,
         coachUid,
@@ -390,6 +403,8 @@ export async function getSnapshots(
     }
   }
 
+  const currentState = await getCurrentAssessment("", clientName, organizationId);
+  const corrections = currentState?.assessmentDateCorrections ?? {};
   const snapshots: AssessmentSnapshot[] = [];
   snap.forEach((docSnap) => {
     const data = docSnap.data() as Partial<AssessmentSnapshot>;
@@ -400,7 +415,7 @@ export async function getSnapshots(
       type: data.type as AssessmentSnapshot["type"],
       assessmentType: data.assessmentType,
       pillar: data.pillar,
-      formData: (data.formData as FormData) ?? ({} as FormData),
+      formData: { ...((data.formData as FormData) ?? ({} as FormData)), ...(corrections[docSnap.id] ? { assessedAt: corrections[docSnap.id] } : {}) },
       overallScore: typeof data.overallScore === "number" ? data.overallScore : 0,
       notes: data.notes,
       scoresSummary: data.scoresSummary,

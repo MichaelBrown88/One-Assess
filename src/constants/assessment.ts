@@ -192,7 +192,7 @@ export const ASSESSMENT_TOOLTIPS = {
     hydrationHabits: 'Typical daily water/fluid intake and consistency.',
     caffeineCupsPerDay: 'Average number of caffeinated drinks per day (coffee, tea, energy drinks).',
     lastCaffeineIntake: 'Time of your most recent caffeine serving (helps with sleep timing).',
-    alcoholFrequency: 'Typical alcohol pattern over the last few months (affects recovery and body composition).',
+    alcoholFrequency: 'Typical alcohol pattern over the last few months, if it applies. Skip if you would rather not record it — it will not appear on the client report or change their score.',
     medicationsFlag: 'Whether the client takes regular prescription or over-the-counter medications that may affect exercise.',
     medicationsNotes: 'List medications and relevant notes (dose timing, conditions). Optional but recommended when medications are reported.',
   },
@@ -609,7 +609,8 @@ export const SECTION_TITLES = {
     'lifestyle-overview': 'Lifestyle Factors',
   },
   P2: {
-    'body-comp': 'Body Composition',
+    'inbody-results': 'InBody results',
+    'tape-measurements': 'Tape measurements',
     posture: 'Posture',
   },
   P3: {

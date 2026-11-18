@@ -1,151 +1,66 @@
-/**
- * High-level client roadmap cards — one behaviour theme per assessed area,
- * each with a few CONCRETE, referenceable prescriptions.
- *
- * Lead-magnet: a client who doesn't sign up still leaves with habits they
- * can run (easy talking-pace cardio, protein per meal, sleep, last meal).
- * No set/rep/%-1RM schemes. Deterministic from scores + goals + lifestyle.
- *
- * The AXIS report shows each prescription as its own short line.
- */
-
 import type { FormData } from '@/contexts/FormContext';
-import type { ClientGoalContext, PillarId } from '@/lib/goals/goalContext';
+import type { ClientGoalContext, ClientGoalId, PillarId } from '@/lib/goals/goalContext';
+import { ASSESSMENT_OPTIONS } from '@/constants/assessment';
+import { CLIENT_PLAN_COPY as COPY } from '@/constants/clientPlanCopy';
 
 export interface ClientRoadmapCard {
+  goalId: ClientGoalId;
+  label: string;
+  smartGoal: string;
+  how: string;
+  track: string;
+  review: string;
+  score: number | null;
   pillar: PillarId;
-  /** Short label for the numbered kicker, e.g. "Fitness". */
   pillarLabel: string;
-  /** Behaviour theme, e.g. "Build easy cardio fitness". */
   title: string;
-  /** Concrete, referenceable levers — targets/ranges, never exact programming. */
   prescriptions: string[];
 }
-
-const PILLAR_LABELS: Record<PillarId, string> = {
-  bodyComp: 'Body composition',
-  strength: 'Strength',
-  cardio: 'Fitness',
-  movementQuality: 'Movement',
-  lifestyle: 'Lifestyle',
+export interface RoadmapCardBuildOptions {
+  monthlyWeightChangeKg?: number | null;
+  scoresByPillar?: Partial<Record<PillarId, number>>;
+}
+const PRIMARY_PILLAR: Record<ClientGoalId, PillarId> = {
+  'weight-loss': 'bodyComp', 'build-muscle': 'bodyComp', 'body-recomposition': 'bodyComp',
+  'build-strength': 'strength', 'improve-fitness': 'cardio', 'general-health': 'lifestyle',
 };
-
-type CardBody = Pick<ClientRoadmapCard, 'title' | 'prescriptions'>;
-
-const PROTEIN_EVERY_MEAL = 'A palm-sized protein serving at every meal';
-
-function cardioCard(score: number): CardBody {
-  const habit =
-    '2 easy, low-heart-rate cardio sessions a week — breathe through your nose, at a pace you can still talk.';
-  if (score < 55) {
-    return { title: 'Build easy cardio fitness', prescriptions: [habit] };
-  }
-  if (score <= 75) {
-    return { title: 'Keep easy cardio in the week', prescriptions: [habit] };
-  }
-  return { title: 'Keep the fitness you have', prescriptions: [habit] };
-}
-
-function strengthCard(score: number): CardBody {
-  const sessions = '3–4 lifting sessions a week.';
-  const progress = 'Aim to add a little weight each week.';
-  if (score < 55) {
-    return { title: 'Build a strength habit', prescriptions: [sessions, progress] };
-  }
-  if (score <= 75) {
-    return { title: 'Keep getting stronger', prescriptions: [sessions, progress] };
-  }
-  return { title: 'Keep the strength you\u2019ve built', prescriptions: [sessions, progress] };
-}
-
-function bodyCompCard(score: number, ctx: ClientGoalContext): CardBody {
-  if (ctx.hasWeightLoss || ctx.hasBodyRecomp) {
-    return {
-      title: 'Lose fat, keep muscle',
-      prescriptions: [
-        `${PROTEIN_EVERY_MEAL}. Trim portions a little until your weight is moving the right way.`,
-      ],
+type CardBody = Pick<ClientRoadmapCard, 'smartGoal' | 'how' | 'track' | 'review'>;
+function bodyFor(goal: ClientGoalId, ctx: ClientGoalContext, pace?: number | null): CardBody {
+  switch (goal) {
+    case 'weight-loss': return {
+      smartGoal: pace != null ? pace < 0 ? COPY.lossTitle(pace) : COPY.lossMaintain : COPY.lossNoEstimate,
+      how: COPY.lossHow, track: COPY.lossTrack, review: COPY.lossReview,
+    };
+    case 'build-muscle': return {
+      smartGoal: ctx.hasWeightLoss ? COPY.muscleCutTitle : COPY.muscleTitle,
+      how: COPY.muscleHow, track: COPY.muscleTrack, review: COPY.muscleReview,
+    };
+    case 'body-recomposition': return {
+      smartGoal: COPY.recompTitle, how: COPY.recompHow, track: COPY.muscleTrack, review: COPY.muscleReview,
+    };
+    case 'build-strength': return {
+      smartGoal: COPY.strengthTitle, how: COPY.strengthHow, track: COPY.strengthTrack, review: COPY.strengthReview,
+    };
+    case 'improve-fitness': return {
+      smartGoal: COPY.fitnessTitle, how: COPY.fitnessHow, track: COPY.fitnessTrack, review: COPY.fitnessReview,
+    };
+    case 'general-health': return {
+      smartGoal: COPY.healthTitle, how: COPY.healthHow, track: COPY.healthTrack, review: COPY.healthReview,
     };
   }
-  if (ctx.hasBuildMuscle) {
-    return {
-      title: 'Fuel for muscle',
-      prescriptions: [
-        `${PROTEIN_EVERY_MEAL}. Eat enough that your weight holds or slowly rises.`,
-      ],
-    };
-  }
-  if (score < 60) {
-    return {
-      title: 'Look leaner while you get stronger',
-      prescriptions: [
-        `${PROTEIN_EVERY_MEAL}. Keep portions steady and let training change how you look.`,
-      ],
-    };
-  }
-  return {
-    title: 'Hold your composition',
-    prescriptions: [
-      `${PROTEIN_EVERY_MEAL}. Keep portions about where they are if your weight is already steady.`,
-    ],
-  };
 }
-
-function movementCard(score: number): CardBody {
-  const habit =
-    'Warm up before you train, use a full range of motion, and stretch when you finish.';
-  if (score < 60) {
-    return { title: 'Train through a full range', prescriptions: [habit] };
-  }
-  if (score <= 75) {
-    return { title: 'Move with more control', prescriptions: [habit] };
-  }
-  return { title: 'Move well, keep it', prescriptions: [habit] };
-}
-
-function lifestyleCard(formData: FormData | undefined): CardBody {
-  const lines = [
-    'Keep a regular bedtime, and finish your last meal 2–3 hours before you sleep.',
-  ];
-
-  const cups = parseFloat(formData?.caffeineCupsPerDay || '0');
-  const lastCaffeine = formData?.lastCaffeineIntake || '';
-  const cutoffHour = parseInt(lastCaffeine.split(':')[0] || '0', 10);
-  if (cups >= 3 || cutoffHour >= 14) {
-    lines.push('Stop caffeine 8 hours before bed so it doesn\u2019t bleed into your sleep.');
-  }
-
-  return {
-    title: 'Sleep and recovery',
-    prescriptions: lines.slice(0, 3),
-  };
-}
-
-/**
- * One card per assessed area, in the order the pillars are given
- * (callers pass the goal-role-sorted list so priority order carries over).
- */
+/** One entry per stated goal. Actions do not depend on buying coaching. */
 export function buildClientRoadmapCards(
-  pillars: Array<{ scoringId: PillarId; score: number }>,
-  formData: FormData | undefined,
+  pillars: { scoringId: PillarId; score: number }[],
+  _formData: FormData | undefined,
   ctx: ClientGoalContext,
+  options: RoadmapCardBuildOptions = {},
 ): ClientRoadmapCard[] {
-  return pillars.map(({ scoringId, score }) => {
-    const body =
-      scoringId === 'cardio'
-        ? cardioCard(score)
-        : scoringId === 'strength'
-          ? strengthCard(score)
-          : scoringId === 'bodyComp'
-            ? bodyCompCard(score, ctx)
-            : scoringId === 'movementQuality'
-              ? movementCard(score)
-              : lifestyleCard(formData);
-
-    return {
-      pillar: scoringId,
-      pillarLabel: PILLAR_LABELS[scoringId],
-      ...body,
-    };
+  return [...new Set(ctx.allGoals)].map(goalId => {
+    const body = bodyFor(goalId, ctx, options.monthlyWeightChangeKg);
+    const pillar = PRIMARY_PILLAR[goalId];
+    const label = ASSESSMENT_OPTIONS.clientGoals.find(g => g.value === goalId)?.label ?? goalId;
+    return { goalId, label, ...body, pillar, pillarLabel: label, title: body.smartGoal,
+      prescriptions: [body.how], score: options.scoresByPillar?.[pillar] ?? pillars.find(p => p.scoringId === pillar)?.score ?? null };
   });
 }

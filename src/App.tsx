@@ -30,19 +30,15 @@ const PublicReportViewer = lazy(() => import("./pages/PublicReportViewer"));
 const ClientPortalEntry = lazy(() => import("./pages/ClientPortalEntry"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Companion = lazy(() => import("./pages/Companion"));
-const ClientDetail = lazy(() => import("./pages/ClientDetail"));
 const ClientDetailLayout = lazy(() => import("./pages/client/ClientDetailLayout"));
 const ClientTimelineTab = lazy(() => import("./pages/client/ClientTimelineTab"));
 const ClientOverview = lazy(() => import("./pages/client/ClientOverview"));
-const ClientHistory = lazy(() => import("./pages/client/ClientHistory"));
 const ClientReportTab = lazy(() => import("./pages/client/ClientReportTab"));
-const ClientCoachNotesTab = lazy(() => import("./pages/client/ClientCoachNotesTab"));
 const ClientSettings = lazy(() => import("./pages/client/ClientSettings"));
 const OrgAdminLayout = lazy(() => import("./pages/org/OrgAdminLayout"));
 const OrgOverview = lazy(() => import("./pages/org/OrgOverview"));
 const OrgTeam = lazy(() => import("./pages/org/OrgTeam"));
 const OrgRetention = lazy(() => import("./pages/org/OrgRetention"));
-// OrgBilling route now redirects to /billing — lazy import removed
 const OrgIntegrations = lazy(() => import("./pages/org/OrgIntegrations"));
 const Billing = lazy(() => import("./pages/Billing"));
 const BillingSuccess = lazy(() => import("./pages/BillingSuccess"));
@@ -55,9 +51,12 @@ const SandboxTrial = lazy(() => import("./pages/SandboxTrial"));
 
 // Platform admin pages (separate from org admin)
 const PlatformLogin = lazy(() => import("./pages/admin/PlatformLogin"));
-const PlatformDashboard = lazy(() => import("./pages/admin/PlatformDashboard"));
+const OwnerConsoleLayout = lazy(() => import("./pages/admin/OwnerConsoleLayout"));
+const OwnerHome = lazy(() => import("./pages/admin/OwnerHome"));
+const OwnerStudios = lazy(() => import("./pages/admin/OwnerStudios"));
 const PlatformSetup = lazy(() => import("./pages/admin/PlatformSetup"));
-const OrganizationManage = lazy(() => import("./pages/admin/OrganizationManage"));
+const OwnerStudio = lazy(() => import("./pages/admin/OwnerStudio"));
+const OwnerOrgRedirect = lazy(() => import("./pages/admin/OwnerOrgRedirect"));
 
 // Legal pages
 const Terms = lazy(() => import("./pages/legal/Terms"));
@@ -69,9 +68,8 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Blog = lazy(() => import("./pages/Blog"));
 const Demo = lazy(() => import("./pages/Demo"));
-
-// Internal design explorations
-const AxisExplorations = lazy(() => import("./pages/AxisExplorations"));
+// Dev-only: may load a real client snapshot from the local machine; never ship to production.
+const SampleReportPreview = import.meta.env.DEV ? lazy(() => import("./pages/SampleReportPreview")) : null;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +111,15 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
 function SettingsRedirect() {
   const { search, hash } = useLocation();
   return <Navigate to={`/dashboard/settings${search}${hash}`} replace />;
+}
+
+/**
+ * Redirect /billing → /dashboard/billing, preserving query + hash so
+ * Stripe cancel URLs and emailed links still land on the workspace page.
+ */
+function BillingRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${ROUTES.BILLING}${search}${hash}`} replace />;
 }
 
 /**
@@ -187,8 +194,7 @@ const App = () => (
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/blog" element={<Blog />} />
                     <Route path="/demo" element={<Demo />} />
-                    {/* Internal AXIS signature design comparison (no auth — sample data) */}
-                    <Route path="/axis-explorations" element={<AxisExplorations />} />
+                    {SampleReportPreview && <Route path={ROUTES.SAMPLE_REPORT_PREVIEW} element={<SampleReportPreview />} />}
                     {/* Onboarding - allows unauthenticated access (will create account at step 1) */}
                     <Route path="/onboarding" element={<Onboarding />} />
                     {/* Zero-friction sandbox trial — no sign-up required */}
@@ -231,6 +237,7 @@ const App = () => (
                       <Route path="work" element={<Navigate to="../clients" replace />} />
                       <Route path="team" element={<DashboardTeam />} />
                       <Route path="settings" element={<Settings />} />
+                      <Route path="billing" element={<Billing />} />
                     </Route>
                     <Route
                       path="/assessment"
@@ -283,10 +290,10 @@ const App = () => (
                       <Route path="integrations" element={<OrgIntegrations />} />
                     </Route>
                     <Route
-                      path="/billing"
+                      path={ROUTES.BILLING_LEGACY}
                       element={
                         <RequireAuth>
-                          <Billing />
+                          <BillingRedirect />
                         </RequireAuth>
                       }
                     />
@@ -316,8 +323,12 @@ const App = () => (
                     {/* Platform admin routes (separate from org admin) */}
                     <Route path="/admin/login" element={<PlatformLogin />} />
                     <Route path="/admin/setup" element={<RequireAuth><PlatformSetup /></RequireAuth>} />
-                    <Route path="/admin" element={<RequireAuth><PlatformDashboard /></RequireAuth>} />
-                    <Route path="/admin/organizations/:orgId" element={<RequireAuth><OrganizationManage /></RequireAuth>} />
+                    <Route path="/admin" element={<OwnerConsoleLayout />}>
+                      <Route index element={<OwnerHome />} />
+                      <Route path="studios" element={<OwnerStudios />} />
+                      <Route path="studios/:orgId" element={<OwnerStudio />} />
+                    </Route>
+                    <Route path="/admin/organizations/:orgId" element={<OwnerOrgRedirect />} />
                     
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />

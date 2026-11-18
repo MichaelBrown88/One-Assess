@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useOrgAdminNavVisibility } from '@/hooks/useOrgAdminNavVisibility';
 import { ROUTES } from '@/constants/routes';
 import {
   Activity,
+  CreditCard,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -11,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CoachWorkspaceProfileFooter } from '@/components/dashboard/CoachWorkspaceProfileFooter';
+import { DASHBOARD_SHELL_COPY } from '@/constants/dashboardShellCopy';
 import { UI_EVENTS } from '@/constants/uiEvents';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +45,7 @@ export function CoachWorkspaceSidebar({
   className,
 }: CoachWorkspaceSidebarProps) {
   const { pathname } = useLocation();
+  const showOrgAdminNav = useOrgAdminNavVisibility();
 
   const openCommandMenu = () => {
     window.dispatchEvent(new Event(UI_EVENTS.OPEN_COMMAND_MENU));
@@ -58,8 +62,21 @@ export function CoachWorkspaceSidebar({
   ];
 
   const studioNav: NavItem[] = [
-    { label: 'Studio settings', to: ROUTES.SETTINGS, icon: Settings },
+    {
+      label: DASHBOARD_SHELL_COPY.STUDIO_SETTINGS,
+      to: ROUTES.SETTINGS,
+      icon: Settings,
+      match: (p) => p.startsWith(ROUTES.SETTINGS),
+    },
   ];
+  if (showOrgAdminNav) {
+    studioNav.push({
+      label: DASHBOARD_SHELL_COPY.BILLING,
+      to: ROUTES.BILLING,
+      icon: CreditCard,
+      match: (p) => p.startsWith(ROUTES.BILLING),
+    });
+  }
 
   return (
     <aside
@@ -185,6 +202,7 @@ export function CoachWorkspaceSidebarCollapsed({
   onToggleCollapse,
 }: CoachWorkspaceSidebarCollapsedProps) {
   const openCommandMenu = () => window.dispatchEvent(new Event(UI_EVENTS.OPEN_COMMAND_MENU));
+  const showOrgAdminNav = useOrgAdminNavVisibility();
 
   return (
     <aside
@@ -248,6 +266,34 @@ export function CoachWorkspaceSidebarCollapsed({
           </TooltipTrigger>
           <TooltipContent side="right">Clients</TooltipContent>
         </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              to={ROUTES.SETTINGS}
+              className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={DASHBOARD_SHELL_COPY.STUDIO_SETTINGS}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{DASHBOARD_SHELL_COPY.STUDIO_SETTINGS}</TooltipContent>
+        </Tooltip>
+
+        {showOrgAdminNav ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                to={ROUTES.BILLING}
+                className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={DASHBOARD_SHELL_COPY.BILLING}
+              >
+                <CreditCard className="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">{DASHBOARD_SHELL_COPY.BILLING}</TooltipContent>
+          </Tooltip>
+        ) : null}
       </TooltipProvider>
     </aside>
   );

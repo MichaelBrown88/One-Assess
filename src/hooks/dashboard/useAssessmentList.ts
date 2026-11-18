@@ -69,10 +69,11 @@ export function useAssessmentList({
   const mainListRef = useRef<CoachAssessmentSummary[]>([]);
   const intakeAwaitingRef = useRef<CoachAssessmentSummary[]>([]);
   const intakePendingRef = useRef<CoachAssessmentSummary[]>([]);
+  const draftRowsRef = useRef<CoachAssessmentSummary[]>([]);
 
   const publishMergedItems = useCallback(() => {
     const intakeRows = mergeClientSummaries(intakeAwaitingRef.current, intakePendingRef.current);
-    setItems(mergeClientSummaries(mainListRef.current, intakeRows));
+    setItems(mergeClientSummaries(mergeClientSummaries(mainListRef.current, intakeRows), draftRowsRef.current));
   }, []);
 
   useEffect(() => {
@@ -158,6 +159,7 @@ export function useAssessmentList({
     mainListRef.current = [];
     intakeAwaitingRef.current = [];
     intakePendingRef.current = [];
+    draftRowsRef.current = [];
 
     unsubs.push(
       onSnapshot(
@@ -205,6 +207,31 @@ export function useAssessmentList({
 
     attachIntakeListeners();
 
+    const draftConstraints = [
+      where('organizationId', '==', readOrgId),
+      ...(resolvedCoachFilter ? [where('coachUid', '==', resolvedCoachFilter)] : []),
+      where('hasAssessmentDraft', '==', true),
+      orderBy('draftUpdatedAt', 'desc'),
+    ];
+    let draftGeneration = 0;
+    unsubs.push(onSnapshot(query(orgClientsColRef, ...draftConstraints, limit(20)), async (firstPage) => {
+      const generation = ++draftGeneration;
+      try {
+        const rows = firstPage.docs.map(mapOrgClientDocToSummary);
+        let page = firstPage;
+        while (page.size === 20 && !cancelled && generation === draftGeneration) {
+          page = await getDocs(query(orgClientsColRef, ...draftConstraints, startAfter(page.docs[page.docs.length - 1]), limit(20)));
+          rows.push(...page.docs.map(mapOrgClientDocToSummary));
+        }
+        if (cancelled || generation !== draftGeneration) return;
+        draftRowsRef.current = rows;
+        publishMergedItems();
+      } catch (error) {
+        logger.warn('[useAssessmentList] Draft pagination failed', error);
+      }
+    }, (error) => logger.warn('[useAssessmentList] Draft discovery failed', error)));
+
+
     unsubscribeRef.current = () => {
       cancelled = true;
       for (const unsub of unsubs) unsub();
@@ -246,7 +273,8 @@ export function useAssessmentList({
           newLastDoc = docSnap;
         });
 
-        setItems(prev => [...prev, ...newData]);
+        mainListRef.current = mergeClientSummaries(mainListRef.current, newData);
+        publishMergedItems();
         setLastDoc(newLastDoc);
         setHasMore(nextSnapshot.size === 20);
         setVisibleAssessmentsCount(prev => prev + newData.length);
@@ -269,7 +297,7 @@ export function useAssessmentList({
   const analytics: Analytics = useMemo(() => {
     const uniqueClients = new Set(items.map(a => a.clientName));
     const totalAssessments = items.reduce(
-      (sum, a) => sum + ((a as Record<string, unknown>).assessmentCount as number || 1), 0
+      (sum, a) => sum + (a.assessmentCount ?? 1), 0
     );
     return { totalClients: uniqueClients.size, totalAssessments };
   }, [items]);

@@ -1,3 +1,4 @@
+import { validAssessmentComparison, withMeasuredChanges } from './assessmentComparison';
 import type { ReactNode } from 'react';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreCategory, ScoreSummary } from '@/lib/scoring';
@@ -12,7 +13,8 @@ import {
   buildClientPriorityFallbacks,
 } from '@/components/reports/client/sub-components/clientPillarSummary';
 import { buildClientScoreHeadline, buildOverallResultsSummary } from '@/lib/reports/clientScoreHeadline';
-import { buildClientProgressionRows } from '@/lib/reports/clientProgressionRows';
+import { buildBodyCompProgressionRows, buildStrengthProgressionRows, buildCardioProgressionRows } from './clientProgressionProjections';
+import { withOneMonthHorizon } from './clientProgressionRows';
 import type { ClientReportProgressionRow } from '@/lib/reports/clientProgressionRows';
 import { buildClientRoadmapCards, type ClientRoadmapCard } from '@/lib/reports/clientRoadmapCards';
 import {
@@ -20,8 +22,13 @@ import {
   type ClientNinetyDayTarget,
 } from '@/lib/reports/clientNinetyDayTarget';
 import { formatKg1 } from '@/lib/reports/weightLossProjection';
+import { PLAN_CALENDAR_MONTHS, reportTrainingWeek, reportPlanSessions, withReportLiftingSessions, type ReportTrainingWeek } from '@/lib/reports/plannedTraining';
 import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
+import {
+  type PlanSmartGoal,
+} from '@/lib/reports/planSmartGoals';
 import { isReportablePostureFinding } from '@/lib/posture/buildStructuredPostureFindings';
+import { buildPostureOverview, reportablePostureFindings } from '@/lib/posture/postureOverview';
 import {
   pillarScoresFromCategories,
   buildRadarDataFromScores,
@@ -54,6 +61,7 @@ import {
   clientGoalPromiseRecomp,
   clientGoalPromiseStrength,
   clientGoalPromiseWeightLoss,
+  CLIENT_PLAN_WEEKS,
 } from '@/constants/clientReport';
 
 export type ClientPillarContentMode = 'progression' | 'lifestyle-factors' | 'movement-findings';
@@ -92,8 +100,11 @@ export interface ClientReportPostureModel {
 }
 
 export interface ClientReportModel {
+  comparison?: import('./assessmentComparison').AssessmentComparison | null;
   clientName: string;
   reportDate: string;
+  trainingWeek: ReportTrainingWeek;
+  calculationVersion: '2026-11-16';
   overall: number;
   previousOverall: number | null;
   headline: string | null;
@@ -106,10 +117,12 @@ export interface ClientReportModel {
   goalLabels: string[];
   /** Goal-primary area to improve this 12-week block. */
   priorityFocus: { label: string; score: number } | null;
-  /** High-level behaviour roadmap — one card per assessed pillar, goal-priority order. */
+  /** One actionable entry per stated client goal. */
   roadmapCards: ClientRoadmapCard[];
-  /** Achievable 12-week body-weight + macro target for the roadmap (null when data is insufficient). */
+  /** Achievable plan-length body-weight + macro target (null when data is insufficient). */
   roadmapTarget: ClientNinetyDayTarget | null;
+  /** Compatibility targets derived from the same report rows; not a separate calculation. */
+  planSmartGoals: PlanSmartGoal[];
   pillars: ClientReportPillarModel[];
   posture: ClientReportPostureModel | null;
   radarData: RadarData[];
@@ -119,6 +132,7 @@ export interface ClientReportModel {
 }
 
 export interface BuildClientReportModelInput {
+  comparison?: import('./assessmentComparison').AssessmentComparison | null;
   scores: ScoreSummary;
   formData?: FormData;
   goals?: string[];
@@ -129,9 +143,11 @@ export interface BuildClientReportModelInput {
 }
 
 export function buildClientReportModel(input: BuildClientReportModelInput): ClientReportModel {
-  const { scores, formData, goals, previousScores, gapAnalysisData, clientName, reportDate } =
-    input;
+  const { scores, formData: rawFormData, goals, previousScores, gapAnalysisData, clientName, reportDate } = input;
+  const referenceDate = rawFormData?.assessedAt || (Number.isFinite(Date.parse(reportDate)) ? new Date(reportDate).toISOString() : undefined);
+  const formData = rawFormData ? { ...withReportLiftingSessions(rawFormData, reportPlanSessions(rawFormData)), assessedAt: referenceDate } : undefined;
 
+  const comparison = validAssessmentComparison(rawFormData, input.comparison);
   const overall = Math.round(scores.overall ?? 0);
   const previousOverall =
     previousScores?.overall != null && previousScores.overall > 0 ? previousScores.overall : null;
@@ -140,11 +156,17 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
   const goalIds = goalCtx.allGoals;
   const goalLabels = goalIds
     .map((id) => ASSESSMENT_OPTIONS.clientGoals.find((g) => g.value === id)?.label ?? id)
-    .filter(Boolean)
-    .slice(0, 4);
+    .filter(Boolean);
 
+  const trainingWeek = reportTrainingWeek(formData, goalCtx);
+  const roadmapTarget = buildClientNinetyDayTarget(formData, scores, goalCtx);
+  const progression = {
+    'body-comp': withOneMonthHorizon(buildBodyCompProgressionRows(formData, scores, goals, undefined, roadmapTarget)),
+    strength: withOneMonthHorizon(buildStrengthProgressionRows(formData, goals, undefined, scores)),
+    cardio: withOneMonthHorizon(buildCardioProgressionRows(formData, scores, goals, gapAnalysisData[2])),
+  };
   const goalPromise = sanitizeClientReportCopy(
-    buildGoalPromise(formData, scores, goals, goalCtx),
+    buildGoalPromise(formData, scores, goals, goalCtx, roadmapTarget),
   );
   const headlineRaw = buildGoalAlignedSubheadline(scores, goalCtx);
   const headline = headlineRaw ? sanitizeClientReportCopy(headlineRaw) : null;
@@ -152,6 +174,7 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     buildOverallResultsSummary(scores, previousOverall, {
       dateOfBirth: formData?.dateOfBirth,
       gender: formData?.gender,
+      assessedAt: formData?.assessedAt,
     }),
   );
 
@@ -161,7 +184,8 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
 
   const pillars = sortPillarsByGoalRole(
     SECTION_IDS.map((sectionId) =>
-      buildPillarModel(sectionId, scores, previousScores, gapAnalysisData, formData, goalCtx, goals),
+      buildPillarModel(sectionId, scores, previousScores, gapAnalysisData, formData, goalCtx,
+        sectionId === 'body-comp' || sectionId === 'strength' || sectionId === 'cardio' ? withMeasuredChanges(progression[sectionId], formData, comparison, scores) : []),
     ).filter((p): p is ClientReportPillarModel => p != null),
   );
 
@@ -175,9 +199,16 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     })),
     formData,
     goalCtx,
+    { monthlyWeightChangeKg: roadmapTarget?.monthlyWeightChangeKg ?? null },
   );
 
-  const roadmapTarget = buildClientNinetyDayTarget(formData, scores, goalCtx);
+  const planSmartGoals: PlanSmartGoal[] = Object.entries(progression).flatMap(([section, rows]) => rows
+    .filter(row => row.twelveWeeks !== '–')
+    .map(row => ({ id: row.name === 'Body weight' ? 'bc-weight' : `${section}-${row.name}`,
+      category: section === 'body-comp' ? 'body-comp' : 'performance', label: row.name, unit: row.unit ?? '',
+      current: row.current, at1Month: row.oneMonth ?? '–', at16Weeks: row.twelveWeeks,
+      smartLine: `${row.name}: ${CLIENT_PLAN_WEEKS}-week progress guide`,
+    })));
 
   const radarData = buildRadarDataFromScores(pillarScoresFromCategories(scores.categories));
   const previousRadarData = previousScores
@@ -188,6 +219,9 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
   return {
     clientName,
     reportDate,
+    trainingWeek,
+    comparison,
+    calculationVersion: '2026-11-16',
     overall,
     previousOverall,
     headline,
@@ -197,6 +231,7 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
     goalLabels,
     roadmapCards,
     roadmapTarget,
+    planSmartGoals,
     pillars,
     posture,
     radarData,
@@ -221,6 +256,7 @@ function buildGoalPromise(
   scores: ScoreSummary,
   goals: string[] | undefined,
   goalCtx: ClientGoalContext,
+  roadmapTarget: ClientNinetyDayTarget | null,
 ): string {
   const label =
     ASSESSMENT_OPTIONS.clientGoals.find((g) => g.value === goalCtx.primaryGoal)?.label ??
@@ -228,13 +264,15 @@ function buildGoalPromise(
 
   if (formData && goalCtx.primaryGoal === GOAL_WEIGHT_LOSS) {
     const projected = projectClientTwelveWeekWeightLoss(formData, scores, goals);
-    if (projected && projected.lossKg > 0) {
-      const kg12w = formatKg1(projected.lossKg);
-      const rateLabel = projected.weeklyRateKg.toFixed(2);
+    // Same rounded pace the roadmap prints, so the hero and roadmap never differ by 0.1.
+    const kgPerMonth =
+      roadmapTarget?.monthlyWeightChangeKg != null
+        ? -roadmapTarget.monthlyWeightChangeKg
+        : (projected?.lossKg ?? 0) / PLAN_CALENDAR_MONTHS;
+    if (Math.round(kgPerMonth * 10) > 0) {
+      const perMonth = formatKg1(kgPerMonth);
       const protectMuscle = goalCtx.hasBuildMuscle || goalCtx.hasBodyRecomp;
-      return protectMuscle
-        ? clientGoalPromiseRecomp(rateLabel, kg12w)
-        : clientGoalPromiseWeightLoss(rateLabel, kg12w);
+      return protectMuscle ? clientGoalPromiseRecomp(perMonth) : clientGoalPromiseWeightLoss(perMonth);
     }
   }
 
@@ -264,16 +302,16 @@ function buildGoalAlignedSubheadline(
 
   if (goalCtx.primaryGoal === GOAL_WEIGHT_LOSS) {
     if (strength && strength.score >= 80) {
-      return 'You have a strong training base — we\'ll use it to hold muscle while body composition does the heavy lifting.';
+      return "You have a strong training base. We'll use it to hold on to muscle while the fat comes off.";
     }
     if (bodyComp && bodyComp.score < 60) {
       return 'Body composition is the main lever; everything else supports sustainable fat loss.';
     }
-    return 'Nutrition, steps, and strength training work together over the next 12 weeks.';
+    return `Nutrition, steps, and strength training work together over the next ${CLIENT_PLAN_WEEKS} weeks.`;
   }
 
   if (goalCtx.primaryGoal === GOAL_BUILD_MUSCLE && movement && movement.score >= 85) {
-    return 'Movement quality is already solid — we can push volume and load with confidence.';
+    return 'You already move well, so we can train harder and lift heavier with confidence.';
   }
 
   return buildClientScoreHeadline(scores);
@@ -351,7 +389,7 @@ function buildPillarModel(
   gapAnalysisData: GapAnalysisData[],
   formData: FormData | undefined,
   goalCtx: ClientGoalContext,
-  goals: string[] | undefined,
+  progressionRows: ClientReportProgressionRow[],
 ): ClientReportPillarModel | null {
   const scoringId = scoringIdForSection(sectionId);
   const cat = scores.categories?.find((c) => c.id === scoringId);
@@ -392,17 +430,7 @@ function buildPillarModel(
         : sectionId === 'body-comp' || sectionId === 'strength' || sectionId === 'cardio'
           ? extractGapMetrics(sectionId, gapAnalysisData[gapIndex], Math.round(cat.score ?? 0))
           : [],
-    progressionRows:
-      contentMode === 'progression'
-        ? buildClientProgressionRows(
-            sectionId,
-            gapAnalysisData,
-            formData,
-            cat,
-            scores,
-            goals,
-          )
-        : [],
+    progressionRows,
     contentMode,
     movementFindings,
     goalTieIn: buildPillarGoalTieIn(scoringId, pillarRole, goalCtx),
@@ -420,14 +448,14 @@ function buildPillarGoalTieIn(
     'your goal';
 
   if (role === 'primary') {
-    return `This is central to ${goalLabel.toLowerCase()} — expect the biggest shifts here.`;
+    return `This is central to ${goalLabel.toLowerCase()}, so expect the biggest changes here.`;
   }
   if (role === 'secondary') {
-    return `Supports ${goalLabel.toLowerCase()} — we\'ll train this in service of your main target.`;
+    return `This supports ${goalLabel.toLowerCase()}, so we'll train it alongside your main goal.`;
   }
   if (role === 'supporting' && pillar === 'lifestyle') {
     if (goalCtx.primaryGoal === GOAL_WEIGHT_LOSS) {
-      return `Habits that make fat loss easier — kept simple so ${goalLabel.toLowerCase()} stays the focus.`;
+      return `Habits that make fat loss easier, kept simple so ${goalLabel.toLowerCase()} stays the focus.`;
     }
     return `Lifestyle habits that back your ${goalLabel.toLowerCase()} plan.`;
   }
@@ -511,7 +539,7 @@ function buildPostureModel(formData?: FormData): ClientReportPostureModel | null
 
   const findings = hasAnalysis ? aggregatePostureFindings(results) : [];
   const notable = findings.filter(isReportablePostureFinding);
-  const sorted = sortFindingsForDisplay(notable);
+  const sorted = reportablePostureFindings(results);
   const headline = buildPostureOverview(sorted, hasAnalysis);
 
   const summaryLines = sorted.slice(0, 5).map((f) => {
@@ -528,35 +556,6 @@ function buildPostureModel(formData?: FormData): ClientReportPostureModel | null
     summaryLines,
     focusBullets: hasAnalysis ? buildFocusBullets(notable, 4) : [],
   };
-}
-
-function formatFindingList(names: string[]): string {
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-}
-
-function buildPostureOverview(
-  sorted: PostureFindingRecord[],
-  hasAnalysis: boolean,
-): string {
-  if (!hasAnalysis) return CLIENT_REPORT_COPY.v2PostureImagesOnlyHeadline;
-  if (sorted.length === 0) return CLIENT_REPORT_COPY.v2PostureBalancedHeadline;
-
-  const names = sorted.slice(0, 3).map((f) => sanitizeClientReportCopy(f.name));
-  const cue = sanitizeClientReportCopy(
-    (sorted[0]?.whatWellDo || sorted[0]?.whatItMeans || '').trim(),
-  );
-
-  if (sorted.length === 1) {
-    return cue
-      ? `${names[0]} is the main finding from this scan. ${cue}`
-      : `One area to refine: ${names[0]}.`;
-  }
-
-  const intro = `The scan flags ${formatFindingList(names)}.`;
-  if (cue) return `${intro} ${cue}`;
-  return `${intro} Those are the posture cues to work on first.`;
 }
 
 function collectPostureImages(formData: FormData): Record<string, string> {

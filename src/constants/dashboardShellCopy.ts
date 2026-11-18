@@ -6,4 +6,6 @@ export const DASHBOARD_SHELL_COPY = {
     'Switch to Clients to search your full client list.',
   MOBILE_SIDEBAR: 'Open sidebar',
   SKIP_MAIN: 'Skip to main content',
+  STUDIO_SETTINGS: 'Studio settings',
+  BILLING: 'Billing',
 } as const;

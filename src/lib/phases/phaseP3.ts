@@ -10,15 +10,14 @@ import {
   PHASE_GATE_HINTS,
   ASSESSMENT_LABELS,
   ASSESSMENT_TOOLTIPS,
-  ASSESSMENT_OPTIONS,
   SECTION_TITLES
 } from '@/constants/assessment';
 
 /**
- * One continuous fitness flow: resting HR is the first input of the same
- * section as the test itself (no section cliff between RHR and the test).
- * Rendered by the CardioRunSheet component (see SingleFieldFlow), which adds
- * the protocol card, 3:00 test countdown, and 1:00 recovery countdown.
+ * Fitness capture: resting, peak, and recovery heart rate.
+ * Rendered by CardioRunSheet (see SingleFieldFlow) with a short coach protocol
+ * note. No in-app timers. `cardioTestSelected` is set to a default on complete
+ * so legacy scoring paths that check for a protocol still work.
  */
 export const phaseP3: PhaseDefinition = {
   id: 'P3',
@@ -38,23 +37,18 @@ export const phaseP3: PhaseDefinition = {
           required: true,
         },
         {
-          id: 'cardioTestSelected' as keyof FormData,
-          type: 'select' as FieldType,
-          label: ASSESSMENT_LABELS.P3.cardioTestSelected,
-          tooltip: ASSESSMENT_TOOLTIPS.P3.cardioTestSelected,
-          options: ASSESSMENT_OPTIONS.cardioTestSelected,
-        },
-        {
           id: 'cardioPeakHr' as keyof FormData,
           type: 'number' as FieldType,
           label: ASSESSMENT_LABELS.P3.cardioPeakHr,
           tooltip: ASSESSMENT_TOOLTIPS.P3.cardioPeakHr,
+          required: true,
         },
         {
           id: 'cardioPost1MinHr' as keyof FormData,
           type: 'number' as FieldType,
           label: ASSESSMENT_LABELS.P3.cardioPost1MinHr,
           tooltip: ASSESSMENT_TOOLTIPS.P3.cardioPost1MinHr,
+          required: true,
         },
       ],
     },

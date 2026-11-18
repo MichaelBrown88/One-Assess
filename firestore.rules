@@ -199,6 +199,8 @@ service cloud.firestore {
         allow read: if isOrgAdmin(orgId) ||
                        (isOrgCoach(orgId) && resource.data.coachUid == request.auth.uid) ||
                        (isPlatformAdmin() && hasDataAccess(orgId));
+        allow get: if isOrgCoach(orgId) &&
+          !exists(/databases/$(database)/documents/organizations/$(orgId)/clients/$(clientSlug));
         allow create: if canWriteOrgData(orgId) && (
             (isPlatformAdmin() && hasDataAccess(orgId) && isNotImpersonating()) ||
             statsClientCount(orgId) < effectiveClientCap(orgId)
@@ -234,6 +236,10 @@ service cloud.firestore {
         // Assessment drafts — save-for-later
         match /assessmentDrafts/{doc} {
           allow read: if canReadClientDoc(orgId, clientSlug);
+          // New-client existence checks reveal no stored client data.
+          allow get: if isOrgCoach(orgId) &&
+            !exists(/databases/$(database)/documents/organizations/$(orgId)/clients/$(clientSlug)) &&
+            !exists(/databases/$(database)/documents/organizations/$(orgId)/clients/$(clientSlug)/assessmentDrafts/$(doc));
           allow write: if canWriteOrgData(orgId);
         }
 
@@ -467,6 +473,11 @@ service cloud.firestore {
     match /platform-stats/{document} {
       allow read: if isPlatformAdmin();
       allow write: if isPlatformAdmin();
+    }
+
+    match /studio-snapshots/{orgId} {
+      allow read: if isPlatformAdmin();
+      allow write: if false;
     }
 
     // =========================================================

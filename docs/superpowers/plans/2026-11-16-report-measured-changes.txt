@@ -1,0 +1,31 @@
+MEASURED CHANGES BETWEEN ASSESSMENTS
+16 November 2026
+
+Implement the requested comparison locally. Preserve the approved report plans,
+other-chat fixes and pre-existing edits. No deployment or database backfill.
+
+Use a shared selector over saved assessment sessions. Require an explicit,
+valid capture date on current and previous records, a distinct earlier capture
+date, a saved full assessment with captured data, and the same client. Re-saves
+with the same capture date, partial captures, drafts, undated legacy records,
+and future records cannot create a previous assessment. Prefer the latest save
+of the most recent eligible capture, not simply the second history row.
+
+Build a public-safe comparison payload containing dates, source session ID and
+only the numeric measurements/protocol identifiers needed for this display.
+Use the same selector for coach reports and publishing. Public reports must
+ignore legacy previousFormData and accept only the versioned, matching payload.
+Never fetch coach-private history from the public viewer.
+
+Show measured deltas beneath Now in existing pillar tables, with one dated
+explanation distinguishing them from the projected columns. Do not add another
+wide column. Show neutral signed tape deltas on the existing silhouette with
+enough vertical spacing. No automatic red/green verdict on body size changes.
+Only compare matching measures/units/protocols; missing values are not zero.
+Body fat uses percentage points; fitness score changes use points. Zero is a
+valid captured repetition/time result. Changed test methods omit that delta.
+
+Add a clearly labelled synthetic two-assessment example to the local preview.
+Keep the client's actual one-assessment report free of invented history. Verify
+initial, re-save, undated, partial, historical selection, missing/protocol-change,
+public payload, and mobile/tablet layout cases, then show the local example.

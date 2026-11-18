@@ -26,6 +26,8 @@ import {
   clientDirectorySelectRowAria,
 } from '@/constants/ui';
 import { formatClientDisplayName } from '@/lib/utils/clientDisplayName';
+import { ResumeAssessmentButton } from '@/components/assessment/ResumeAssessmentButton';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { cn } from '@/lib/utils';
 
 type SortKey = 'name' | 'lastAssessed' | 'score';
@@ -257,6 +259,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
     const copy = [...filtered];
     const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
+      if (sortKey === 'lastAssessed' && a.hasAssessmentDraft !== b.hasAssessmentDraft) return a.hasAssessmentDraft ? -1 : 1;
       switch (sortKey) {
         case 'name':
           return dir * a.name.localeCompare(b.name);
@@ -444,7 +447,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                           <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
                             {(() => {
                               const date = formattedDates.get(client.id);
-                              const dateLabel = date && date !== '—' ? `Last assessed ${date}` : 'Not yet assessed';
+                              const dateLabel = client.hasAssessmentDraft ? ASSESSMENT_DRAFT_COPY.SAVED_PROGRESS : date && date !== '—' ? `Last assessed ${date}` : 'Not yet assessed';
                               return goalLabel ? `${dateLabel} · ${goalLabel}` : dateLabel;
                             })()}
                           </div>
@@ -468,21 +471,24 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                       <div className="flex items-center gap-2.5">
                         {(() => {
                           const bs = pillarRadarScoresForClient(client);
-                          return bs ? <MiniPillarRadar scores={bs} size={36} /> : null;
+                          return bs ? (
+                            <MiniPillarRadar scores={bs} size={36} overallScore={client.latestScore} />
+                          ) : null;
                         })()}
                         <AxisScorePill score={client.latestScore} />
                       </div>
                     </td>
                     <td className="hidden px-3 py-3 sm:px-4 md:table-cell md:px-6">
-                      <ClientStatusPill status={attentionMap?.get(client.name)} />
+                      {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} />}
                     </td>
                     <td className="hidden px-3 py-3 sm:px-4 lg:table-cell lg:px-6">
                       <TrendIndicator trend={client.scoreChange} />
                     </td>
                     <td className="px-3 py-3 text-right sm:px-4 md:px-6" onClick={(e) => e.stopPropagation()}>
+                      {client.hasAssessmentDraft && <ResumeAssessmentButton clientKey={client.id} />}
                       <ClientActionsDropdown
                         clientName={client.name}
-                        latestAssessmentId={client.assessments[0]?.id}
+                        latestAssessmentId={client.assessments[0]?.assessmentCount === 0 ? undefined : client.assessments[0]?.id}
                         clientStatus={client.clientStatus}
                         onViewHistory={onViewHistory}
                         onStartAssessment={onStartAssessment}
@@ -501,7 +507,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
       {/* Mobile card layout — inset from the outer panel edges */}
       <div className="space-y-2 px-3 pb-3 sm:hidden">
         {loadingData ? (
-          <div className="rounded-2xl bg-card shadow-sm p-6">
+          <div className="border border-border bg-card p-6">
             <div className="flex flex-col items-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
               <span className="text-sm font-medium text-muted-foreground">Loading clients...</span>
@@ -539,7 +545,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                 key={client.id}
                 role="button"
                 tabIndex={0}
-                className={`cursor-pointer rounded-2xl bg-card shadow-sm p-4 transition-colors active:bg-muted/50 ${dimClass}`}
+                className={`cursor-pointer border border-border bg-card p-4 transition-colors active:bg-muted/50 ${dimClass}`}
                 style={{ minHeight: 44 }}
                 onClick={() => navigate(`/client/${encodeURIComponent(client.name)}`)}
                 onKeyDown={(e) => {
@@ -569,7 +575,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                   <div className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <ClientActionsDropdown
                       clientName={client.name}
-                      latestAssessmentId={client.assessments[0]?.id}
+                      latestAssessmentId={client.assessments[0]?.assessmentCount === 0 ? undefined : client.assessments[0]?.id}
                       clientStatus={client.clientStatus}
                       onViewHistory={onViewHistory}
                       onStartAssessment={onStartAssessment}
@@ -588,14 +594,17 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                   </div>
                 )}
 
+                {client.hasAssessmentDraft && <div className="mt-3"><ResumeAssessmentButton clientKey={client.id} /></div>}
                 {/* Line 2: pillar radar thumb, score, trend, coach, date, next due */}
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {(() => {
                     const bs = pillarRadarScoresForClient(client);
-                    return bs ? <MiniPillarRadar scores={bs} size={32} /> : null;
+                    return bs ? (
+                      <MiniPillarRadar scores={bs} size={32} overallScore={client.latestScore} />
+                    ) : null;
                   })()}
                   <AxisScorePill score={client.latestScore} />
-                  <ClientStatusPill status={attentionMap?.get(client.name)} />
+                  {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} />}
                   <TrendIndicator trend={client.scoreChange} />
                   {client.remoteIntakePending && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">

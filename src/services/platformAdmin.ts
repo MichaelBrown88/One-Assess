@@ -23,12 +23,9 @@ export { getAuditLogs } from './platform/auditLog';
 
 // Platform Metrics & Organization Management
 export {
-  getLiveMetrics,
   getDefaultMetrics,
   getRevenueByRegion,
   getMetricsHistory,
-  getOnboardingFunnel,
-  getAssessmentChartData,
   getOrgCoachesWithStats,
   getOrganizations,
   getOrganizationDetails,
@@ -38,22 +35,9 @@ export {
   pauseSubscription,
   cancelSubscription,
   reactivateSubscription,
-  grantDataAccess,
-  revokeDataAccess,
 } from './platform/platformMetrics';
 
 export type { RevenueByRegionSnapshot, RevenueByRegionRow } from '@/types/platform';
-
-// AI Usage Tracking
-export {
-  calculateAICostsMTD,
-  getAICostsByFeature,
-  getAICostsByFeatureAllTime,
-  getOrgAICostsByFeature,
-  getAICostBreakdown,
-  getAIErrorRateMTD,
-  type AIErrorRate,
-} from './platform/aiUsageTracking';
 
 // Platform Configuration (Feature Flags & Maintenance)
 export {

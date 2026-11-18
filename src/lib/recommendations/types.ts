@@ -68,11 +68,3 @@ export type CoachPlan = {
     cardio: Array<{ name: string; time?: string; notes?: string; addresses?: string }>;
   };
 };
-
-export type BodyCompInterpretation = {
-  healthPriority: string[];
-  trainingFocus: { primary: string; secondary?: string[]; corrective?: string[]; unilateralVolume?: string };
-  nutrition: { calorieRange?: string; proteinTarget?: string; hydration?: string; carbTiming?: string };
-  lifestyle: { sleep?: string; stress?: string; dailyMovement?: string; inflammationReduction?: string };
-  timeframeWeeks: string; // e.g., "8–14 weeks"
-};

@@ -92,3 +92,7 @@ repomix-output.xml
 # pnpm-lock.yaml
 
 .claude/worktrees/
+
+# Local browser-test output (may show client data)
+.playwright-cli/
+output/

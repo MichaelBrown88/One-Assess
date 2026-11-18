@@ -1,22 +1,27 @@
+import { validAssessmentComparison, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 /**
  * Client AXIS report — one v2 document. `standalone` only changes page chrome.
  */
 
+import { assessmentDate as resolveAssessmentDate } from '@/lib/assessment/assessmentDate';
 import React, { useMemo } from 'react';
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring';
 import { useClientReportData } from './client/useClientReportData';
 import { buildClientReportModel } from '@/lib/reports/buildClientReportModel';
 import { ClientReportV2Layout } from './client/v2/ClientReportV2Layout';
+import { reportPlanSessions, withReportLiftingSessions } from '@/lib/reports/plannedTraining';
 
 export default function ClientReport({
   scores,
   goals,
-  formData,
+  formData: rawFormData,
   bodyComp: _bodyComp,
   previousScores,
   previousFormData,
+  comparison: suppliedComparison,
   standalone = true,
+  assessmentDate,
   coachActions,
   reportMeta,
 }: {
@@ -26,7 +31,9 @@ export default function ClientReport({
   bodyComp?: { timeframeWeeks: string };
   previousScores?: ScoreSummary | null;
   previousFormData?: FormData;
+  comparison?: AssessmentComparison | null;
   standalone?: boolean;
+  assessmentDate?: Date | null;
   coachActions?: {
     onShare?: () => void;
     onSendToClient?: () => void;
@@ -38,13 +45,30 @@ export default function ClientReport({
     assessmentNumber?: number;
   };
 }) {
+  const comparison = validAssessmentComparison(rawFormData, suppliedComparison);
+  const verifiedPreviousForm = comparison && previousFormData?.assessedAt
+    && Date.parse(previousFormData.assessedAt) === Date.parse(comparison.previousAssessedAt) ? previousFormData : undefined;
+  const verifiedPreviousScores = verifiedPreviousForm ? previousScores : null;
+  const planSessions = reportPlanSessions(rawFormData);
+  const formData = useMemo(
+    () => (rawFormData ? { ...withReportLiftingSessions(rawFormData, planSessions), assessedAt: resolveAssessmentDate(rawFormData.assessedAt, assessmentDate)?.toISOString() } : undefined),
+    [rawFormData, planSessions, assessmentDate],
+  );
+
   const {
     safeScores,
     clientName,
     hasAnyData,
     gapAnalysisData,
     reportDate,
-  } = useClientReportData({ scores, goals, formData, previousScores, previousFormData });
+  } = useClientReportData({
+    scores,
+    goals,
+    formData,
+    previousScores: verifiedPreviousScores,
+    previousFormData: verifiedPreviousForm,
+    assessmentDate,
+  });
 
   const reportModel = useMemo(
     () =>
@@ -52,7 +76,8 @@ export default function ClientReport({
         scores: safeScores,
         formData,
         goals,
-        previousScores,
+        previousScores: verifiedPreviousScores,
+        comparison,
         gapAnalysisData,
         clientName,
         reportDate,
@@ -61,7 +86,8 @@ export default function ClientReport({
       safeScores,
       formData,
       goals,
-      previousScores,
+      verifiedPreviousScores,
+      comparison,
       gapAnalysisData,
       clientName,
       reportDate,

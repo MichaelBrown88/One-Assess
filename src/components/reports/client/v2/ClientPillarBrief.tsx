@@ -5,10 +5,13 @@ import type { PillarKey } from '@/lib/reports/radarData';
 import { CLIENT_PILLAR_LABELS, CLIENT_REPORT_COPY } from '@/constants/clientReport';
 import { sanitizeClientReportCopy } from '@/lib/reports/sanitizeClientReportCopy';
 import { ClientProgressionTable } from './ClientProgressionTable';
+import { TapeMeasurementsSection } from './TapeMeasurementsSection';
 import { LifestyleFactorsCard } from '@/components/reports/client/sub-components/LifestyleFactorsCard';
 import { ClientMovementFindings } from './ClientMovementFindings';
 import type { FormData } from '@/contexts/FormContext';
+import { CLIENT_PLAN_COPY } from '@/constants/clientPlanCopy';
 import { cn } from '@/lib/utils';
+import { comparisonDate, type AssessmentComparison } from '@/lib/reports/assessmentComparison';
 
 const SCORING_TO_PILLAR: Record<ClientReportPillarModel['scoringId'], PillarKey> = {
   bodyComp: 'bodyComp',
@@ -19,11 +22,18 @@ const SCORING_TO_PILLAR: Record<ClientReportPillarModel['scoringId'], PillarKey>
 };
 
 interface ClientPillarBriefProps {
+  comparison?: AssessmentComparison | null;
   pillar: ClientReportPillarModel;
   formData?: FormData;
+  nutritionTargets?: { calories: number | null; proteinG: number | null };
 }
 
-export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) {
+export function ClientPillarBrief({
+  pillar,
+  formData,
+  nutritionTargets,
+  comparison,
+}: ClientPillarBriefProps) {
   const pillarKey = SCORING_TO_PILLAR[pillar.scoringId];
   const title = CLIENT_PILLAR_LABELS[pillar.scoringId] ?? pillar.title;
   const summary = sanitizeClientReportCopy(pillar.summary);
@@ -65,7 +75,7 @@ export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) 
             {CLIENT_REPORT_COPY.v2LifestyleFactorsHeading}
           </p>
           <div className="mt-3">
-            <LifestyleFactorsCard formData={formData} />
+            <LifestyleFactorsCard formData={formData} nutritionTargets={nutritionTargets} />
           </div>
         </div>
       ) : null}
@@ -75,9 +85,11 @@ export function ClientPillarBrief({ pillar, formData }: ClientPillarBriefProps) 
       {pillar.contentMode === 'progression' ? (
         <div className="mt-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {CLIENT_REPORT_COPY.v2ProgressionHeading}
+            {pillar.progressionRows.some(row => row.measuredChange) ? CLIENT_REPORT_COPY.measuredAndEstimatedHeading : CLIENT_PLAN_COPY.changeCaption}
           </p>
+          {comparison && pillar.progressionRows.some(row => row.measuredChange) ? <p className="mt-2 text-xs leading-relaxed text-foreground-secondary">{CLIENT_REPORT_COPY.measuredChangeNote(comparisonDate(comparison.previousAssessedAt))}</p> : null}
           <ClientProgressionTable rows={pillar.progressionRows} />
+          {pillar.scoringId === 'bodyComp' ? <TapeMeasurementsSection formData={formData} comparison={comparison} /> : null}
         </div>
       ) : null}
     </article>

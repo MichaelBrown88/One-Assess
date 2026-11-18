@@ -13,6 +13,7 @@ import {
   getDocs,
   limit,
   writeBatch,
+  runTransaction,
   addDoc,
   increment,
   type UpdateData,
@@ -22,7 +23,9 @@ import {
   ORG_CLIENT_PROFILES_QUERY_LIMIT,
   PUBLIC_REPORTS_BY_CLIENT_DELETE_LIMIT,
 } from '@/constants/firestoreQueryLimits';
-import { getDb } from '@/services/firebase';
+import { getDb, auth } from '@/services/firebase';
+import { baselineClientRecord } from '@/lib/clients/baselineClientRecord';
+import { ASSESSMENT_DRAFT_COPY } from '@/constants/assessmentDraft';
 import { validateOrganizationId } from '@/lib/utils/validateOrganizationId';
 import {
   CLIENT_PROFILE_LAST_BODY_COMP_AT,
@@ -1414,5 +1417,21 @@ export async function deleteClientByDocId(
     archivedBy: null,
     archiveReason: null,
     updatedAt: serverTimestamp(),
+  });
+}
+
+/** Create a studio baseline profile before capture; never overwrite an existing client. */
+export async function createBaselineClient(clientName: string, email: string, organizationId: string): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in before starting an assessment.');
+  const orgId = validateOrganizationId(organizationId, null);
+  const slug = generateClientSlug(clientName);
+  const ref = doc(getDb(), ORGANIZATION.clients.doc(orgId, slug));
+  await runTransaction(getDb(), async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists()) throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
+    const draft = await transaction.get(doc(getDb(), ORGANIZATION.clients.draft(orgId, slug)));
+    if (draft.exists()) throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
+    transaction.set(ref, baselineClientRecord(clientName, orgId, uid, serverTimestamp(), { email }));
   });
 }

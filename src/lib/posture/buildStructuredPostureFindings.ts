@@ -48,6 +48,17 @@ function makeRecord(
   };
 }
 
+/**
+ * Saved findings carry the copy from the day they were captured. Re-read the
+ * current library by id + severity so older reports show today's wording.
+ */
+export function withCurrentPostureCopy(f: PostureFindingRecord): PostureFindingRecord {
+  if (f.severity === 'aligned') return f;
+  const def = getPostureFeedbackDefinition(f.id);
+  if (!def) return f;
+  return { ...f, name: def.name, ...copyForTier(def, f.severity), priority: def.priority };
+}
+
 /** Hide noise that was stored on older captures (e.g. 0.03 “rounded shoulders”). */
 export function isReportablePostureFinding(f: PostureFindingRecord): boolean {
   if (f.severity === 'aligned') return false;

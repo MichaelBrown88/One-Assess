@@ -46,14 +46,19 @@ export interface UsePostureCompanionResult {
   processingStatus: ProcessingStatus;
   previewImage: PreviewImage | null;
   setPreviewImage: Dispatch<SetStateAction<PreviewImage | null>>;
+  pendingPreviews: Partial<Record<ViewType, string>>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   placeholderImages: Record<string, string>;
   hasAllImages: boolean;
   isComplete: boolean;
+  /** True while any view is converting/detecting/aligning/analyzing or bulk upload is running. */
+  uploadsInFlight: boolean;
   views: readonly ViewType[];
   handleLoadTestImages: () => void;
   handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  handleApply: () => void;
+  queueDeviceCapture: (view: ViewType, imageDataUrl: string) => void;
+  /** Returns false when Storage URLs are not ready yet. */
+  handleApply: () => boolean;
   handleDirectScan: () => void;
 }
 

@@ -1,10 +1,7 @@
 import type { FormData } from '@/contexts/FormContext';
 import { ASSESSMENT_LABELS } from '@/constants/assessment';
 import { PRE_ASSESSMENT_COPY } from '@/constants/preAssessment';
-import {
-  countParqYesAnswers,
-  formatIntakeFieldLabel,
-} from '@/lib/consultation/displayHelpers';
+import { formatIntakeFieldLabel } from '@/lib/consultation/displayHelpers';
 import { hasRemotePostureCaptureComplete } from '@/lib/assessment/studioSessionSteps';
 
 type Row = { label: string; value: string };
@@ -38,7 +35,6 @@ export function IntakeReviewSummary({
 }: IntakeReviewSummaryProps) {
   const p0 = ASSESSMENT_LABELS.P0;
   const p1 = ASSESSMENT_LABELS.P1;
-  const parqYes = countParqYesAnswers(formData);
   const postureDone = hasRemotePostureCaptureComplete(formData);
 
   const aboutRows: Row[] = [
@@ -58,8 +54,6 @@ export function IntakeReviewSummary({
     { label: p1.stressLevel, value: formatIntakeFieldLabel('stressLevel', formData.stressLevel) },
     { label: p1.nutritionHabits, value: formatIntakeFieldLabel('nutritionHabits', formData.nutritionHabits) },
     { label: p1.hydrationHabits, value: formatIntakeFieldLabel('hydrationHabits', formData.hydrationHabits) },
-    { label: p1.alcoholFrequency, value: formatIntakeFieldLabel('alcoholFrequency', formData.alcoholFrequency) },
-    { label: p1.medicationsFlag, value: formatIntakeFieldLabel('medicationsFlag', formData.medicationsFlag) },
   ];
 
   return (
@@ -77,21 +71,13 @@ export function IntakeReviewSummary({
         </p>
       </div>
       <SectionBlock title="About them" rows={aboutRows} />
-      <section className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground">Health screening (PAR-Q)</h3>
-        <p className="text-sm text-foreground">
-          {parqYes === 0
-            ? 'No yes answers flagged — confirm verbally before physical testing.'
-            : `${parqYes} yes answer${parqYes === 1 ? '' : 's'} — review clearance before physical testing.`}
-        </p>
-      </section>
       <SectionBlock title="Lifestyle" rows={lifestyleRows} />
       <section className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground">Posture at home</h3>
         <p className="text-sm text-foreground">
           {postureDone
-            ? 'All four views captured at home — studio posture capture can be skipped.'
-            : 'Posture not completed at home — plan for in-studio capture after physical tests.'}
+            ? 'All four views captured at home. Studio posture capture can be skipped.'
+            : 'Posture not completed at home. Plan for in-studio capture after physical tests.'}
         </p>
       </section>
     </div>

@@ -1,5 +1,6 @@
 /**
  * Phase P0: Client Information
+ * Medical screening (PAR-Q) is collected outside One Assess.
  */
 
 import type { FormData } from '@/contexts/FormContext';
@@ -25,11 +26,10 @@ export const phaseP0: PhaseDefinition = {
       id: 'basic-client-info',
       title: SECTION_TITLES.P0['basic-client-info'],
       fields: [
-        { id: 'fullName' as keyof FormData, type: 'text' as FieldType, label: ASSESSMENT_LABELS.P0.fullName, required: true, placeholder: ASSESSMENT_PLACEHOLDERS.P0.fullName, tooltip: ASSESSMENT_TOOLTIPS.P0.fullName },
-        // Optional: walk-ins may not want to hand over contact details yet, and
-        // the send-link path already captures email before the studio visit.
-        { id: 'email' as keyof FormData, type: 'email' as FieldType, label: ASSESSMENT_LABELS.P0.email, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.email, tooltip: ASSESSMENT_TOOLTIPS.P0.email },
-        { id: 'phone' as keyof FormData, type: 'tel' as FieldType, label: ASSESSMENT_LABELS.P0.phone, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.phone, tooltip: ASSESSMENT_TOOLTIPS.P0.phone },
+        // Skip when NewClientModal / remote already set these — only ask if missing.
+        { id: 'fullName' as keyof FormData, type: 'text' as FieldType, label: ASSESSMENT_LABELS.P0.fullName, required: true, placeholder: ASSESSMENT_PLACEHOLDERS.P0.fullName, tooltip: ASSESSMENT_TOOLTIPS.P0.fullName, conditional: { showWhen: { field: 'fullName', exists: false } } },
+        { id: 'email' as keyof FormData, type: 'email' as FieldType, label: ASSESSMENT_LABELS.P0.email, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.email, tooltip: ASSESSMENT_TOOLTIPS.P0.email, conditional: { showWhen: { field: 'email', exists: false } } },
+        { id: 'phone' as keyof FormData, type: 'tel' as FieldType, label: ASSESSMENT_LABELS.P0.phone, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.phone, tooltip: ASSESSMENT_TOOLTIPS.P0.phone, conditional: { showWhen: { field: 'phone', exists: false } } },
         { id: 'dateOfBirth' as keyof FormData, type: 'date' as FieldType, label: ASSESSMENT_LABELS.P0.dateOfBirth, required: true, tooltip: ASSESSMENT_TOOLTIPS.P0.dateOfBirth },
         { id: 'gender' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P0.gender, required: true, options: ASSESSMENT_OPTIONS.gender, tooltip: ASSESSMENT_TOOLTIPS.P0.gender },
         {
@@ -47,19 +47,6 @@ export const phaseP0: PhaseDefinition = {
           required: true,
           tooltip: ASSESSMENT_TOOLTIPS.P0.recentActivity,
           options: ASSESSMENT_OPTIONS.recentActivity
-        },
-      ],
-    },
-    {
-      id: 'parq',
-      title: SECTION_TITLES.P0.parq,
-      fields: [
-        {
-          id: 'parqQuestionnaire' as keyof FormData,
-          type: 'parq' as FieldType,
-          label: ASSESSMENT_LABELS.P0.parqQuestionnaire,
-          required: true,
-          tooltip: ASSESSMENT_TOOLTIPS.P0.parqQuestionnaire,
         },
       ],
     },

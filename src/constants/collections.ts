@@ -38,6 +38,7 @@ export const COLLECTIONS = {
   // Platform
   PLATFORM_ADMINS: 'platform-admins',
   SYSTEM_STATS: 'platform-stats',
+  STUDIO_SNAPSHOTS: 'studio-snapshots',
 
   // Misc
   LEARNED_OCR_PATTERNS: 'learned_ocr_patterns',

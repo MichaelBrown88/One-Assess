@@ -1,149 +1,144 @@
-/**
- * Achievable 12-week body-weight target + daily macro guidance for the
- * client roadmap (lead-magnet). Weight uses the same 12-week engine as the
- * hero and scorecard. Macros come from a Mifflin-St Jeor TDEE with a
- * goal-appropriate calorie adjustment. Protein is from body weight.
- */
-
+/** Single body-composition and nutrition calculation for the client report. */
 import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring/types';
 import type { ClientGoalContext } from '@/lib/goals/goalContext';
-import { buildClientProfile } from '@/lib/physiology/profile';
-import { weeklyWeightLossKg, monthlyMuscleGainKg } from '@/lib/physiology/rates';
-import { projectClientTwelveWeekWeightLoss } from '@/lib/reports/clientTwelveWeekWeight';
+import { CLIENT_REPORT_COPY } from '@/constants/clientReport';
+import { monthlyMuscleGainKg } from '@/lib/physiology/rates';
+import { PLAN_CALENDAR_MONTHS, PLAN_MONTHS, PLAN_WEEKS, plannedLiftingSessions,
+  profileForTwelveWeekPlan, withReportLiftingSessions } from './plannedTraining';
+import { projectClientTwelveWeekWeightLoss } from './clientTwelveWeekWeight';
+import { bodyFatFloorFraction } from './weightLossProjection';
 
 const KCAL_PER_KG_FAT = 7700;
+const CUT_PROTEIN = 2.2;
+const MAINTENANCE_PROTEIN = 1.8;
+const FAT_G_PER_KG = 0.8;
+const DEFICIT_CAP = 0.25;
+const MIN_DAILY_KCAL = { female: 1200, male: 1500 } as const;
+const MACRO_REFERENCE_MAX_BMI = 30;
 
 export type TargetDirection = 'lose' | 'gain' | 'maintain';
-
+export interface BodyCompositionPlan {
+  weightKg: number;
+  fatKg: number | null;
+  bodyFatPct: number | null;
+  muscleKg: number | null;
+  /** Assumption: non-muscle fat-free mass stays stable, not an extra growth forecast. */
+  otherLeanKg: number | null;
+}
 export interface ClientNinetyDayTarget {
   currentWeightKg: number | null;
   targetWeightKg: number | null;
   weightDeltaKg: number | null;
+  monthlyWeightChangeKg: number | null;
   direction: TargetDirection;
-  /** Daily calorie target (rounded to nearest 25). */
   calories: number | null;
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
+  fuelSessionsNote: string | null;
+  macroNote?: string | null;
+  bodyComposition?: BodyCompositionPlan;
 }
-
-function num(v: string | undefined): number {
-  const n = parseFloat(v ?? '');
-  return Number.isFinite(n) && n > 0 ? n : 0;
+function positive(value: string | undefined): number | null {
+  const n = Number(value);
+  return value?.trim() && Number.isFinite(n) && n > 0 ? n : null;
 }
-
-function roundTo(value: number, step: number): number {
-  return Math.round(value / step) * step;
-}
-
-function ageFromDob(dob: string | undefined): number {
-  if (!dob) return 0;
-  const d = new Date(dob);
-  if (Number.isNaN(d.getTime())) return 0;
-  const years = (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-  return years > 0 && years < 120 ? Math.floor(years) : 0;
-}
-
-/** Activity multiplier on BMR from committed training frequency. */
-function activityFactor(freq: number): number {
-  if (freq <= 0) return 1.3;
-  if (freq <= 2) return 1.45;
-  if (freq <= 4) return 1.55;
-  return 1.7;
-}
-
-function targetWeight(
-  formData: FormData,
-  scores: ScoreSummary | undefined,
-  ctx: ClientGoalContext,
-  current: number,
-  muscleGainPerMonth: number,
-): number {
-  if (ctx.hasWeightLoss) {
-    const projected = projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals, current);
-    return projected?.endWeightKg ?? current;
-  }
-  if (ctx.hasBuildMuscle) {
-    return current + muscleGainPerMonth * 3;
-  }
-  return current;
-}
-
-function calorieTarget(
-  tdee: number,
-  direction: TargetDirection,
-  lossRatePerWeek: number,
-): number {
-  if (direction === 'lose') {
-    const dailyDeficit = Math.min((lossRatePerWeek * KCAL_PER_KG_FAT) / 7, tdee * 0.28);
-    return tdee - dailyDeficit;
-  }
-  if (direction === 'gain') {
-    return tdee + Math.min(tdee * 0.12, 350);
-  }
-  return tdee;
-}
+function roundTo(value: number, step: number): number { return Math.round(value / step) * step; }
+function round1(value: number): number { return Math.sign(value) * Math.round(Math.abs(value) * 10) / 10; }
 
 export function buildClientNinetyDayTarget(
-  formData: FormData | undefined,
-  scores: ScoreSummary | undefined,
-  ctx: ClientGoalContext,
+  formData: FormData | undefined, scores: ScoreSummary | undefined, ctx: ClientGoalContext,
 ): ClientNinetyDayTarget | null {
   if (!formData) return null;
-
-  const current = num(formData.inbodyWeightKg);
-  if (current <= 0) return null;
-
-  const profile = buildClientProfile(formData, scores);
-  const twelveWeekLoss = projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals, current);
-  const lossRate = twelveWeekLoss?.weeklyRateKg ?? weeklyWeightLossKg(profile, 10).rate;
-  const muscleGain = monthlyMuscleGainKg(profile, {
-    concurrentFatLoss: ctx.hasWeightLoss && ctx.hasBuildMuscle,
-  }).rate;
-
-  const rawTarget = targetWeight(formData, scores, ctx, current, muscleGain);
-  const targetKg = Math.round(rawTarget * 10) / 10;
-  const deltaKg = Math.round((targetKg - current) * 10) / 10;
-  const direction: TargetDirection =
-    deltaKg <= -0.3 ? 'lose' : deltaKg >= 0.3 ? 'gain' : 'maintain';
-
-  // ── Macros (need height + age for a credible Mifflin-St Jeor estimate) ──
-  const height = num(formData.heightCm);
-  const age = ageFromDob(formData.dateOfBirth) || 30;
-  const gender = (formData.gender || 'male').toLowerCase() === 'female' ? 'female' : 'male';
-
+  const current = positive(formData.inbodyWeightKg);
+  if (current == null) return null;
+  const profile = profileForTwelveWeekPlan(formData, scores);
+  const sessions = plannedLiftingSessions(formData);
+  const height = positive(formData.heightCm);
+  const bfInput = positive(formData.inbodyBodyFatPct);
+  const bf = bfInput != null && bfInput < 70 ? bfInput : null;
+  const fatNow = bf == null ? null : current * bf / 100;
+  const leanNow = fatNow == null ? null : current - fatNow;
+  const muscleInput = positive(formData.skeletalMuscleMassKg);
+  const muscle = muscleInput != null && (leanNow == null || muscleInput < leanNow) ? muscleInput : null;
+  const muscleGoal = ctx.hasBuildMuscle || ctx.hasBodyRecomp;
+  const projected = ctx.hasWeightLoss
+    ? projectClientTwelveWeekWeightLoss(formData, scores, ctx.allGoals, current) : null;
+  let loss = projected?.lossKg ?? 0;
   let calories: number | null = null;
   let proteinG: number | null = null;
   let carbsG: number | null = null;
   let fatG: number | null = null;
-
-  if (height > 0) {
-    let bmr = num(formData.bmrKcal);
-    if (bmr < 800 || bmr > 3500) {
-      bmr = 10 * current + 6.25 * height - 5 * age + (gender === 'female' ? -161 : 5);
-    }
-    const tdee = bmr * activityFactor(profile.trainingFrequency);
-    const rawCalories = calorieTarget(tdee, direction, lossRate);
-
-    const proteinPerKg = direction === 'lose' ? 2.0 : 1.8;
-    proteinG = roundTo(current * proteinPerKg, 5);
-
-    fatG = roundTo(current * 0.8, 5);
-
-    calories = roundTo(rawCalories, 25);
-    const carbCalories = calories - proteinG * 4 - fatG * 9;
-    carbsG = Math.max(50, roundTo(carbCalories / 4, 5));
+  let macroNote: string | null = null;
+  // Unknown age/sex is not silently treated as a 30-year-old male nutrition prescription.
+  const ageKnown = !!formData.dateOfBirth && Number.isFinite(Date.parse(formData.dateOfBirth));
+  const canFuel = height != null && height >= 120 && height <= 230 && ageKnown
+    && profile.age >= 18 && profile.sex !== 'unknown';
+  let tdee: number | null = null;
+  if (canFuel) {
+    const sex = profile.sex === 'female' ? 'female' : 'male';
+    const bmr = 10 * current + 6.25 * height - 5 * profile.age + (sex === 'female' ? -161 : 5);
+    // Modest planning prior, not a measured expenditure. Extra visits add activity on the same food.
+    const baseTdee = bmr * 1.55;
+    tdee = baseTdee + Math.max(0, sessions - 4) * bmr * 0.035;
+    const floor = Math.min(tdee, Math.max(bmr, MIN_DAILY_KCAL[sex]));
+    const baseLoss = ctx.hasWeightLoss
+      ? projectClientTwelveWeekWeightLoss(withReportLiftingSessions(formData, 4), scores, ctx.allGoals, current)?.lossKg ?? 0 : 0;
+    const baseDeficit = baseLoss / PLAN_WEEKS * KCAL_PER_KG_FAT / 7;
+    const rawFood = loss > 0
+      ? Math.max(floor, baseTdee - Math.min(baseDeficit, baseTdee * DEFICIT_CAP))
+      : tdee + (ctx.hasBuildMuscle && !ctx.hasWeightLoss && !ctx.hasBodyRecomp ? Math.min(tdee * 0.05, 150) : 0);
+    calories = Math.max(Math.ceil(floor / 25) * 25, roundTo(rawFood, 25));
+    // A calorie floor must constrain the displayed loss as well as the food strip.
+    const energyLoss = Math.max(0, tdee - calories) * 7 / KCAL_PER_KG_FAT * PLAN_WEEKS;
+    loss = Math.min(loss, energyLoss);
   }
 
-  return {
-    currentWeightKg: Math.round(current * 10) / 10,
-    targetWeightKg: targetKg,
-    weightDeltaKg: deltaKg,
-    direction,
-    calories,
-    proteinG,
-    carbsG,
-    fatG,
+  let muscleGain = muscleGoal && muscle != null ? monthlyMuscleGainKg(profile, {
+    concurrentFatLoss: ctx.hasWeightLoss, muscleGoal: true,
+  }).rate * PLAN_MONTHS : 0;
+  // Recomposition conserves total mass and keeps the sex-aware fat backstop intact.
+  if (fatNow != null && (ctx.hasWeightLoss || ctx.hasBodyRecomp)) {
+    const floorFraction = bodyFatFloorFraction(profile.sex, 'plan');
+    muscleGain = Math.min(muscleGain, Math.max(0, fatNow - current * floorFraction));
+    const lossWithMuscle = Math.max(0, (fatNow - current * floorFraction - muscleGain) / (1 - floorFraction));
+    const originalLoss = loss;
+    loss = Math.min(loss, lossWithMuscle);
+    if (loss < originalLoss && calories != null && tdee != null) {
+      calories = Math.ceil((tdee - loss / PLAN_WEEKS * KCAL_PER_KG_FAT / 7) / 25) * 25;
+      loss = Math.min(loss, Math.max(0, tdee - calories) * 7 / KCAL_PER_KG_FAT * PLAN_WEEKS);
+    }
+  }
+  const weight = ctx.hasWeightLoss ? current - loss
+    : ctx.hasBuildMuscle && !ctx.hasBodyRecomp ? current + muscleGain : current;
+  const leanEnd = leanNow == null ? null : leanNow + muscleGain;
+  const fatEnd = leanEnd == null ? null : weight - leanEnd;
+  const bodyComposition: BodyCompositionPlan = {
+    weightKg: weight, fatKg: fatEnd, bodyFatPct: fatEnd == null ? null : fatEnd / weight * 100,
+    muscleKg: muscle == null ? null : muscle + muscleGain,
+    otherLeanKg: leanNow == null || muscle == null ? null : leanNow - muscle,
   };
+  const deltaKg = round1(weight - current);
+  const monthly = round1((weight - current) / PLAN_CALENDAR_MONTHS);
+  const direction: TargetDirection = deltaKg < 0 ? 'lose' : deltaKg > 0 ? 'gain' : 'maintain';
+  if (calories != null && height != null && tdee != null) {
+    // Retain the existing high-BMI guard and name it, rather than silently claiming total weight.
+    const referenceKg = Math.min(current, MACRO_REFERENCE_MAX_BMI * (height / 100) ** 2);
+    const adjusted = referenceKg < current - 0.01;
+    proteinG = roundTo(referenceKg * (direction === 'lose' ? CUT_PROTEIN : MAINTENANCE_PROTEIN), 5);
+    fatG = roundTo(referenceKg * FAT_G_PER_KG, 5);
+    const minimumCarbCalories = 50 * 4;
+    if (proteinG * 4 + fatG * 9 + minimumCarbCalories > calories) {
+      // Do not invent a larger calorie budget to fit an unsuitable automatic macro prescription.
+      proteinG = null; fatG = null; carbsG = null;
+      macroNote = CLIENT_REPORT_COPY.planMacroReview;
+    } else {
+      carbsG = Math.round((calories - proteinG * 4 - fatG * 9) / 4);
+      macroNote = adjusted ? CLIENT_REPORT_COPY.planAdjustedProtein(referenceKg, direction === 'lose' ? CUT_PROTEIN : MAINTENANCE_PROTEIN) : null;
+    }
+  }
+  return { currentWeightKg: round1(current), targetWeightKg: round1(weight), weightDeltaKg: deltaKg,
+    monthlyWeightChangeKg: monthly, direction, calories, proteinG, carbsG, fatG,
+    fuelSessionsNote: CLIENT_REPORT_COPY.planFuelNote, macroNote, bodyComposition };
 }

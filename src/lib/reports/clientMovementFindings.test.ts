@@ -57,7 +57,13 @@ describe('buildMovementFindings', () => {
     } as FormData;
     const model = buildMovementFindings(formData, undefined);
     expect(movementProgressionRows(model)).toEqual([
-      { name: 'Overhead squat', current: 'Limited', twelveWeeks: 'Fair' },
+      {
+        name: 'Overhead squat',
+        current: 'Limited',
+        twelveWeeks: 'Fair',
+        detail:
+          'Knees cave in, squat only goes a quarter of the way down. Fixing this keeps your knees and back safe as squats get heavier.',
+      },
       { name: 'Hip hinge', current: 'Strong', twelveWeeks: 'Strong' },
     ]);
   });
@@ -66,8 +72,26 @@ describe('buildMovementFindings', () => {
     const formData = { ohsSquatDepth: 'quarter-depth' } as FormData;
     const model = buildMovementFindings(formData, undefined);
     expect(movementProgressionRows(model)).toEqual([
-      { name: 'Overhead squat', current: 'Fair', twelveWeeks: 'Strong' },
+      expect.objectContaining({ name: 'Overhead squat', current: 'Fair', twelveWeeks: 'Strong' }),
     ]);
+  });
+
+  it('says what we saw and why it matters in plain words, never clinical terms', () => {
+    const formData = {
+      ohsKneeAlignment: 'valgus',
+      ohsFeetPosition: 'pronation',
+      hingeBackRounding: 'moderate',
+      lungeLeftKneeAlignment: 'caves-inward',
+    } as FormData;
+    const rows = movementProgressionRows(buildMovementFindings(formData, undefined));
+    expect(rows.map((r) => r.detail)).toEqual([
+      'Knees cave in, arches roll in. Fixing this keeps your knees and back safe as squats get heavier.',
+      'Lower back rounds. This is how you lift anything off the floor, so getting it right protects your lower back.',
+      'Left knee caves in. Single-leg control protects your knees and evens out strength between your legs.',
+    ]);
+    for (const row of rows) {
+      expect(row.detail ?? '').not.toMatch(/valgus|varus|pronation|supination|lumbar|flexion/i);
+    }
   });
 
   it('renders clinical labels in plain language after sanitising', () => {

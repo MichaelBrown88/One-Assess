@@ -9,6 +9,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useResumeAssessment } from '@/hooks/useResumeAssessment';
 import { useToast } from '@/hooks/use-toast';
 import { getClientAssessments, getDraftAssessment, type CoachAssessmentSummary } from '@/services/coachAssessments';
 import { getClientProfile, createOrUpdateClientProfile, subscribeToClientProfile, generateClientSlug, type ClientProfile } from '@/services/clientProfiles';
@@ -27,13 +28,10 @@ import { UI_TOASTS } from '@/constants/ui';
 import {
   clearClientNavAssessmentBleedKeys,
   confirmAssessmentSetup,
-  writeAssessmentPhaseId,
-  writeAssessmentPhaseIndex,
   writeEditAssessmentPayload,
   writePartialAssessment,
   removePartialAssessment,
   writePrefillClientPayload,
-  writeSessionDraftAssessmentBundle,
   markReturningSessionPlan,
 } from '@/lib/assessment/assessmentSessionStorage';
 import {
@@ -104,6 +102,7 @@ export interface UseClientDetailResult {
       | Array<'bodycomp' | 'posture' | 'fitness' | 'strength' | 'lifestyle'>,
   ) => Promise<void>;
   handleFinishAssessment: () => void;
+  resuming: boolean;
   handleDiscardDraft: () => Promise<void>;
   handleDeleteAssessment: (id: string) => Promise<void>;
   handleEditSnapshot: (snapshot: AssessmentSnapshot) => void;
@@ -519,7 +518,7 @@ export function useClientDetail(): UseClientDetailResult {
 
           // Build update object with data from assessment
           const profileUpdate: Partial<ClientProfile> = {
-            lastAssessmentDate: data[0].createdAt ?? undefined,
+            lastAssessmentDate: data[0].assessedAt ?? data[0].createdAt ?? undefined,
           };
 
           // Sync contact info from assessment if available
@@ -559,12 +558,6 @@ export function useClientDetail(): UseClientDetailResult {
         if (draftMs > 0 && latestSnapshotMs > draftMs) {
           // Snapshot is newer than draft — assessment was completed, draft is stale.
           setIncompleteDraft(null);
-          try {
-            const { clearDraftAssessment } = await import('@/services/coachAssessments');
-            await clearDraftAssessment(clientName, readOrgId);
-          } catch {
-            // non-fatal — UI will hide the banner regardless of cleanup result
-          }
           return;
         }
         setIncompleteDraft(draft);
@@ -577,27 +570,8 @@ export function useClientDetail(): UseClientDetailResult {
     };
   }, [clientName, readOrgId, snapshots]);
 
-  const handleFinishAssessment = useCallback(() => {
-    if (!incompleteDraft) return;
-    try {
-      writeSessionDraftAssessmentBundle(incompleteDraft.formData, clientName);
-      writePrefillClientPayload({ fullName: clientName });
-      if (
-        typeof incompleteDraft.activePhaseIdx === 'number' &&
-        incompleteDraft.activePhaseIdx >= 0
-      ) {
-        writeAssessmentPhaseIndex(incompleteDraft.activePhaseIdx);
-        // The id lets the assessment mount reconcile a stale positional index
-        // after a phase-order change (id-preferred resume).
-        if (incompleteDraft.activePhaseId) {
-          writeAssessmentPhaseId(incompleteDraft.activePhaseId);
-        }
-      }
-    } catch {
-      // non-fatal
-    }
-    navigate(ROUTES.ASSESSMENT);
-  }, [incompleteDraft, clientName, navigate]);
+  const { resumeAssessment, resuming } = useResumeAssessment();
+  const handleFinishAssessment = useCallback(() => { void resumeAssessment(clientName); }, [resumeAssessment, clientName]);
 
   const handleDiscardDraft = useCallback(async () => {
     if (!clientName || !readOrgId) return;
@@ -861,6 +835,7 @@ export function useClientDetail(): UseClientDetailResult {
     handleSaveProfile,
     handleNewAssessment,
     handleFinishAssessment,
+    resuming,
     handleDiscardDraft,
     handleDeleteAssessment,
     handleEditSnapshot,

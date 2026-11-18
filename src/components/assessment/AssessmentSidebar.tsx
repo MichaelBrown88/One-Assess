@@ -47,7 +47,7 @@ export const AssessmentSidebar = ({
   toggleSection,
   setIsReviewMode,
   setActiveFieldIdx,
-  isMobile,
+  isMobile: _isMobile,
   timeEstimate,
 }: AssessmentSidebarProps) => {
   const handlePhaseClick = (idx: number, sections: PhaseSection[]) => {
@@ -57,7 +57,7 @@ export const AssessmentSidebar = ({
       setExpandedSections({ [sections[0].id]: true });
       setActiveFieldIdx(0);
     }
-    if (sections.length === 0 || isMobile) setSidebarOpen(false);
+    setSidebarOpen(false);
   };
 
   const getPhaseState = (idx: number, phase: { id: string }) => {
@@ -102,12 +102,31 @@ export const AssessmentSidebar = ({
 
   return (
     <>
-      {/* Desktop/tablet sidebar — compact progress bar layout (md so the phase rail shows on iPad) */}
-      <aside className={`w-full md:w-64 border-b md:border-b-0 md:border-r border-border bg-background p-5 shrink-0 md:sticky top-[64px] z-30 overflow-y-auto max-h-[calc(100vh-64px)] ${sidebarOpen ? 'block fixed inset-0 z-50 pt-20' : 'hidden md:block'}`}>
-        {/* Mobile close button */}
-        <div className="flex items-center justify-between md:hidden mb-4">
+      {/* Overlay when open — closed means fully hidden so capture has the full width. */}
+      {sidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-40 bg-black/40 md:bg-black/20"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : null}
+      <aside
+        className={`w-full md:w-64 border-b md:border-b-0 md:border-r border-border bg-background p-5 shrink-0 overflow-y-auto max-h-[calc(100vh-64px)] ${
+          sidebarOpen
+            ? 'fixed inset-y-0 left-0 z-50 block pt-20 shadow-lg'
+            : 'hidden'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-foreground">Navigation</h3>
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-9 w-9 rounded-full bg-muted">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(false)}
+            className="h-9 w-9 rounded-full bg-muted"
+            aria-label="Collapse navigation"
+          >
             <X className="h-4 w-4 text-foreground-secondary" />
           </Button>
         </div>

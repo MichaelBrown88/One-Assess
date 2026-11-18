@@ -1,5 +1,7 @@
 import type { ScoreCategory, ScoreSummary } from '@/lib/scoring';
+import type { ScoreDetail } from '@/lib/scoring/types';
 import { getPillarLabel } from '@/constants/pillars';
+import { PILLAR_DETAIL_COPY, PILLAR_SUMMARY_COPY } from '@/constants/clientPillarSummaryCopy';
 
 const PILLAR_LABEL_SHORT: Record<ScoreCategory['id'], string> = {
   bodyComp: 'body composition',
@@ -9,52 +11,60 @@ const PILLAR_LABEL_SHORT: Record<ScoreCategory['id'], string> = {
   lifestyle: 'lifestyle',
 };
 
+const STRONG_DETAIL = 75;
+const NUDGE_DETAIL = 50;
+
+function measuredDetails(category: ScoreCategory): ScoreDetail[] {
+  return (category.details ?? []).filter((d) => {
+    if (!PILLAR_DETAIL_COPY[d.id]) return false;
+    if (!Number.isFinite(d.score) || d.score <= 0) return false;
+    const value = String(d.value ?? '').trim();
+    return value !== '' && value !== '-';
+  });
+}
+
 /**
- * Client-facing per-pillar summary — plain language, no coach band jargon.
- * Score delta is shown only in the header chip, not in prose.
+ * Client-facing per-pillar summary: what's good, what's not, and why it
+ * matters — built from the scored metrics, never from coach scoring labels.
  */
 export function buildClientPillarSummary(
   category: ScoreCategory,
   previousScore: number | null | undefined,
 ): string {
   const score = Math.round(category.score ?? 0);
-  const label =
-    PILLAR_LABEL_SHORT[category.id] ?? getPillarLabel(category.id, 'full').toLowerCase();
+  const label = capitalise(
+    PILLAR_LABEL_SHORT[category.id] ?? getPillarLabel(category.id, 'full').toLowerCase(),
+  );
 
-  if (!category.assessed) {
-    return `${capitalise(label)} wasn't part of this assessment. Your coach can add it in a follow-up session.`;
-  }
+  if (!category.assessed) return PILLAR_SUMMARY_COPY.notAssessed(label);
 
-  const topStrength = category.strengths?.[0];
-  const topFocus = category.weaknesses?.[0];
-  const improved =
-    previousScore != null && previousScore > 0 && Math.round(score) > Math.round(previousScore);
-  const declined =
-    previousScore != null && previousScore > 0 && Math.round(score) < Math.round(previousScore);
-  const trendBit = improved
-    ? ' You improved since your last assessment.'
-    : declined
-      ? ' This dipped slightly since your last assessment.'
+  const improved = previousScore != null && previousScore > 0 && score > Math.round(previousScore);
+  const declined = previousScore != null && previousScore > 0 && score < Math.round(previousScore);
+  const trend = improved ? PILLAR_SUMMARY_COPY.improved : declined ? PILLAR_SUMMARY_COPY.declined : '';
+
+  const details = measuredDetails(category);
+  const best = [...details].sort((a, b) => b.score - a.score)[0];
+  const weakest = [...details].sort((a, b) => a.score - b.score)[0];
+  const strongLine = best && best.score >= STRONG_DETAIL ? PILLAR_DETAIL_COPY[best.id].strong : '';
+  const focusLine =
+    weakest && weakest.score < STRONG_DETAIL
+      ? weakest.score < NUDGE_DETAIL
+        ? PILLAR_DETAIL_COPY[weakest.id].focus
+        : PILLAR_DETAIL_COPY[weakest.id].nudge
       : '';
 
-  if (score >= 75) {
-    if (topFocus) {
-      return `${capitalise(label)} is in a strong place.${trendBit} ${topStrength ? `${capitalise(topStrength)}. ` : ''}One area to keep an eye on: ${decapitalise(topFocus)}.`;
-    }
-    return `${capitalise(label)} is in a strong place.${trendBit} ${topStrength ? capitalise(topStrength) + '. ' : ''}Keep doing what's working.`;
+  let body: string;
+  if (strongLine || focusLine) {
+    body = [strongLine, focusLine || PILLAR_SUMMARY_COPY.keepGoing].filter(Boolean).join(' ');
+  } else if (score >= STRONG_DETAIL) {
+    body = PILLAR_SUMMARY_COPY.bandStrong(label);
+  } else if (score >= NUDGE_DETAIL) {
+    body = PILLAR_SUMMARY_COPY.bandMid(label);
+  } else {
+    body = PILLAR_SUMMARY_COPY.bandLow(label);
   }
 
-  if (score >= 50) {
-    if (topFocus) {
-      return `${capitalise(label)} has room to grow.${trendBit} ${topStrength ? `${capitalise(topStrength)}. ` : ''}The clearest next step: ${decapitalise(topFocus)}.`;
-    }
-    return `${capitalise(label)} is mixed — some positives, some gaps.${trendBit} Pick one habit to improve first.`;
-  }
-
-  if (topFocus) {
-    return `${capitalise(label)} is a priority right now.${trendBit} ${capitalise(topFocus)}${topStrength ? ` — even with strengths like ${decapitalise(topStrength)}` : ''}.`;
-  }
-  return `${capitalise(label)} needs attention.${trendBit} Build a steady baseline before pushing harder elsewhere.`;
+  return [trend, body].filter(Boolean).join(' ');
 }
 
 /**
@@ -79,7 +89,7 @@ export function buildClientOverallSummary(
 
   const lowest = assessed.slice().sort((a, b) => a.score - b.score)[0];
   const focusBit = lowest
-    ? ` Your lowest pillar is ${PILLAR_LABEL_SHORT[lowest.id] ?? lowest.title.toLowerCase()} at ${Math.round(lowest.score)} — a good place to focus first.`
+    ? ` Your lowest pillar is ${PILLAR_LABEL_SHORT[lowest.id] ?? lowest.title.toLowerCase()} at ${Math.round(lowest.score)}, a good place to focus first.`
     : '';
 
   const prev = previousOverall;
@@ -98,10 +108,10 @@ export function buildClientOverallSummary(
   const mid = assessed.filter((c) => c.score >= 50 && c.score < 75).length;
   const low = assessed.filter((c) => c.score < 50).length;
 
-  const scoreLine = `Your AXIS Score is ${overall} out of 100.`;
+  const scoreLine = `Your overall score is ${overall} out of 100.`;
 
   if (overall >= 75) {
-    return `${scoreLine} You are in a healthy range overall.${trendBit} ${strong} of ${total} pillars are strong — keep building on that.${focusBit}`;
+    return `${scoreLine} You are in a healthy range overall.${trendBit} ${strong} of ${total} pillars are strong. Keep building on that.${focusBit}`;
   }
   if (overall >= 50) {
     return `${scoreLine} You have a solid base with clear upside.${trendBit} ${strong} pillars are strong, ${mid} have room to grow${low > 0 ? `, and ${low} need more attention` : ''}.${focusBit}`;

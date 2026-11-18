@@ -18,7 +18,9 @@ import {
 } from 'lucide-react';
 const ClientReport = lazy(() => import('@/components/reports/ClientReport'));
 import { type FormData } from '@/contexts/FormContext';
-import { type ScoreSummary } from '@/lib/scoring';
+import { computeScores, type ScoreSummary } from '@/lib/scoring';
+import { useSavedReportComparison } from '@/hooks/useSavedReportComparison';
+import { assessmentDate } from '@/lib/assessment/assessmentDate';
 import { PHASE_FORM_COPY } from '@/constants/phaseFormCopy';
 
 interface AssessmentResultsProps {
@@ -55,6 +57,9 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({
   shareLoading,
 }) => {
   const navigate = useNavigate();
+  const saved = useSavedReportComparison(savingId, formData.fullName, saving);
+  const reportForm = saved?.formData ?? formData;
+  const reportScores = React.useMemo(() => saved ? computeScores(saved.formData) : scores, [saved, scores]);
   const [shared, setShared] = React.useState(false);
 
   const wrapShare = (fn: (v: 'client' | 'coach') => void) => () => {
@@ -183,9 +188,11 @@ const AssessmentResults: React.FC<AssessmentResultsProps> = ({
       }>
         {/* Coach debrief renders the same v2 the client sees — share/new-assessment actions live above. */}
         <ClientReport
-          scores={scores}
-          goals={Array.isArray(formData.clientGoals) ? formData.clientGoals : []}
-          formData={formData}
+          scores={reportScores}
+          goals={Array.isArray(reportForm.clientGoals) ? reportForm.clientGoals : []}
+          formData={reportForm}
+          comparison={saved?.comparison}
+          assessmentDate={assessmentDate(reportForm.assessedAt)}
           standalone
         />
       </Suspense>

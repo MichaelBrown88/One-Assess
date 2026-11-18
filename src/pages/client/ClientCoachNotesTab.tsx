@@ -247,7 +247,7 @@ function CoachNotesHero({
   onRegenerate: () => void;
 }) {
   return (
-    <section className="rounded-[28px] border border-border bg-card p-7 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)] sm:p-8">
+    <section className="rounded-lg border border-border bg-card p-7 shadow-[0_1px_2px_rgba(15,15,15,0.04)] sm:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex flex-col gap-2">
           <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
@@ -318,7 +318,7 @@ function PillarSection({
   void pillar;
 
   return (
-    <section className="rounded-[24px] border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_4px_14px_rgba(15,15,15,0.04)] sm:p-7">
+    <section className="rounded-lg border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,15,15,0.04)] sm:p-7">
       <header className="mb-5 flex items-center gap-3 border-b border-border pb-4">
         <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl', meta.tint)}>
           <Icon className="h-5 w-5" />
@@ -649,7 +649,7 @@ function EmptyState({
   cta: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-dashed border-border bg-card p-10 text-center">
+    <section className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
       <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-card-elevated">
         <Eye className="h-5 w-5 text-foreground-secondary" />
       </span>

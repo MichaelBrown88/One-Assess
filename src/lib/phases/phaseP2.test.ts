@@ -2,28 +2,32 @@ import { describe, it, expect } from 'vitest';
 import { phaseP2 } from './phaseP2';
 import { phaseP4 } from './phaseP4';
 
-describe('phaseP2 body-comp field grouping', () => {
-  const section = phaseP2.sections?.[0];
-  if (!section) throw new Error('P2 is missing its body-comp section');
-  const fields = section.fields;
-
-  it('groups height and weight on one card', () => {
-    const height = fields.find((f) => f.id === 'heightCm');
-    const weight = fields.find((f) => f.id === 'inbodyWeightKg');
-    expect(height?.pairId).toBe('height-weight');
-    expect(weight?.pairId).toBe('height-weight');
+describe('phaseP2 InBody → tape → posture', () => {
+  it('exposes three sections in order', () => {
+    expect(phaseP2.sections?.map((s) => s.id)).toEqual([
+      'inbody-results',
+      'tape-measurements',
+      'posture',
+    ]);
   });
 
-  it('keeps tape measurements on their own grouped step after the analyzer', () => {
-    const ids = fields.map((f) => f.id);
-    const tape = fields.filter((f) => f.pairId === 'tape-measurements');
-    expect(tape.length).toBeGreaterThan(2);
-    expect(ids.indexOf('shouldersCm')).toBeGreaterThan(ids.indexOf('bmrKcal'));
+  it('shows InBody fields without a hide toggle', () => {
+    const inbody = phaseP2.sections?.find((s) => s.id === 'inbody-results');
+    if (!inbody) throw new Error('missing inbody-results');
+    const ids = inbody.fields.map((f) => f.id);
+    expect(ids).toContain('inbodyWeightKg');
+    expect(ids).toContain('skeletalMuscleMassKg');
+    expect(ids).toContain('segmentalArmLeftKg');
+    expect(inbody.fields.every((f) => !f.conditional)).toBe(true);
+  });
+
+  it('keeps tape in its own section after InBody', () => {
+    const tape = phaseP2.sections?.find((s) => s.id === 'tape-measurements');
+    if (!tape) throw new Error('missing tape-measurements');
+    const ids = tape.fields.map((f) => f.id);
+    expect(ids[0]).toBe('shouldersCm');
     expect(ids).not.toContain('neckCm');
-  });
-
-  it('ends with posture photos after tape', () => {
-    expect(phaseP2.sections?.map((s) => s.id)).toEqual(['body-comp', 'posture']);
+    expect(ids).not.toContain('inbodyWeightKg');
   });
 });
 

@@ -6,6 +6,7 @@ import { logAIUsage } from '@/services/aiUsage';
 import { auth, getFirebaseApp } from '@/services/firebase';
 import { logger } from '@/lib/utils/logger';
 import { isFeatureEnabled } from '@/services/platform/platformConfig';
+import { FEATURE_FLAGS } from '@/constants/platform';
 import { checkAndDecrementAICredit, AICreditExhaustedError } from '@/lib/ai/creditGate';
 import { validateOrganizationId } from '@/lib/utils/validateOrganizationId';
 import type { UserProfile } from '@/types/auth';
@@ -228,7 +229,7 @@ export async function classifyPostureView(
   requirePostureAiActor(ctx);
 
   // Check if posture analysis feature is enabled (kill switch check)
-  const postureEnabled = await isFeatureEnabled('posture_enabled');
+  const postureEnabled = await isFeatureEnabled(FEATURE_FLAGS.POSTURE_ENABLED);
   if (!postureEnabled) {
     logger.warn('Posture classification feature is disabled via kill switch', 'POSTURE_AI');
     throw new FeatureDisabledError('AI Posture Analysis');
@@ -321,7 +322,7 @@ export async function analyzePostureImage(
   const { coachUid, organizationId } = requirePostureAiActor(aiContext);
 
   // Check if posture analysis feature is enabled (kill switch check)
-  const postureEnabled = await isFeatureEnabled('posture_enabled');
+  const postureEnabled = await isFeatureEnabled(FEATURE_FLAGS.POSTURE_ENABLED);
   if (!postureEnabled) {
     logger.warn('Posture analysis feature is disabled via kill switch', 'POSTURE_AI');
     throw new FeatureDisabledError('AI Posture Analysis');

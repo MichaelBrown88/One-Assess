@@ -86,7 +86,7 @@ export function PillarScoreBadge({
         )}
         style={showIcon ? { fontSize } : undefined}
       >
-        {safe || '—'}
+        {safe || '–'}
       </span>
     </span>
   );

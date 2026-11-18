@@ -9,6 +9,7 @@ interface PostureMarkedImageProps {
   view: PostureFindingViewId;
   analysis?: PostureAnalysisResult;
   className?: string;
+  imageClassName?: string;
 }
 
 const STROKE = 'hsl(var(--score-red))';
@@ -23,13 +24,13 @@ function markPath(mark: DeviationMark): string {
   return `M ${pts.map((p) => `${p.x} ${p.y}`).join(' L ')}`;
 }
 
-export function PostureMarkedImage({ url, view, analysis, className }: PostureMarkedImageProps) {
+export function PostureMarkedImage({ url, view, analysis, className, imageClassName }: PostureMarkedImageProps) {
   const markedAnalysis = useEnrichedPostureAnalysis(url, view, analysis);
   const marks = markedAnalysis ? postureDeviationMarks(view, markedAnalysis) : [];
 
   return (
     <div className={cn('relative inline-block max-h-full max-w-full leading-none', className)}>
-      <img src={url} alt="" className="block h-auto max-h-full w-auto max-w-full" />
+      <img src={url} alt="" className={cn('block h-auto max-h-full w-auto max-w-full', imageClassName)} />
       {marks.length > 0 ? (
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"

@@ -6,6 +6,11 @@ import type { FormData } from '@/contexts/FormContext';
 import type { ScoreSummary } from '@/lib/scoring/types';
 import { buildClientProfile } from '@/lib/physiology/profile';
 import { monthlyMuscleGainKg, weeklyWeightLossKg, vo2max8WeekGainPct } from '@/lib/physiology/rates';
+import {
+  plannedLiftingSessions,
+  profileForTwelveWeekFatLoss,
+  profileForTwelveWeekPlan,
+} from '@/lib/reports/plannedTraining';
 import { safeParse } from '@/lib/utils/numbers';
 import { calculateAge } from '@/lib/scoring';
 import { calculateCardioAnalysis } from '@/lib/utils/cardioAnalysis';
@@ -61,7 +66,9 @@ function buildWeightLossHorizons(
   } else {
     targetKg = (weightKg * (safeParse(levelWL) || 10)) / 100;
   }
-  const rate = weeklyWeightLossKg(profile, targetKg);
+  const rate = weeklyWeightLossKg(profile, targetKg, {
+    liftingSessions: plannedLiftingSessions(formData),
+  });
   // Cap by measured fat mass only when body fat is known — an unknown reading
   // must not clamp every projection to 0 kg.
   const fatKg =
@@ -263,7 +270,9 @@ export function buildGoalHorizons(
   if (!formData || !scores) return null;
 
   const { levels, context } = mergeEffectiveGoalLevels(formData, goals, scores);
-  const profile = buildClientProfile(formData, scores);
+  const profile = context.hasWeightLoss
+    ? profileForTwelveWeekFatLoss(formData, scores, context)
+    : profileForTwelveWeekPlan(formData, scores);
   const primary = context.primaryGoal;
 
   let horizons: GoalHorizonBlock[];

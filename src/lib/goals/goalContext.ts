@@ -37,7 +37,9 @@ export interface ClientGoalContext {
 }
 
 export function parseClientGoals(formData?: FormData | null, goalsOverride?: string[]): ClientGoalContext {
-  const raw = goalsOverride ?? formData?.clientGoals ?? [];
+  const source: unknown = goalsOverride ?? formData?.clientGoals ?? [];
+  // Older saves can hold a single goal string instead of a list.
+  const raw: unknown[] = Array.isArray(source) ? source : typeof source === 'string' && source ? [source] : [];
   const allGoals = raw.filter((g): g is ClientGoalId =>
     [
       GOAL_WEIGHT_LOSS,

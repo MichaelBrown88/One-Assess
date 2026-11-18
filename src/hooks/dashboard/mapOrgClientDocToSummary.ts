@@ -16,6 +16,7 @@ export function mapOrgClientDocToSummary(
     id: docSnap.id,
     clientName: docData.clientName || 'Unnamed client',
     createdAt: docData.createdAt || null,
+    assessedAt: docData.assessedAt || null,
     updatedAt: docData.updatedAt || docData.remoteIntakeLastAt || null,
     overallScore: score,
     goals: Array.isArray(docData.goals) ? docData.goals : [],
@@ -25,6 +26,8 @@ export function mapOrgClientDocToSummary(
     trend: docData.trend,
     assessmentCount: docData.assessmentCount,
     clientStatus,
+    hasAssessmentDraft: clientStatus !== 'deleted' && docData.hasAssessmentDraft === true,
+    draftUpdatedAt: docData.draftUpdatedAt ?? null,
     remoteIntakeAwaitingStudio:
       clientStatus !== 'deleted' && docData.remoteIntakeAwaitingStudio === true,
     remoteIntakePending:

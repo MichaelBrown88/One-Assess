@@ -18,9 +18,6 @@ export type LifestyleRemoteState = {
   hydrationHabits: string;
   stepsPerDay: string;
   caffeineCupsPerDay: string;
-  alcoholFrequency: string;
-  medicationsFlag: string;
-  medicationsNotes: string;
 };
 
 export const INITIAL_LIFESTYLE_REMOTE: LifestyleRemoteState = {
@@ -31,9 +28,6 @@ export const INITIAL_LIFESTYLE_REMOTE: LifestyleRemoteState = {
   hydrationHabits: '',
   stepsPerDay: '',
   caffeineCupsPerDay: '',
-  alcoholFrequency: '',
-  medicationsFlag: '',
-  medicationsNotes: '',
 };
 
 type PublicRemoteLifestyleFieldsProps = {
@@ -68,6 +62,7 @@ export function PublicRemoteLifestyleFields({
           </Select>
         </div>
       ) : null}
+
       {allowedKeys.has('sleepArchetype') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.sleepArchetype}</Label>
@@ -85,6 +80,7 @@ export function PublicRemoteLifestyleFields({
           </Select>
         </div>
       ) : null}
+
       {allowedKeys.has('stressLevel') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.stressLevel}</Label>
@@ -102,6 +98,7 @@ export function PublicRemoteLifestyleFields({
           </Select>
         </div>
       ) : null}
+
       {allowedKeys.has('nutritionHabits') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.nutritionHabits}</Label>
@@ -119,6 +116,7 @@ export function PublicRemoteLifestyleFields({
           </Select>
         </div>
       ) : null}
+
       {allowedKeys.has('hydrationHabits') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.hydrationHabits}</Label>
@@ -134,75 +132,6 @@ export function PublicRemoteLifestyleFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
-      ) : null}
-      {allowedKeys.has('stepsPerDay') ? (
-        <div className="space-y-2">
-          <Label>{P1_LABELS.stepsPerDay}</Label>
-          <input
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            inputMode="numeric"
-            value={value.stepsPerDay}
-            onChange={(e) => patch({ stepsPerDay: e.target.value })}
-            placeholder="e.g. 8000"
-          />
-        </div>
-      ) : null}
-      {allowedKeys.has('caffeineCupsPerDay') ? (
-        <div className="space-y-2">
-          <Label>{P1_LABELS.caffeineCupsPerDay}</Label>
-          <input
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            inputMode="numeric"
-            value={value.caffeineCupsPerDay}
-            onChange={(e) => patch({ caffeineCupsPerDay: e.target.value })}
-            placeholder="e.g. 2"
-          />
-        </div>
-      ) : null}
-      {allowedKeys.has('alcoholFrequency') ? (
-        <div className="space-y-2">
-          <Label>{P1_LABELS.alcoholFrequency}</Label>
-          <Select value={value.alcoholFrequency} onValueChange={(v) => patch({ alcoholFrequency: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {ASSESSMENT_OPTIONS.alcoholFrequency.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
-      {allowedKeys.has('medicationsFlag') ? (
-        <div className="space-y-2">
-          <Label>{P1_LABELS.medicationsFlag}</Label>
-          <Select value={value.medicationsFlag} onValueChange={(v) => patch({ medicationsFlag: v })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {ASSESSMENT_OPTIONS.medicationsFlag.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
-      {allowedKeys.has('medicationsNotes') && value.medicationsFlag === 'yes' ? (
-        <div className="space-y-2">
-          <Label>{P1_LABELS.medicationsNotes}</Label>
-          <textarea
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
-            value={value.medicationsNotes}
-            onChange={(e) => patch({ medicationsNotes: e.target.value })}
-            placeholder="List medications and any relevant notes"
-          />
         </div>
       ) : null}
     </div>

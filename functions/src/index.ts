@@ -34,6 +34,7 @@ import {
   handleAIUsageChange,
 } from './aggregation';
 import { snapshotPlatformMetrics, resetAssessmentsThisMonth, computeOrgHealthSummaries, writeMonthlyRollup } from './metricsHistory';
+import { rebuildOwnerConsole as rebuildOwnerConsoleData, recordStudioFullAssessment, refreshStudioNeedsYouFlags } from './ownerConsoleSync';
 import { checkPlatformHealth } from './platformHealth';
 import { runPopulationAnalytics } from './populationAnalytics';
 import {
@@ -230,6 +231,11 @@ export const onAssessmentCompleted = onDocumentWritten(
 
     const { orgId, clientSlug } = event.params;
     await handleAssessmentCompletedTrigger(orgId, clientSlug, afterData as Record<string, unknown>);
+    try {
+      await recordStudioFullAssessment(orgId, afterData as Record<string, unknown>);
+    } catch (error) {
+      logger.error('[ownerConsole] assessment snapshot failed', error);
+    }
   }
 );
 
@@ -413,7 +419,10 @@ export const firstAiUseEmailTrigger = onDocumentWritten(
  */
 export const snapshotMetricsHistory = onSchedule(
   { schedule: 'every day 01:00', timeZone: 'UTC' },
-  snapshotPlatformMetrics,
+  async () => {
+    await snapshotPlatformMetrics();
+    await refreshStudioNeedsYouFlags();
+  },
 );
 
 /**
@@ -483,6 +492,20 @@ export const rebuildPlatformMetricsHistory = onCall(
 export const rebuildSystemStats = onCall(
   { enforceAppCheck: false },
   rebuildSystemStatsCallable,
+);
+
+export const rebuildOwnerConsole = onCall(
+  { enforceAppCheck: false, timeoutSeconds: 120 },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required.');
+    }
+    const adminDoc = await admin.firestore().doc(`platform-admins/${request.auth.uid}`).get();
+    if (!adminDoc.exists) {
+      throw new HttpsError('permission-denied', 'Platform admin access required.');
+    }
+    return rebuildOwnerConsoleData();
+  },
 );
 
 export const getAICostsMTD = onCall(
