@@ -22,7 +22,7 @@ describe('resolveCardioPillarRole', () => {
 });
 
 describe('calculateCardioAnalysis', () => {
-  it('does not inflate VO2 when peak HR is low (submax test)', () => {
+  it('gives no VO2 number when the walk was too easy to extrapolate', () => {
     const result = calculateCardioAnalysis(
       40,
       'male',
@@ -34,8 +34,8 @@ describe('calculateCardioAnalysis', () => {
       { pillarRole: 'supporting' },
     );
 
-    expect(result.vo2.current).toBeGreaterThan(15);
-    expect(result.vo2.current).toBeLessThan(28);
+    // (112 - 77) / (180 - 77) = 34% of heart-rate reserve: too easy, so no invented VO2.
+    expect(result.vo2.current).toBe(0);
   });
 
   it('does not assign elite VO2 target for build-muscle maintenance profile', () => {
@@ -57,31 +57,30 @@ describe('calculateCardioAnalysis', () => {
     expect(result.vo2.gap).toBeLessThan(12);
   });
 
-  it('does not pin strenuous tests to a 50.0 VO2 regardless of resting HR', () => {
-    const higherRhr = calculateCardioAnalysis(
+  it('a lower walk heart rate (same resting HR) estimates higher fitness, never pinned to 50', () => {
+    const harder = calculateCardioAnalysis(
       31,
       'male',
       'active',
-      75,
-      152,
+      62,
+      160,
       121,
       undefined,
       { pillarRole: 'supporting' },
     );
-    const lowerRhr = calculateCardioAnalysis(
+    const easier = calculateCardioAnalysis(
       31,
       'male',
       'active',
-      58,
-      152,
+      62,
+      140,
       110,
       undefined,
       { pillarRole: 'supporting' },
     );
 
-    expect(higherRhr.vo2.current).not.toBe(50);
-    expect(lowerRhr.vo2.current).not.toBe(higherRhr.vo2.current);
-    expect(lowerRhr.vo2.current).toBeGreaterThan(higherRhr.vo2.current);
+    expect(harder.vo2.current).not.toBe(50);
+    expect(easier.vo2.current).toBeGreaterThan(harder.vo2.current);
   });
 
   it('still allows ambitious VO2 gap when fitness is a primary goal', () => {

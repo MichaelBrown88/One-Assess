@@ -2,7 +2,7 @@ import type { FormData } from '@/contexts/FormContext';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { clamp, lookupNormativeScore } from './scoringUtils';
-import { estimateVo2maxUth } from '@/lib/cardio/vo2max';
+import { estimateVo2maxFromWalk, scoreVo2maxFriend } from '@/lib/cardio/fitnessEstimate';
 
 export function scoreCardio(form: FormData, age: number, gender: string): ScoreCategory {
   const test = (form.cardioTestSelected || '').toLowerCase();
@@ -39,8 +39,14 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
     ? lookupNormativeScore('Recovery HR', gender, age, hr60)
     : hasHrr ? hrrScore : 0;
 
-  // VO2max estimate (Uth 2004) — uses resting HR, not the recovery reading.
-  const vo2max = hasRhr ? estimateVo2maxUth(age, rhr) : 0;
+  // Fitness estimate from the standard walk (ACSM walking cost + %HRR, scored
+  // against FRIEND percentiles). Falls back to resting HR + recovery when the
+  // walk can't be extrapolated (too easy, or heart rates missing).
+  const walkEstimate = hasRhr && hasPeakHr
+    ? estimateVo2maxFromWalk({ age, restingHr: rhr, workHr: peakHr })
+    : { status: 'missing' as const };
+  const vo2max = walkEstimate.status === 'ok' ? walkEstimate.vo2max : 0;
+  const vo2Score = vo2max > 0 ? scoreVo2maxFriend(vo2max, age, gender) : null;
 
   // Resting HR score
   const rhrScore = hasRhr
@@ -56,9 +62,10 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
     hasRhr ? rhrScore : 0,
     hasHrr ? hrrScore : hasHr60 ? recoveryScore : 0,
   ].filter(s => s > 0);
-  const fitnessScore = cardioSubScores.length > 0
+  const fallbackScore = cardioSubScores.length > 0
     ? clamp(cardioSubScores.reduce((a, b) => a + b, 0) / cardioSubScores.length)
     : 0;
+  const fitnessScore = vo2Score ?? fallbackScore;
 
   const cardioClass =
     fitnessScore >= 90 ? 'Excellent'
@@ -79,7 +86,16 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
   }
 
   details.push(
-    { id: 'vo2', label: 'VO₂max Est.', value: vo2max ? vo2max.toFixed(1) : '-', unit: 'ml/kg/min', score: Math.round(hasHrr ? hrrScore : recoveryScore) },
+    {
+      id: 'vo2',
+      label: 'VO₂max Est. (walk)',
+      value: vo2max ? vo2max.toFixed(1) : '-',
+      unit: 'ml/kg/min',
+      score: Math.round(vo2Score ?? 0),
+      ...(walkEstimate.status === 'too-easy'
+        ? { notes: 'Walk was too easy to estimate fitness reliably (under 40% of heart-rate reserve); scored from resting HR and recovery instead.' }
+        : {}),
+    },
     { id: 'cardioClass', label: 'Fitness Level', value: cardioClass, score: Math.round(fitnessScore) }
   );
 

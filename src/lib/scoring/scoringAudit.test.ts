@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/assessmentForm';
 import { ASSESSMENT_OPTIONS } from '@/constants/assessment';
 import { calculateBodyFatFromMeasurements } from '@/lib/utils/measurementConverters';
-import { estimateVo2maxUth } from '@/lib/cardio/vo2max';
 import { calculateAge, lookupNormativeScore } from './scoringUtils';
 import { scoreStrength } from './strengthScoring';
 import { scoreCardio } from './cardioScoring';
@@ -55,16 +54,17 @@ describe('1.12 age brackets clamp to the nearest bracket', () => {
   });
 });
 
-describe('1.3 VO2max uses resting heart rate (Uth 2004)', () => {
-  it('estimates from HRmax / resting HR', () => {
-    // age 38: HRmax = 208 - 0.7*38 = 181.4; 15.3 * 181.4 / 62 = 44.8
-    expect(estimateVo2maxUth(38, 62)).toBeCloseTo(44.8, 1);
+describe('1.3 / 4.1 fitness is estimated from the standard walk', () => {
+  it('uses the walk cost and the share of heart-rate reserve, scored on FRIEND percentiles', () => {
+    // age 38: effort (150-62)/(181.4-62) = 0.737; 3.5 + (26.8-3.5)/0.737 = 35.2
     const cardio = scoreCardio(
       form({ cardioRestingHr: '62', cardioPeakHr: '150', cardioPost1MinHr: '118' }),
       38,
       'male',
     );
-    expect(detail(cardio, 'vo2')?.value).toBe('44.8');
+    expect(detail(cardio, 'vo2')?.value).toBe('35.2');
+    // FRIEND men 30-39: 35.2 sits between the 10th (30.2) and 25th (35.9) percentiles.
+    expect(cardio.score).toBe(23);
   });
 });
 
