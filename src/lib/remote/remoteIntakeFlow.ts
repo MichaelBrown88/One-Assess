@@ -57,7 +57,20 @@ export type RemoteIntakeScreen =
       label: string;
       options: SelectOption[];
     }
-  | { id: 'posture'; kind: 'posture' };
+  | { id: 'posture'; kind: 'posture' }
+  /** PAR-Q self-report (intake link only); answers live in the health record. */
+  | { id: 'parq'; kind: 'parq' }
+  /** Regular medication yes/no + details (intake link only). */
+  | { id: 'medications'; kind: 'medications' };
+
+/** PAR-Q answers + medications captured on the phone, keyed by ONE ASSESS form field. */
+export type RemoteHealthState = Record<string, string>;
+
+/** Same gender rule as parqQuestions in src/components/ParQQuestionnaire.tsx. */
+export function visibleParqIds(gender: string): string[] {
+  const base = ['parq1', 'parq2', 'parq3', 'parq4', 'parq5', 'parq6', 'parq7'];
+  return gender === 'female' ? [...base, 'parq12', 'parq13'] : base;
+}
 
 type SelectOption = { value: string; label: string };
 
@@ -84,6 +97,8 @@ export function buildRemoteIntakeScreens(params: {
   allowedKeys: Set<string>;
   prefill: RemoteBasicInfoPrefill;
   gender: string;
+  /** Per-client links offer posture photos; the gym intake link does not. */
+  includePosture?: boolean;
 }): RemoteIntakeScreen[] {
   const screens: RemoteIntakeScreen[] = [{ id: 'welcome', kind: 'welcome' }];
 
@@ -182,6 +197,9 @@ export function buildRemoteIntakeScreens(params: {
     }
   }
 
+  if (params.allowedKeys.has('parq1')) screens.push({ id: 'parq', kind: 'parq' });
+  if (params.allowedKeys.has('medicationsFlag')) screens.push({ id: 'medications', kind: 'medications' });
+
   if (params.allowedKeys.has('stepsPerDay')) {
     screens.push({
       id: 'dailyMovement',
@@ -238,7 +256,7 @@ export function buildRemoteIntakeScreens(params: {
     });
   }
 
-  screens.push({ id: 'posture', kind: 'posture' });
+  if (params.includePosture !== false) screens.push({ id: 'posture', kind: 'posture' });
 
   return screens;
 }
@@ -259,11 +277,10 @@ export function isScreenValid(
   screen: RemoteIntakeScreen,
   basic: BasicInfoState,
   lifestyle: LifestyleRemoteState,
-  _parq: Record<string, string>,
+  health: RemoteHealthState,
   posturePaths: Partial<Record<string, string>>,
   goals: PreAssessmentGoalsState,
 ): boolean {
-  void _parq;
   void posturePaths;
   switch (screen.kind) {
     case 'welcome':
@@ -293,6 +310,11 @@ export function isScreenValid(
       return goals.trainingFrequency.trim().length > 0;
     case 'posture':
       return true;
+    case 'parq':
+      return visibleParqIds(basic.gender).every((id) => health[id] === 'yes' || health[id] === 'no');
+    case 'medications':
+      return health.medicationsFlag === 'no' ||
+        (health.medicationsFlag === 'yes' && (health.medicationsNotes ?? '').trim().length > 0);
     default:
       return false;
   }
@@ -303,6 +325,8 @@ export function screenTitle(screen: RemoteIntakeScreen): string | undefined {
   if (screen.kind === 'group') return screen.title;
   if (screen.kind === 'posture') return undefined;
   if (screen.kind === 'dateOfBirth') return undefined;
+  if (screen.kind === 'parq') return ASSESSMENT_COPY.REMOTE_INTAKE_PARQ_TITLE;
+  if (screen.kind === 'medications') return ASSESSMENT_COPY.REMOTE_INTAKE_MEDS_TITLE;
   if (
     screen.kind === 'goals' ||
     screen.kind === 'trainingFrequency' ||

@@ -8,7 +8,8 @@ import {
   submitRemoteAssessmentFields,
 } from '@/services/remoteAssessmentClient';
 import { logger } from '@/lib/utils/logger';
-import type { RemotePostureView, RemoteSessionFailReason } from '@/lib/types/remoteAssessment';
+import type { RemotePostureView, RemoteSessionFailReason, RemoteSessionResult } from '@/lib/types/remoteAssessment';
+import { RemoteParQStep } from '@/components/remote/steps/RemoteParQStep';
 import { RemoteMobileShell } from '@/components/remote/RemoteMobileShell';
 import { RemoteIntakeWelcome } from '@/components/remote/RemoteIntakeWelcome';
 import {
@@ -36,7 +37,9 @@ import {
   isScreenValid,
   screenSubtitle,
   screenTitle,
+  visibleParqIds,
   type PreAssessmentGoalsState,
+  type RemoteHealthState,
   type RemoteIntakeScreen,
 } from '@/lib/remote/remoteIntakeFlow';
 import { RemoteMobileGoalPicker } from '@/components/remote/RemoteMobileGoalPicker';
@@ -62,12 +65,26 @@ function lifestyleToFields(lifestyle: LifestyleRemoteState, allowed: Set<string>
   return out;
 }
 
+/** Where the wizard loads its questions from and sends the answers to. */
+export type IntakeSource = {
+  /** Changes when the link changes; empty means no link. */
+  key: string;
+  load: () => Promise<RemoteSessionResult>;
+  submit: (fields: Record<string, string>) => Promise<void>;
+  /** Per-client token used for posture photo uploads; absent for the gym intake link. */
+  postureToken?: string;
+  includePosture: boolean;
+  /** Editable starting values (e.g. from a CRM link), unlike `prefill` which is coach-confirmed. */
+  initialValues?: Partial<BasicInfoState>;
+};
+
 function isScreenValidRemote(
   screen: RemoteIntakeScreen,
   basic: BasicInfoState,
   lifestyle: LifestyleRemoteState,
   posturePaths: Partial<Record<RemotePostureView, string>>,
   goalsState: PreAssessmentGoalsState,
+  health: RemoteHealthState,
 ): boolean {
   if (screen.kind === 'text' && screen.field === 'fullName') {
     return basic.fullName.trim().length >= 2;
@@ -75,11 +92,23 @@ function isScreenValidRemote(
   if (screen.kind === 'text' && screen.field === 'email') {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(basic.email.trim());
   }
-  return isScreenValid(screen, basic, lifestyle, {}, posturePaths, goalsState);
+  return isScreenValid(screen, basic, lifestyle, health, posturePaths, goalsState);
 }
 
 export default function PublicRemoteAssessment() {
   const { token } = useParams<{ token: string }>();
+  const source = useMemo<IntakeSource>(() => ({
+    key: token ?? '',
+    load: () => fetchRemoteAssessmentSession(token ?? ''),
+    submit: (fields) => submitRemoteAssessmentFields(token ?? '', fields),
+    postureToken: token,
+    includePosture: true,
+  }), [token]);
+  return <RemoteIntakeWizard source={source} />;
+}
+
+export function RemoteIntakeWizard({ source }: { source: IntakeSource }) {
+  const token = source.key;
 
   const [checking, setChecking] = useState(true);
   const [sessionFailReason, setSessionFailReason] = useState<RemoteSessionFailReason | null>(null);
@@ -97,6 +126,7 @@ export default function PublicRemoteAssessment() {
   const [posturePaths, setPosturePaths] = useState<Partial<Record<RemotePostureView, string>>>({});
   const [posturePlan, setPosturePlan] = useState<PostureIntakePlan>(null);
   const [goals, setGoals] = useState<PreAssessmentGoalsState>(INITIAL_PRE_ASSESSMENT_GOALS);
+  const [health, setHealth] = useState<RemoteHealthState>({});
 
   useEffect(() => {
     if (!token) {
@@ -105,14 +135,14 @@ export default function PublicRemoteAssessment() {
     }
     let cancelled = false;
     void (async () => {
-      const res = await fetchRemoteAssessmentSession(token);
+      const res = await source.load();
       if (cancelled) return;
       if (res.ok) {
         setSessionFailReason(null);
         setAllowedKeys(new Set(res.allowedKeys));
         const p = res.prefill ?? {};
         setPrefill(p);
-        setBasicInfo(initialBasicFromPrefill(p));
+        setBasicInfo({ ...initialBasicFromPrefill(p), ...(source.initialValues ?? {}) });
       } else {
         setSessionFailReason(res.reason);
         setAllowedKeys(new Set());
@@ -122,6 +152,8 @@ export default function PublicRemoteAssessment() {
     return () => {
       cancelled = true;
     };
+    // `source` is memoised by the caller and changes with `token`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const screens = useMemo(
@@ -130,8 +162,9 @@ export default function PublicRemoteAssessment() {
         allowedKeys,
         prefill,
         gender: basicInfo.gender,
+        includePosture: source.includePosture,
       }),
-    [allowedKeys, prefill, basicInfo.gender],
+    [allowedKeys, prefill, basicInfo.gender, source.includePosture],
   );
 
   const currentScreen = screens[screenIndex];
@@ -149,6 +182,7 @@ export default function PublicRemoteAssessment() {
       lifestyle,
       posturePaths,
       goals,
+      health,
     );
   }, [
     currentScreen,
@@ -156,6 +190,7 @@ export default function PublicRemoteAssessment() {
     lifestyle,
     posturePaths,
     goals,
+    health,
     postureStepReady,
   ]);
 
@@ -196,6 +231,7 @@ export default function PublicRemoteAssessment() {
 
   const handleSubmitAll = async () => {
     if (!token) return;
+    const parqIds = new Set(visibleParqIds(basicInfo.gender));
     setError(null);
     setSubmitting(true);
     try {
@@ -212,10 +248,16 @@ export default function PublicRemoteAssessment() {
       if (goals.trainingFrequency.trim()) {
         fields.trainingFrequency = goals.trainingFrequency.trim();
       }
+      for (const [key, value] of Object.entries(health)) {
+        if (!allowedKeys.has(key)) continue;
+        if (key.startsWith('parq') && !parqIds.has(key)) continue;
+        if (key === 'medicationsNotes' && health.medicationsFlag !== 'yes') continue;
+        fields[key] = value.trim();
+      }
       for (const k of Object.keys(fields)) {
         if (!fields[k]) delete fields[k];
       }
-      await submitRemoteAssessmentFields(token, fields);
+      await source.submit(fields);
       sessionStorage.setItem(REMOTE_INTAKE_COMPLETE_KEY, '1');
       setSubmitted(true);
     } catch (err) {
@@ -288,10 +330,10 @@ export default function PublicRemoteAssessment() {
     );
   }
 
-  if (postureCaptureOpen && token) {
+  if (postureCaptureOpen && source.postureToken) {
     return (
       <RemotePostureGuidedCapture
-        token={token}
+        token={source.postureToken}
         onComplete={(paths) => {
           setPosturePaths(paths);
           setPostureCaptureOpen(false);
@@ -400,6 +442,31 @@ export default function PublicRemoteAssessment() {
             onChange={(v) => setGoals((prev) => ({ ...prev, trainingFrequency: v }))}
             options={currentScreen.options}
           />
+        );
+      case 'parq':
+        return (
+          <RemoteParQStep
+            value={health}
+            gender={basicInfo.gender}
+            onChange={(patch) => setHealth((prev) => ({ ...prev, ...patch }))}
+          />
+        );
+      case 'medications':
+        return (
+          <div className="w-full space-y-4">
+            <RemoteMobileChoiceField
+              value={health.medicationsFlag ?? ''}
+              onChange={(v) => setHealth((prev) => ({ ...prev, medicationsFlag: v }))}
+              options={[{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }]}
+            />
+            {health.medicationsFlag === 'yes' ? (
+              <RemoteMobileTextField
+                label={ASSESSMENT_COPY.REMOTE_INTAKE_MEDS_DETAILS}
+                value={health.medicationsNotes ?? ''}
+                onChange={(v) => setHealth((prev) => ({ ...prev, medicationsNotes: v }))}
+              />
+            ) : null}
+          </div>
         );
       case 'posture':
         return (

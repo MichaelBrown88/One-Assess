@@ -45,6 +45,7 @@ const BillingSuccess = lazy(() => import("./pages/BillingSuccess"));
 const Subscribe = lazy(() => import("./pages/Subscribe"));
 const PublicRemoteAssessment = lazy(() => import("./pages/PublicRemoteAssessment"));
 const RemoteIntakeEntry = lazy(() => import("./pages/RemoteIntakeEntry"));
+const PublicIntakeLink = lazy(() => import("./pages/PublicIntakeLink"));
 
 const RequestErasure = lazy(() => import("./pages/RequestErasure"));
 const SandboxTrial = lazy(() => import("./pages/SandboxTrial"));
@@ -208,6 +209,8 @@ const App = () => (
                     />
                     <Route path="/remote" element={<RemoteIntakeEntry />} />
                     <Route path="/remote/:token" element={<PublicRemoteAssessment />} />
+                    {/* Reusable per-gym intake link (public) */}
+                    <Route path="/start/:token" element={<PublicIntakeLink />} />
                     <Route
                       path="/r/:token/erasure"
                       element={<RequestErasure />}

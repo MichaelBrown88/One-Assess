@@ -45,7 +45,7 @@ export function InstallPrompt() {
   const [forceShow, setForceShow] = useState(false);
 
   const onRemoteIntakeRoute =
-    /^\/remote\/[^/]+$/i.test(location.pathname) &&
+    /^\/(remote|start)\/[^/]+$/i.test(location.pathname) &&
     sessionStorage.getItem(REMOTE_INTAKE_COMPLETE_KEY) !== '1';
 
   const onClientPortalRoute = /^\/r(\/|$)/i.test(location.pathname);

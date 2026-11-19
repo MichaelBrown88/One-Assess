@@ -78,6 +78,10 @@ export const ASSESSMENT_COPY = {
   REMOTE_INTAKE_DOB_TITLE: 'When were you born?',
   REMOTE_INTAKE_DOB_HINT: 'Scroll day, month, and year.',
   REMOTE_INTAKE_SKIP: 'Skip',
+  REMOTE_INTAKE_PARQ_TITLE: 'A few health questions',
+  REMOTE_INTAKE_MEDS_TITLE: 'Do you take any regular medication?',
+  REMOTE_INTAKE_MEDS_DETAILS: 'Which medication, and what is it for?',
+  INTAKE_LINK_WELCOME_ORG: (orgName: string) => (orgName ? `${orgName} — before your assessment` : 'Before your assessment'),
   REMOTE_INTAKE_OPTIONAL_HINT:
     'Optional — skip if it does not apply. It will not appear on your report.',
   REMOTE_INTAKE_POSTURE_TITLE: 'Quick body photos',
