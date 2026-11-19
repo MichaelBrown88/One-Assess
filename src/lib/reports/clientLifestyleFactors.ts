@@ -10,6 +10,7 @@ import {
   LIFESTYLE_FACTOR_LABELS,
   clientLifestyleNutritionAdvice,
 } from '@/constants/clientReport';
+import { habitFactorLabel, habitFactorScores, hasHabitAnswers, type HabitFactor } from '@/lib/scoring/lifestyleHabits';
 
 export { clientLifestyleNutritionAdvice };
 
@@ -51,12 +52,22 @@ export function buildLifestyleFactorRows(
   if (!formData) return [];
 
   const factors: LifestyleFactorRow[] = [];
+  const habits = habitFactorScores(formData);
+  const habitTone = (score: number | null): LifestyleFactorTone =>
+    score === null ? 'unknown' : score >= 75 ? 'good' : score >= 50 ? 'concern' : 'critical';
+  const habitRow = (factor: HabitFactor, label: string, advice: string): LifestyleFactorRow | null =>
+    hasHabitAnswers(formData, factor)
+      ? { id: factor, label, value: habitFactorLabel(formData, factor), tone: habitTone(habits[factor]), advice }
+      : null;
 
   const sleepArch = (formData.sleepArchetype || '').toLowerCase();
   const sleepQ = (formData.sleepQuality || '').toLowerCase();
   const sleepC = (formData.sleepConsistency || '').toLowerCase();
   const sleepDur = (formData.sleepDuration || '').toLowerCase();
-  if (sleepArch || sleepQ || sleepDur) {
+  const sleepHabit = habitRow('sleep', LIFESTYLE_FACTOR_LABELS.sleep, LIFESTYLE_FACTOR_ADVICE.sleep);
+  if (sleepHabit) {
+    factors.push(sleepHabit);
+  } else if (sleepArch || sleepQ || sleepDur) {
     const sleepLabel = sleepArch
       ? capitalise(sleepArch.replace(/[-_]/g, ' '))
       : [sleepDur, sleepQ].filter(Boolean).map(capitalise).join(' · ');
@@ -76,7 +87,10 @@ export function buildLifestyleFactorRows(
   }
 
   const stress = (formData.stressLevel || '').toLowerCase();
-  if (stress) {
+  const stressHabit = habitRow('stress', LIFESTYLE_FACTOR_LABELS.stress, LIFESTYLE_FACTOR_ADVICE.stress);
+  if (stressHabit) {
+    factors.push(stressHabit);
+  } else if (stress) {
     let tone: LifestyleFactorTone = 'good';
     if (stress === 'very-high' || stress === 'high') tone = 'critical';
     else if (stress === 'moderate' || stress.includes('moderate')) tone = 'concern';
@@ -90,7 +104,10 @@ export function buildLifestyleFactorRows(
   }
 
   const nutrition = (formData.nutritionHabits || '').toLowerCase();
-  if (nutrition) {
+  const nutritionHabit = habitRow('nutrition', LIFESTYLE_FACTOR_LABELS.nutrition, clientLifestyleNutritionAdvice(nutritionTargets?.calories, nutritionTargets?.proteinG));
+  if (nutritionHabit) {
+    factors.push(nutritionHabit);
+  } else if (nutrition) {
     let tone: LifestyleFactorTone = 'good';
     if (nutrition === 'poor') tone = 'critical';
     else if (nutrition === 'fair') tone = 'concern';
@@ -118,7 +135,12 @@ export function buildLifestyleFactorRows(
   }
 
   const steps = parseFloat(formData.stepsPerDay || '0');
-  if (steps > 0) {
+  const activityHabit = hasHabitAnswers(formData, 'activity')
+    ? habitRow('activity', LIFESTYLE_FACTOR_LABELS.activity, (habits.activity ?? 0) >= 90 ? LIFESTYLE_FACTOR_ADVICE.activityStrong : LIFESTYLE_FACTOR_ADVICE.activityAim)
+    : null;
+  if (activityHabit) {
+    factors.push(activityHabit);
+  } else if (steps > 0) {
     let tone: LifestyleFactorTone = 'good';
     if (steps < 5000) tone = 'critical';
     else if (steps < 8000) tone = 'concern';

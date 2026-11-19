@@ -74,6 +74,15 @@ export function clientReportHasCapturedData(formData: FormData | undefined): boo
 
   if (
     hasText(formData.sleepArchetype) ||
+    hasText(formData.sleepHours) ||
+    hasText(formData.sleepRegularity) ||
+    hasText(formData.stressFrequency) ||
+    hasText(formData.stressCoping) ||
+    hasText(formData.exerciseMinutesWeek) ||
+    hasText(formData.strengthDaysWeek) ||
+    hasText(formData.proteinMeals) ||
+    hasText(formData.fruitVegPortions) ||
+    hasText(formData.takeawaysWeek) ||
     hasText(formData.sleepQuality) ||
     hasText(formData.sleepDuration) ||
     hasText(formData.stressLevel) ||

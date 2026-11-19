@@ -215,6 +215,16 @@ export interface FormData {
   pushupsOneMinuteReps: string;
   /** 'full' (toes) or 'knees'. Empty on older assessments: men full, women knees. */
   pushupType: string;
+  /** Lifestyle habit questions (Nov 2026); see src/lib/scoring/lifestyleHabits.ts. */
+  sleepHours: string;
+  sleepRegularity: string;
+  stressFrequency: string;
+  stressCoping: string;
+  exerciseMinutesWeek: string;
+  strengthDaysWeek: string;
+  proteinMeals: string;
+  fruitVegPortions: string;
+  takeawaysWeek: string;
   /** 30-second single-leg sit-to-stand, reps per leg (replaces one-minute squats). */
   singleLegStandLeftReps: string;
   singleLegStandRightReps: string;
@@ -425,6 +435,15 @@ export const initialFormData: FormData = {
   squatsOneMinuteReps: '',
   pushupsOneMinuteReps: '',
   pushupType: '',
+  sleepHours: '',
+  sleepRegularity: '',
+  stressFrequency: '',
+  stressCoping: '',
+  exerciseMinutesWeek: '',
+  strengthDaysWeek: '',
+  proteinMeals: '',
+  fruitVegPortions: '',
+  takeawaysWeek: '',
   singleLegStandLeftReps: '',
   singleLegStandRightReps: '',
   gripTestMethod: '',
