@@ -182,3 +182,20 @@ No deploy, no push to main, and no production data writes beyond the test client
 ## Decisions needed
 - 1.13 push-ups for women: (a) add a "full / knees" choice (recommended), or (b) everyone does full push-ups, scored against full push-up norms for both sexes.
 - 1.11 inferred mobility: today mobility is inferred from the squat chips and counted as a third movement sub-score, so one squat counts twice (live: knees caving in still gave Movement 95 and "your joints move freely"). Options: (a) keep the inferred score but drop the "joints move freely" line when mobility is inferred, or (b) only count mobility when it's measured directly.
+
+---
+
+## Tier 4: test protocols, norms and coach takeaways (approved 19 Nov)
+
+Budget: whole in-studio assessment 35–40 min, non-physical answers pre-filled at home.
+
+| # | Item | Approach | Status |
+|---|---|---|---|
+| 4.1 | Fitness score | Keep the 3-min walk at 5 km/h, 10% incline (owner: km/h, keep 3 min). Oxygen cost from the ACSM walking equation (≈26.8 ml/kg/min). Effort = (HR at 3:00 − resting) / (age-predicted max − resting). Estimate = 3.5 + (work VO₂ − 3.5) / effort (Swain %HRR ≈ %VO₂R). Score against age/sex population percentiles. Below ~40% effort: "too easy to estimate", not a number. Client copy stays "Fitness level". Expected error about ±15%. | next |
+| 4.2 | Plank | Strand 2014 sex-specific percentiles (college-age) as the base; age adjustment marked provisional; cap the hold at 2 minutes. | to do |
+| 4.3 | Lifestyle | Behaviour questions against guidelines: sleep hours + regularity (7–9 h), stress (PSS-4), steps + weekly exercise minutes and strength days (WHO), nutrition counts (protein meals, fruit/veg portions, takeaways), caffeine timing. Hydration folded into nutrition. Equal weights; report leads with the biggest lever. | to do |
+| 4.4 | Posture | Grade by deviation with a "normal" zone. Pelvic tilt: only flag large tilts (most healthy people stand at ~6–13° anterior; MediaPipe hips aren't the pelvic landmarks, so treat as observation). Forward head: bands from the ear–shoulder proxy, calibrated on 30–50 studio clients. | to do |
+| 4.5 | Mobility | OHS chips map to likely restrictions (arms forward → shoulder/thoracic; heels lift or shallow + lean → ankle; hinge rounding → hamstring/hinge). Add a "heels lift" chip. Knee-to-wall only when ankle is flagged (<10 cm restricted, ~3.6°/cm). | to do |
+| 4.6 | Coach programming brief | Deterministic, coach-only rules from findings: obese band/BMI ≥30 → low-impact conditioning and regressions, no jumps/burpees at first; imbalance → unilateral, weak side first, independent-lever machines; knee valgus, hinge rounding, overhead limits → specific swaps; pain → don't load; low fitness → aerobic base; poor sleep/high stress → lower starting volume; beginner → machines first. Builds on `coachNotes/interventionLibrary.ts`. | to do |
+
+To verify against originals before final numbers: Strand 2014 percentile table, FRIEND/ACSM VO₂ percentiles, Herrington 2011 pelvic tilt, Bennell 1998 knee-to-wall.
