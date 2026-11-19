@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { WebhooksManager } from '@/components/org/integrations/WebhooksManager';
 import { CsvClientImport } from '@/components/org/integrations/CsvClientImport';
 import { IntakeLinkCard } from '@/components/org/integrations/IntakeLinkCard';
+import { ApiKeysCard } from '@/components/org/integrations/ApiKeysCard';
 import type { OrgAdminOutletContext } from './OrgAdminLayout';
 
 export default function OrgIntegrations() {
@@ -23,6 +24,10 @@ export default function OrgIntegrations() {
 
       <div className="rounded-2xl border border-border bg-background p-6">
         <IntakeLinkCard organizationId={organizationId} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-background p-6">
+        <ApiKeysCard organizationId={organizationId} />
       </div>
 
       <div className="rounded-2xl border border-border bg-background p-6">
