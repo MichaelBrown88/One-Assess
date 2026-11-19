@@ -43,7 +43,8 @@ describe('IntakeLinkCard', () => {
     manage.mockResolvedValue({ token: 'B'.repeat(22), enabled: true });
     await mount();
     expect(container.textContent).toContain('The link is off');
-    await act(async () => (container.querySelector('[role="switch"]') as HTMLButtonElement).click());
+    const turnOn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Turn on intake link');
+    await act(async () => turnOn?.click());
     expect(manage).toHaveBeenCalledWith('enable');
     expect(container.textContent).toContain(`/start/${'B'.repeat(22)}`);
   });

@@ -61,6 +61,8 @@ export function IntakeLinkCard({ organizationId, origin = window.location.origin
         </div>
         <Switch
           aria-label="Intake link on"
+          // The default off track matches the card background here; give it a visible track.
+          className="data-[state=unchecked]:bg-muted-foreground/35"
           checked={Boolean(link?.enabled)}
           disabled={loading || busy}
           onCheckedChange={(on) => void run(on ? 'enable' : 'disable')}
@@ -92,7 +94,16 @@ export function IntakeLinkCard({ organizationId, origin = window.location.origin
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{loading ? 'Loading…' : 'The link is off. Switch it on to get your link.'}</p>
+        loading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" size="sm" disabled={busy} onClick={() => void run('enable')}>
+              Turn on intake link
+            </Button>
+            <p className="text-sm text-muted-foreground">The link is off. Turn it on to get your link and QR code.</p>
+          </div>
+        )
       )}
     </section>
   );
