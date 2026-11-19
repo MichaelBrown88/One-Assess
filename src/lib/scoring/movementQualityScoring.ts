@@ -201,17 +201,22 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
   // 3. MOVEMENT PATTERN SCORING
   const getScore = (v: string | undefined) => (v ? (MOVEMENT_PATTERN_SCORES[v.toLowerCase()] ?? 0) : 0);
 
+  // Each pattern scores as its worst observed fault (owner decision, 19 Nov 2026).
+  // Averaging let the 'fine' checks dilute a real fault: a quarter-depth squat
+  // with forward lean was only 2 bad checks out of 6.
+  const worstFault = (scores: number[]) => (scores.length > 0 ? Math.min(...scores) : 0);
+
   const ohsFields = [form.ohsShoulderMobility, form.ohsTorsoLean, form.ohsSquatDepth, form.ohsHipShift, form.ohsKneeAlignment, form.ohsFeetPosition];
   const ohsScores = ohsFields.map(getScore).filter(s => s > 0);
-  const ohsScore = ohsScores.length > 0 ? ohsScores.reduce((a, b) => a + b, 0) / ohsScores.length : 0;
+  const ohsScore = worstFault(ohsScores);
 
   const hingeFields = [form.hingeDepth, form.hingeBackRounding];
   const hingeScores = hingeFields.map(getScore).filter(s => s > 0);
-  const hingeScore = hingeScores.length > 0 ? hingeScores.reduce((a, b) => a + b, 0) / hingeScores.length : 0;
+  const hingeScore = worstFault(hingeScores);
 
   const lungeFields = [form.lungeLeftBalance, form.lungeRightBalance, form.lungeLeftKneeAlignment, form.lungeRightKneeAlignment, form.lungeLeftTorso, form.lungeRightTorso];
   const lungeScores = lungeFields.map(getScore).filter(s => s > 0);
-  const lungeScore = lungeScores.length > 0 ? lungeScores.reduce((a, b) => a + b, 0) / lungeScores.length : 0;
+  const lungeScore = worstFault(lungeScores);
 
   const mvmntScores = [ohsScore, hingeScore, lungeScore].filter(s => s > 0);
   const movementScore = mvmntScores.length > 0

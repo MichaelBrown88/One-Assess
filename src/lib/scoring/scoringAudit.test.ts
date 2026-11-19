@@ -197,7 +197,28 @@ describe('1.11 mobility inferred from the squat is not counted twice', () => {
       'male',
     );
     expect(detail(r, 'mobility')?.score).toBe(0);
-    expect(r.score).toBe(90);
+    expect(r.score).toBe(40); // worst fault: knees cave in (valgus = 40)
+  });
+});
+
+describe('each movement pattern scores as its worst fault', () => {
+  it('a quarter-depth squat with forward lean is not diluted by the checks that looked fine', () => {
+    const r = scoreMovementQuality(
+      form({ ohsShoulderMobility: 'full-range', ohsTorsoLean: 'excessive-lean', ohsSquatDepth: 'quarter-depth', ohsHipShift: 'none', ohsKneeAlignment: 'stable', ohsFeetPosition: 'stable' }),
+      30,
+      'male',
+    );
+    expect(detail(r, 'movement')?.score).toBe(30);
+  });
+
+  it('patterns that all looked good still score 100, and patterns are averaged with each other', () => {
+    const r = scoreMovementQuality(
+      form({ hingeDepth: 'excellent', hingeBackRounding: 'none', lungeLeftBalance: 'excellent', lungeRightBalance: 'fair' }),
+      30,
+      'male',
+    );
+    // hinge 100, lunge worst = fair 60 → (100 + 60) / 2
+    expect(detail(r, 'movement')?.score).toBe(80);
   });
 });
 
