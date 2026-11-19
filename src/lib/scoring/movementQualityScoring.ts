@@ -45,7 +45,9 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
     ankleMob = mapMobility(mobility.ankleLegacy);
   }
 
-  const mobilityScores = [hipMob, shoulderMob, ankleMob].filter(s => s > 0);
+  // Mobility inferred from the squat chips re-uses the same squat, so it only
+  // counts when measured directly (owner decision, 19 Nov 2026).
+  const mobilityScores = mobility.inferred ? [] : [hipMob, shoulderMob, ankleMob].filter(s => s > 0);
   const mobilityScore = mobilityScores.length > 0
     ? Math.round(mobilityScores.reduce((a, b) => a + b, 0) / mobilityScores.length)
     : 0;
