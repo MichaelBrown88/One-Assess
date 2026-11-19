@@ -2,6 +2,7 @@ import type { FormData } from '@/contexts/FormContext';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { clamp, lookupNormativeScore } from './scoringUtils';
+import { estimateVo2maxUth } from '@/lib/cardio/vo2max';
 
 export function scoreCardio(form: FormData, age: number, gender: string): ScoreCategory {
   const test = (form.cardioTestSelected || '').toLowerCase();
@@ -38,9 +39,8 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
     ? lookupNormativeScore('Recovery HR', gender, age, hr60)
     : hasHrr ? hrrScore : 0;
 
-  // VO2max estimate
-  const mhr = age > 0 ? 208 - 0.7 * age : 0;
-  const vo2max = hasHr60 && hr60 > 0 && mhr > 0 ? 15.3 * (mhr / hr60) : 0;
+  // VO2max estimate (Uth 2004) — uses resting HR, not the recovery reading.
+  const vo2max = hasRhr ? estimateVo2maxUth(age, rhr) : 0;
 
   // Resting HR score
   const rhrScore = hasRhr

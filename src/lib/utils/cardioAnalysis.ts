@@ -5,6 +5,7 @@
 import type { PillarRole } from '@/lib/goals/goalContext';
 import { resolveCardioPillarRole, parseClientGoals, type ClientGoalContext } from '@/lib/goals/goalContext';
 import { classifyHrrDrop, classifyRhr, classifyVo2 } from '@/lib/goals/metricBands';
+import { estimateVo2maxUth } from '@/lib/cardio/vo2max';
 import {
   computeHigherIsBetterTarget,
   computeLowerIsBetterTarget,
@@ -125,7 +126,7 @@ export function calculateCardioAnalysis(
           // Uth–Sørensen (HRmax / HRrest). Do not divide the %HRR estimate by
           // effortUsed — that algebraically equals vo2Ceiling (50) for every
           // strenuous test and freezes Fitness level at 50.0.
-          currentVO2 = 15.3 * (maxHREstimate / restingHR);
+          currentVO2 = estimateVo2maxUth(age, restingHR);
         } else {
           currentVO2 = vo2AtPeak;
         }
