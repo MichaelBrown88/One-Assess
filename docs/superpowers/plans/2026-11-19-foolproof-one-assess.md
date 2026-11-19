@@ -1,6 +1,6 @@
 # Foolproof One Assess: ranked plan
 
-19 November 2026 · Status: **approved 19 Nov · Tier 0 done (df91080, 0459af4, 38bd184)** · Branch: `claude/amazing-lamport-3d26a8`
+19 November 2026 · Status: **approved 19 Nov · Tier 0 done (df91080, 0459af4, 38bd184) · Tier 1 done (b2c926e…5b4d6fe) except 1.11 and 1.13** · Branch: `claude/amazing-lamport-3d26a8`
 
 Goal: any coach can complete an assessment without training, the maths is defensible, and a
 client understands their report in 30 seconds.
@@ -33,7 +33,16 @@ import). The changes are in `useAssessmentFlow`, `useAssessmentNavigation` (sect
 
 ---
 
-## Tier 1: scoring maths (wrong numbers in front of clients)
+## Tier 1: scoring maths (wrong numbers in front of clients) ✅ done except 1.11, 1.13
+
+What changed during implementation (owner rules in `AGENTS.md` take precedence):
+- 1.7: tape is **progress-only** and neck is **not** collected (AGENTS.md), so tape is no longer scored at all; body comp scores analyser values only. Tape-only clients show body comp as not measured.
+- 1.11: **not changed.** Inferring mobility from the squat is a documented product choice. Open question below.
+- 1.16: the YMCA step-test branch is kept for older assessments that only have a recovery HR; the tooltips now describe the incline walk only.
+- 1.17 (new): the US Navy tape formula was fed centimetres into inch constants (about 6 points too high). Fixed, though tape no longer feeds the score.
+- 1.2: grip is scored against the healthy young-adult peak (Dodds 2014 mean and SD, EWGSOP2 cut-offs), not age-specific centiles. Dead hang and plate pinch are no longer converted to kg.
+- 1.4: Gallagher 2000 ranges are the widely reproduced values (also in ACSM's Guidelines). The original table couldn't be fetched (paywall), so check it against the paper.
+
 
 Ranked by how wrong and how often. Every item gets a failing test first.
 
@@ -98,8 +107,8 @@ the 30-second test is mostly trust:
 | # | Problem | Fix |
 |---|---|---|
 | 3.1 | The radar plots an unmeasured area as **0** (live: "Body composition 0" in red). | Dashed grey spoke + "Not measured" label; the score says "based on 4 of 5 areas". See mock-up A2. |
-| 3.2 | "Your overall score of 80 is **well above average for men aged 36–45**." The AXIS score isn't a population percentile, so the claim can't be backed. | Replace with a factual line: "80 out of 100 across the 4 areas we measured today." |
-| 3.3 | "Fitness level 90" sits in a table of measurements (it's the score, not a measure), and "Peak heart rate 150 –" is meaningless to a client. | Show measures only: resting HR, heart-rate drop, estimated VO₂max (with corrected maths). |
+| 3.2 | "Your overall score of 80 is **well above average for men aged 36–45**." The AXIS score isn't a population percentile, so the claim can't be backed. (The owner asked for a peer line, per AGENTS.md.) | Keep a peer line but make it true: base it on the age/sex-normed tests (e.g. "Your push-ups and plank are above average for men aged 36 to 45"), and say "based on 4 of 5 areas" when one is missing. |
+| 3.3 | "Peak heart rate 150 –" is meaningless to a client. | Drop the peak HR row from the client table. Keep "Fitness level" (AGENTS.md: never print VO₂ to clients). |
 | 3.4 | Lifestyle from one answer still gets a full section, plus steps advice when steps weren't asked. | Covered by 0.1 and 1.8. Show only the habits that were asked. |
 | 3.5 | Contradictions: "Your joints move freely" next to "Knees cave in"; body comp 75 (green) under "Body fat is higher than is healthy". | Covered by 1.5 and 1.11. Add a copy guard test: a pillar ≥ 75 can't have a "focus" line about a measure scoring < 50. |
 | 3.6 | No single "what to do next" at the top. | Under the hero: "Your top 2 priorities" (lowest two measured areas, one plain sentence each) and the next check-in date. Uses existing roadmap data; nothing new invented. |
@@ -170,5 +179,6 @@ No deploy, no push to main, and no production data writes beyond the test client
 - Local dev gets App Check 403s (no debug token registered for localhost). Worth a debug token so preview testing is reliable.
 - Clean up the "ZZ Test Client" record in production when done.
 
-## Decision needed
+## Decisions needed
 - 1.13 push-ups for women: (a) add a "full / knees" choice (recommended), or (b) everyone does full push-ups, scored against full push-up norms for both sexes.
+- 1.11 inferred mobility: today mobility is inferred from the squat chips and counted as a third movement sub-score, so one squat counts twice (live: knees caving in still gave Movement 95 and "your joints move freely"). Options: (a) keep the inferred score but drop the "joints move freely" line when mobility is inferred, or (b) only count mobility when it's measured directly.
