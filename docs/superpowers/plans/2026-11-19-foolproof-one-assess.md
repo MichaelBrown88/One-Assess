@@ -1,6 +1,6 @@
 # Foolproof One Assess: ranked plan
 
-19 November 2026 · Status: **awaiting approval** · Branch: `claude/amazing-lamport-3d26a8`
+19 November 2026 · Status: **approved 19 Nov · Tier 0 done (df91080, 0459af4, 38bd184)** · Branch: `claude/amazing-lamport-3d26a8`
 
 Goal: any coach can complete an assessment without training, the maths is defensible, and a
 client understands their report in 30 seconds.
@@ -16,7 +16,7 @@ plus `/preview/sample-report`. No real client was opened or changed.
 
 ---
 
-## Tier 0: blockers (coaches cannot finish an in-studio assessment)
+## Tier 0: blockers (coaches cannot finish an in-studio assessment) ✅ done, verified in preview
 
 Probably live in production now. Each fix is small and gets a regression test.
 
