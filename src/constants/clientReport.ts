@@ -114,6 +114,13 @@ export const CLIENT_REPORT_COPY = {
   v2TapeSites: (count: number) => (count === 1 ? '1 site' : `${count} sites`),
   v2MovementStoryHeading: 'How you move',
   v2MovementFindingsHeading: 'Patterns to work on',
+  strengthBalanceHeading: 'Left and right balance',
+  strengthBalanceTitle: 'Grip strength',
+  strengthBalanceFinding: (weak: string, strong: string, pct: number, weakKg: number, strongKg: number) =>
+    `Your ${weak} hand is ${pct}% weaker than your ${strong} (${weakKg} kg vs ${strongKg} kg). With a gap this size your stronger side quietly does more of the work in two-handed lifts, so the weaker side falls further behind and the uneven load can lead to aches.`,
+  strengthBalanceFocus: "How we'll even it out",
+  strengthBalancePlan: (weak: string, strong: string) =>
+    `Single-arm and single-leg exercises, plus machines where each side moves on its own, so your stronger side can't take over. Every set starts on your ${weak} side, and your ${strong} side matches those reps, no more.`,
   v2MovementPatternsOk: 'Patterns looked solid.',
   v2MovementGradeLimited: 'Limited',
   v2MovementGradeFair: 'Fair',

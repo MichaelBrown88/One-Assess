@@ -2,6 +2,7 @@ import type { FormData } from '@/contexts/FormContext';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { clamp, lookupNormativeScore, meanOfMeasured, scoreFromPoints } from './scoringUtils';
+import { assessGripImbalance } from './gripImbalance';
 
 /**
  * Grip compared with the healthy young-adult peak (Dodds et al. 2014, PLOS ONE
@@ -93,6 +94,13 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
       weaknesses.push(`Optimization of ${item.label} for peak performance`);
     }
   });
+
+  // Left/right grip imbalance leads the focus list: it changes how we train.
+  const imbalance = hasGripDynamometer ? assessGripImbalance(form.gripLeftKg, form.gripRightKg) : null;
+  if (imbalance?.material) {
+    const side = imbalance.weakSide === 'left' ? 'Left' : 'Right';
+    weaknesses.unshift(`${side} side grip is ${imbalance.gapPct}% weaker than the ${imbalance.strongSide}`);
+  }
 
   if (score >= 75 && subScores.filter((x) => x !== null).length >= 2) strengths.push('Balanced muscular development across tests');
 

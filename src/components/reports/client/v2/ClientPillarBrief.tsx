@@ -8,6 +8,7 @@ import { ClientProgressionTable } from './ClientProgressionTable';
 import { TapeMeasurementsSection } from './TapeMeasurementsSection';
 import { LifestyleFactorsCard } from '@/components/reports/client/sub-components/LifestyleFactorsCard';
 import { ClientMovementFindings } from './ClientMovementFindings';
+import { ClientStrengthBalance } from './ClientStrengthBalance';
 import type { FormData } from '@/contexts/FormContext';
 import { CLIENT_PLAN_COPY } from '@/constants/clientPlanCopy';
 import { cn } from '@/lib/utils';
@@ -90,6 +91,7 @@ export function ClientPillarBrief({
           {comparison && pillar.progressionRows.some(row => row.measuredChange) ? <p className="mt-2 text-xs leading-relaxed text-foreground-secondary">{CLIENT_REPORT_COPY.measuredChangeNote(comparisonDate(comparison.previousAssessedAt))}</p> : null}
           <ClientProgressionTable rows={pillar.progressionRows} />
           {pillar.scoringId === 'bodyComp' ? <TapeMeasurementsSection formData={formData} comparison={comparison} /> : null}
+          {pillar.gripImbalance ? <ClientStrengthBalance imbalance={pillar.gripImbalance} /> : null}
         </div>
       ) : null}
     </article>

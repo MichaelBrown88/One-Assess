@@ -74,6 +74,22 @@ const gapAnalysisData: GapAnalysisData[] = [
 ];
 
 describe('buildClientReportModel', () => {
+  it('adds a left/right grip balance block to strength only when the gap is material', () => {
+    const build = (left: string, right: string) =>
+      buildClientReportModel({
+        scores,
+        formData: { ...formData, gripLeftKg: left, gripRightKg: right } as FormData,
+        goals: formData.clientGoals,
+        gapAnalysisData,
+        clientName: 'Sample Client',
+        reportDate: 'Sep 13, 2026',
+      });
+    const strength = (left: string, right: string) => build(left, right).pillars.find((p) => p.scoringId === 'strength');
+    expect(strength('36', '44')?.gripImbalance).toMatchObject({ weakSide: 'left', gapPct: 18 });
+    expect(strength('43', '44')?.gripImbalance).toBeNull();
+    expect(build('36', '44').pillars.filter((p) => p.gripImbalance).map((p) => p.scoringId)).toEqual(['strength']);
+  });
+
   it('prints a plan-length promise and Fitness level as the 0–100 score, not VO2', () => {
     const model = buildClientReportModel({
       scores,

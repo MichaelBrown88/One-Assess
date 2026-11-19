@@ -64,6 +64,8 @@ import {
   CLIENT_PLAN_WEEKS,
 } from '@/constants/clientReport';
 
+import { assessGripImbalance, type GripImbalance } from '@/lib/scoring/gripImbalance';
+
 export type ClientPillarContentMode = 'progression' | 'lifestyle-factors' | 'movement-findings';
 
 export interface ClientReportMetricChip {
@@ -86,6 +88,8 @@ export interface ClientReportPillarModel {
   progressionRows: ClientReportProgressionRow[];
   contentMode: ClientPillarContentMode;
   movementFindings: ClientMovementFindingsModel | null;
+  /** Strength only: a material left/right grip gap, else null. */
+  gripImbalance: GripImbalance | null;
   goalTieIn: string | null;
   pillarRole: PillarRole;
 }
@@ -433,9 +437,16 @@ function buildPillarModel(
     progressionRows,
     contentMode,
     movementFindings,
+    gripImbalance: sectionId === 'strength' ? materialGripImbalance(formData) : null,
     goalTieIn: buildPillarGoalTieIn(scoringId, pillarRole, goalCtx),
     pillarRole,
   };
+}
+
+function materialGripImbalance(formData: FormData | undefined): GripImbalance | null {
+  if (!formData) return null;
+  const imbalance = assessGripImbalance(formData.gripLeftKg, formData.gripRightKg);
+  return imbalance?.material ? imbalance : null;
 }
 
 function buildPillarGoalTieIn(
