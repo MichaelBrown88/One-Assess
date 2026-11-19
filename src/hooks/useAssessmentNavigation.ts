@@ -150,7 +150,6 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
     ) {
       const filteredIds = filterPhasesForStudioBaseline(
         planIds,
-        formData,
         hasRemoteIntakeResumeSession(),
       );
       const allowed = new Set(filteredIds);

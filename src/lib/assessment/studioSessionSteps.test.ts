@@ -42,17 +42,25 @@ describe('studioSessionSteps', () => {
   it('filterPhasesForStudioBaseline keeps P0/P1 for studio walk-in', () => {
     const ids = filterPhasesForStudioBaseline(
       ['P0', 'P1', 'P2', 'P3', 'P5', 'P4', 'P7'],
-      {} as FormData,
       false,
     );
     expect(ids).toContain('P0');
     expect(ids).toContain('P1');
   });
 
+  it('filterPhasesForStudioBaseline keeps P0/P1 in studio once the coach has answered the intake fields', () => {
+    // Regression: answering activity level in studio used to make the intake look
+    // "remote complete", dropping P0/P1 mid-flow and skipping lifestyle + goals.
+    const ids = filterPhasesForStudioBaseline(
+      ['P0', 'P1', 'P2', 'P3', 'P5', 'P4', 'P7'],
+      false,
+    );
+    expect(ids.slice(0, 2)).toEqual(['P0', 'P1']);
+  });
+
   it('filterPhasesForStudioBaseline drops P0/P1 when remote intake complete', () => {
     const ids = filterPhasesForStudioBaseline(
       ['P0', 'P1', 'P2', 'P3', 'P5', 'P4', 'P7'],
-      completeIntake,
       true,
     );
     expect(ids).not.toContain('P0');
