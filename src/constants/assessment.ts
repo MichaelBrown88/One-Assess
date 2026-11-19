@@ -230,8 +230,8 @@ export const ASSESSMENT_TOOLTIPS = {
   P3: {
     cardioTestSelected: 'Instructions:\n1. Choose the YMCA Step Test for a portable option.\n2. Choose the Treadmill Test for a more controlled environment.',
     cardioRestingHr: 'Instructions:\n1. Client should sit quietly for 5 minutes.\n2. Measure pulse for 60s or use a heart rate monitor.\n3. Record before starting the test.',
-    cardioPeakHr: 'Record the highest heart rate at the end of the 3-minute incline walk (speed 5, incline 10), just before the client stops.',
-    cardioPost1MinHr: 'Instructions:\n1. Stop the walk at exactly 3:00.\n2. Have the client sit down straight away.\n3. Wait exactly 60 seconds.\n4. Record the heart rate at the 1-minute mark.',
+    cardioPeakHr: 'Record the heart rate at the end of the 4-minute incline walk (5 km/h, incline 10), just before the client stops.',
+    cardioPost1MinHr: 'Instructions:\n1. Stop the walk at exactly 4:00.\n2. Have the client sit down straight away.\n3. Wait exactly 60 seconds.\n4. Record the heart rate at the 1-minute mark.',
   },
   P4: {
     postureInputMode: 'Instructions:\n1. Choose "Photo Capture" to shoot the four views with this device (or upload photos) — analysis runs automatically.\n2. Choose "Manual" to record observations directly.',

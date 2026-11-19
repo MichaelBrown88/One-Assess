@@ -8,7 +8,7 @@ export const CARDIO_REFERENCE_COPY = {
   title: 'How you compare',
   subtitle: (bracket: string) => `${bracket} — typical ranges`,
   footnote:
-    'Resting HR and 1-minute recovery use published fitness bands. Walk heart rate is how hard this standard 3-minute incline walk was for you — a lower share of max means fitter. This is a fitness score, not lab VO₂ max.',
+    'Resting HR and 1-minute recovery use published fitness bands. Walk heart rate is how hard this standard 4-minute incline walk was for you — a lower share of max means fitter. This is a fitness score, not lab VO₂ max.',
   yourValue: 'You',
   bands: {
     excellent: 'Excellent',
