@@ -20,6 +20,7 @@ import {
   readPartialAssessmentRecord,
 } from '@/lib/assessment/assessmentSessionStorage';
 import { hasActiveBaselineSession, hasRemoteIntakeResumeSession } from '@/lib/assessment/baselineSession';
+import { BODY_COMP_SECTION_IDS, modulesForSection } from '@/lib/assessment/moduleSectionMap';
 import {
   filterPhasesForStudioBaseline,
   hasRemotePostureCaptureComplete,
@@ -93,20 +94,6 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
 
   // Filter phases based on organization settings and partial assessment mode
   const visiblePhases = useMemo(() => {
-    const assessmentToSectionMap: Record<string, string[]> = {
-      parq: ['parq'],
-      bodycomp: ['body-comp'],
-      fitness: ['fitness-assessment'],
-      posture: ['posture'],
-      overheadSquat: ['overhead-squat'],
-      hinge: ['hinge-assessment'],
-      lunge: ['lunge-assessment'],
-      /** Legacy module key — maps to movement pattern sections (standalone mobility screens removed). */
-      mobility: ['overhead-squat', 'hinge-assessment', 'lunge-assessment'],
-      strength: ['strength-endurance'],
-      lifestyle: ['lifestyle-overview'],
-    };
-
     const modules = orgSettings?.modules;
     let phases = phaseDefinitions;
 
@@ -118,9 +105,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
         }
 
         const filteredSections = (phase.sections || []).filter(section => {
-          const enabledAssessments = Object.entries(assessmentToSectionMap)
-            .filter(([assessmentKey, sectionIds]) => sectionIds.includes(section.id))
-            .map(([assessmentKey]) => assessmentKey);
+          const enabledAssessments = modulesForSection(section.id);
 
           return enabledAssessments.some(assessmentKey => modules[assessmentKey as keyof typeof modules] === true);
         });
@@ -180,7 +165,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
     const categoryConfig: Record<string, { phaseIds: PhaseId[]; sectionIds?: string[] }> = {
       'bodycomp': { 
         phaseIds: ['P0', 'P2', 'P7'], 
-        sectionIds: ['basic-client-info', 'parq', 'body-comp'] 
+        sectionIds: ['basic-client-info', 'parq', ...BODY_COMP_SECTION_IDS] 
       },
       'posture': { 
         phaseIds: ['P0', 'P2', 'P7'], 
@@ -212,9 +197,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
           if (!config.sectionIds.includes(section.id)) return false;
 
           if (modules) {
-            const sectionAssessments = Object.entries(assessmentToSectionMap)
-              .filter(([_, sectionIds]) => sectionIds.includes(section.id))
-              .map(([assessmentKey]) => assessmentKey);
+            const sectionAssessments = modulesForSection(section.id);
 
             if (sectionAssessments.length > 0 && !sectionAssessments.some(key => modules[key as keyof typeof modules])) {
               return false;
