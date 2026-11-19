@@ -89,14 +89,12 @@ import {
 
 admin.initializeApp();
 
-// TODO(launch): Flip all enforceAppCheck values below to `true` once App Check
-// is confirmed working in a production build (reCAPTCHA site key verified, NOT
-// just local debug token). Do not enable before a prod smoke-test — it will
-// block all Cloud Function calls from clients that fail attestation.
-// See: Firebase Console → App Check → Apps → enforcement status.
+// App Check is enforced on every callable: only the One Assess web app (reCAPTCHA v3
+// attestation, see src/services/firebase.ts) can call these. Local dev needs
+// VITE_APP_CHECK_DEBUG=true and the printed debug token registered in the Firebase console.
 
 export const requestReportShare = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('share', request.auth?.uid, request.rawRequest?.ip);
@@ -105,7 +103,7 @@ export const requestReportShare = onCall({
 });
 
 export const emailReport = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('email', request.auth?.uid, request.rawRequest?.ip);
@@ -114,7 +112,7 @@ export const emailReport = onCall({
 });
 
 export const emailRemoteIntakeLink = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('emailIntake', request.auth?.uid, request.rawRequest?.ip);
@@ -124,7 +122,7 @@ export const emailRemoteIntakeLink = onCall({
 
 // Stripe payment functions
 export const createCheckoutSession = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('checkout', request.auth?.uid, request.rawRequest?.ip);
@@ -135,7 +133,7 @@ export const createCheckoutSession = onCall({
 /** Unauthenticated: landing-page “Get started” → Stripe Checkout (STRIPE_MODE=test + ENABLE_LANDING_GUEST_CHECKOUT only). */
 export const createLandingGuestCheckoutSession = onCall(
   {
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     invoker: 'public',
   },
   async (request) => {
@@ -149,25 +147,25 @@ export const stripeWebhook = onRequest(
 );
 
 export const createCustomerPortalSession = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, handleCreateCustomerPortalSession);
 
 export const listRecentInvoices = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, handleListRecentInvoices);
 
 export const createBrandingCheckoutSession = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, handleCreateBrandingCheckoutSession);
 
 export const createCreditTopupSession = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, handleCreateCreditTopupSession);
 
 /** Public report page — GDPR erasure request (token proves access). */
 export const submitPublicErasureRequest = onCall(
   {
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     cors: true,
     invoker: 'public',
   },
@@ -176,43 +174,43 @@ export const submitPublicErasureRequest = onCall(
 
 /** GDPR Article 17 — org admin executes the actual deletion for a pending erasure request. */
 export const executeClientErasure = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleExecuteClientErasure,
 );
 
 /** Backfill posture findings on a historical session doc (bypasses session immutability rule). */
 export const backfillSnapshotPosture = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleBackfillSnapshotPosture,
 );
 
 /** Server-side proxy for reading Storage image bytes when client CORS is unavailable. */
 export const fetchSnapshotImageBytes = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleFetchSnapshotImageBytes,
 );
 
 /** HEIC/HEIF → JPEG when browser WASM decoders fail (posture / client photo upload). */
 export const convertClientUploadHeic = onCall(
-  { enforceAppCheck: false, memory: '512MiB', timeoutSeconds: 60 },
+  { enforceAppCheck: true, memory: '512MiB', timeoutSeconds: 60 },
   handleConvertClientUploadHeic,
 );
 
 /** In-app Stripe subscription capacity change (authenticated org billing). */
 export const updateSubscriptionPlan = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleUpdateSubscriptionPlan,
 );
 
 /** Post-checkout org sync when webhooks are delayed (authenticated). */
 export const syncCheckoutSession = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleSyncCheckoutSession,
 );
 
 /** Coach-authenticated: render OG/social PNGs for a public report share link. */
 export const generatePublicReportSocialShareArtifacts = onCall(
-  { enforceAppCheck: false, timeoutSeconds: 120 },
+  { enforceAppCheck: true, timeoutSeconds: 120 },
   handleGeneratePublicReportSocialShareArtifacts,
 );
 
@@ -282,7 +280,7 @@ export const syncPublicReportOnStateChange = onDocumentWritten(
 );
 
 export const sendCoachInvite = onCall({
-  enforceAppCheck: false,
+  enforceAppCheck: true,
 }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('invite', request.auth?.uid, request.rawRequest?.ip);
@@ -291,7 +289,7 @@ export const sendCoachInvite = onCall({
 });
 
 export const acceptCoachInvite = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     const key = buildRateLimitKey('accept_invite', request.auth?.uid, request.rawRequest?.ip);
@@ -465,12 +463,12 @@ export const dailyOrgHealthComputation = onSchedule(
 
 // Platform metrics callables (use pre-aggregated data)
 export const getAssessmentChartData = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   getAssessmentChartDataCallable,
 );
 
 export const getAssessmentsThisMonth = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -480,22 +478,22 @@ export const getAssessmentsThisMonth = onCall(
 );
 
 export const getMetricsHistory = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   getMetricsHistoryCallable,
 );
 
 export const rebuildPlatformMetricsHistory = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   rebuildPlatformMetricsHistoryCallable,
 );
 
 export const rebuildSystemStats = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   rebuildSystemStatsCallable,
 );
 
 export const rebuildOwnerConsole = onCall(
-  { enforceAppCheck: false, timeoutSeconds: 120 },
+  { enforceAppCheck: true, timeoutSeconds: 120 },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -509,7 +507,7 @@ export const rebuildOwnerConsole = onCall(
 );
 
 export const getAICostsMTD = onCall(
-  { enforceAppCheck: false, cors: true },
+  { enforceAppCheck: true, cors: true },
   getAICostsMTDCallable,
 );
 
@@ -525,21 +523,21 @@ const CORS_ORIGINS = [
 ];
 
 export const deleteLegacyCollections = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 300 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 300 },
   deleteLegacyCollectionsCallable,
 );
 
 export const seedAIConfig = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS },
+  { enforceAppCheck: true, cors: CORS_ORIGINS },
   seedAIConfigCallable,
 );
 
 export const deleteOrganizationCallable = onCall(
-  { enforceAppCheck: false },
+  { enforceAppCheck: true },
   handleDeleteOrganization,
 );
 
-export const logOnboardingStep = onCall({ enforceAppCheck: false }, async (request) => {
+export const logOnboardingStep = onCall({ enforceAppCheck: true }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey(
     'onboarding_step',
@@ -656,7 +654,7 @@ export const weeklyCheckPlatformHealth = onSchedule(
 );
 
 export const runPlatformHealthCheck = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS },
+  { enforceAppCheck: true, cors: CORS_ORIGINS },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -682,7 +680,7 @@ export const computePopulationAnalyticsScheduled = onSchedule(
  * Data Intelligence tab — restricted to platform admins only.
  */
 export const computePopulationAnalyticsNow = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 300 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 300 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -700,7 +698,7 @@ export const computePopulationAnalyticsNow = onCall(
  * Restricted to platform admins.
  */
 export const backfillClientIds = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 540 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 540 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -763,7 +761,7 @@ export const backfillClientIds = onCall(
  * exposing internal collection structure to the browser.
  */
 export const getClientAchievements = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS },
+  { enforceAppCheck: true, cors: CORS_ORIGINS },
   async (request) => {
     const { shareToken } = (request.data ?? {}) as { shareToken?: string };
     if (!shareToken) throw new Error('shareToken is required.');
@@ -801,7 +799,7 @@ export const getClientAchievements = onCall(
  * cors: true so Firebase Hosting / custom domains work (CORS_ORIGINS is localhost-only).
  */
 export const syncPublicRoadmapMirror = onCall(
-  { enforceAppCheck: false, cors: true, invoker: 'public', timeoutSeconds: 30 },
+  { enforceAppCheck: true, cors: true, invoker: 'public', timeoutSeconds: 30 },
   async (request) => {
     const db = admin.firestore();
     const key = buildRateLimitKey(
@@ -831,7 +829,7 @@ export const syncPublicRoadmapMirror = onCall(
  * Returns a JSON-serialisable payload the browser can download.
  */
 export const exportClientData = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 60 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 60 },
   async (request) => {
     const { shareToken } = (request.data ?? {}) as { shareToken?: string };
     if (!shareToken) throw new Error('shareToken is required.');
@@ -891,7 +889,7 @@ export const exportClientData = onCall(
  * Replaces the client-side scan in src/services/teamMetrics.ts.
  */
 export const getTeamMetrics = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 60 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 60 },
   async (request) => {
     const db = admin.firestore();
     const key = buildRateLimitKey('team_metrics', request.auth?.uid, request.rawRequest?.ip);
@@ -925,7 +923,7 @@ export const getTeamMetrics = onCall(
  * Restricted to platform admins.
  */
 export const migrateClientSubmissions = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 540 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 540 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -971,7 +969,7 @@ export const migrateClientSubmissions = onCall(
  * Restricted to platform admins.
  */
 export const migrateAchievements = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 540 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 540 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -1040,7 +1038,7 @@ export const migrateAchievements = onCall(
  * on subsequent runs). Restricted to platform admins.
  */
 export const cleanupLegacyAchievements = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 540 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 540 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -1275,7 +1273,7 @@ export const clientMonthInReviewEmail = onSchedule(
  *   await purgeOrphanOrgs()
  */
 export const purgeOrphanOrgs = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 540 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 540 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -1353,7 +1351,7 @@ export const purgeOrphanOrgs = onCall(
  * Idempotent: safe to run multiple times.
  */
 export const repairClientProfiles = onCall(
-  { enforceAppCheck: false, cors: CORS_ORIGINS, timeoutSeconds: 300 },
+  { enforceAppCheck: true, cors: CORS_ORIGINS, timeoutSeconds: 300 },
   async (request) => {
     if (!request.auth?.uid) throw new Error('Authentication required.');
     const db = admin.firestore();
@@ -1480,7 +1478,7 @@ export const repairClientProfiles = onCall(
   },
 );
 
-export const createRemoteAssessmentToken = onCall({ enforceAppCheck: false }, async (request) => {
+export const createRemoteAssessmentToken = onCall({ enforceAppCheck: true }, async (request) => {
   const db = admin.firestore();
   const key = buildRateLimitKey('remoteMint', request.auth?.uid, request.rawRequest?.ip);
   await assertRateLimit(db, key, { maxRequests: 10, windowSeconds: 60 });
@@ -1488,7 +1486,7 @@ export const createRemoteAssessmentToken = onCall({ enforceAppCheck: false }, as
 });
 
 export const getRemoteAssessmentSession = onCall(
-  { enforceAppCheck: false, invoker: 'public' },
+  { enforceAppCheck: true, invoker: 'public' },
   async (request) => {
     const db = admin.firestore();
     const key = buildRateLimitKey('remotePeek', undefined, request.rawRequest?.ip);
@@ -1498,7 +1496,7 @@ export const getRemoteAssessmentSession = onCall(
 );
 
 export const submitRemoteAssessmentFields = onCall(
-  { enforceAppCheck: false, invoker: 'public' },
+  { enforceAppCheck: true, invoker: 'public' },
   async (request) => {
     if (!REMOTE_ASSESSMENT_MVP) {
       throw new HttpsError('failed-precondition', 'Remote assessment MVP is not enabled.');
@@ -1515,7 +1513,7 @@ export const submitRemoteAssessmentFields = onCall(
 );
 
 export const getRemotePostureUploadUrl = onCall(
-  { enforceAppCheck: false, invoker: 'public' },
+  { enforceAppCheck: true, invoker: 'public' },
   async (request) => {
     if (!REMOTE_ASSESSMENT_MVP) {
       throw new HttpsError('failed-precondition', 'Remote assessment MVP is not enabled.');
@@ -1532,7 +1530,7 @@ export const getRemotePostureUploadUrl = onCall(
 );
 
 export const getRemoteBodyCompUploadUrl = onCall(
-  { enforceAppCheck: false, invoker: 'public' },
+  { enforceAppCheck: true, invoker: 'public' },
   async (request) => {
     if (!REMOTE_ASSESSMENT_MVP) {
       throw new HttpsError('failed-precondition', 'Remote assessment MVP is not enabled.');
@@ -1549,7 +1547,7 @@ export const getRemoteBodyCompUploadUrl = onCall(
 );
 
 export const extractRemoteBodyCompOcr = onCall(
-  { enforceAppCheck: false, invoker: 'public', timeoutSeconds: 60 },
+  { enforceAppCheck: true, invoker: 'public', timeoutSeconds: 60 },
   async (request) => {
     if (!REMOTE_ASSESSMENT_MVP) {
       throw new HttpsError('failed-precondition', 'Remote assessment MVP is not enabled.');

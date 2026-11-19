@@ -166,8 +166,8 @@ export const appleProvider = new OAuthProvider('apple.com');
  * In development, set VITE_APP_CHECK_DEBUG=true and use the debug token
  * printed to the console to allow local testing.
  *
- * To activate enforcement on Cloud Functions, flip `enforceAppCheck: true`
- * on each function in functions/src/index.ts after verifying the site key works.
+ * Cloud Functions enforce App Check (`enforceAppCheck: true` in functions/src/index.ts),
+ * so callables fail for any client that does not run this.
  */
 let appCheckInstance: AppCheck | null = null;
 
