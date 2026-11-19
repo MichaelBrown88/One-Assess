@@ -62,24 +62,33 @@ export function useAssessmentFlow({ formData, orgSettings }: UseAssessmentFlowPr
       if (phaseIdx !== -1) {
         setActivePhaseIdxAndPersist(phaseIdx);
       }
-      setExpandedSections((prev) => ({ ...prev, [sectionId]: true }));
+      // Replace, don't merge: the flow renders the first `true` key, so merging
+      // kept the phase's first section open and ignored the sidebar choice.
+      setExpandedSections({ [sectionId]: true });
       setActiveFieldIdx(0);
     },
     [visiblePhases, setActivePhaseIdxAndPersist],
   );
 
+  // Reset to the first section only when the phase (or its set of sections)
+  // really changes. `activePhase.sections` gets a new array identity on every
+  // answer when org modules are set, and resetting on that threw the coach
+  // back to the first section/step after each answer.
+  const sectionIds = (activePhase.sections || []).map((s: PhaseSection) => s.id);
+  const sectionKey = `${activePhase.id}|${sectionIds.join(',')}`;
   useEffect(() => {
-    const sections = activePhase.sections || [];
+    const ids = sectionKey.split('|')[1]?.split(',').filter(Boolean) ?? [];
     const newExpanded: Record<string, boolean> = {};
-    sections.forEach((section: PhaseSection, index: number) => {
-      newExpanded[section.id] = index === 0;
+    ids.forEach((id, index) => {
+      newExpanded[id] = index === 0;
     });
     setExpandedSections(newExpanded);
-  }, [activePhaseIdx, activePhase.sections]);
+  }, [activePhaseIdx, sectionKey]);
 
+  const expandedKey = Object.keys(expandedSections).find((id) => expandedSections[id]) ?? '';
   useEffect(() => {
     setActiveFieldIdx(0);
-  }, [activePhaseIdx, expandedSections]);
+  }, [activePhaseIdx, expandedKey]);
 
   return {
     ...navigation,
