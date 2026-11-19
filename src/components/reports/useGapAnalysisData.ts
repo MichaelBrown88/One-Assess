@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from 'react';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
 import type { ScoreSummary } from '@/lib/scoring';
 import type { FormData } from '@/contexts/FormContext';
 import { calculateAge } from '@/lib/scoring';
@@ -78,7 +79,9 @@ export function useGapAnalysisData(scores: ScoreSummary, formData?: FormData, pr
     const bf = parseFloat(formData?.inbodyBodyFatPct || '0');
     const visceral = parseFloat(formData?.visceralFatLevel || '0');
     const pushups = parseFloat(formData?.pushupsOneMinuteReps || formData?.pushupMaxReps || '0');
-    const squats = parseFloat(formData?.squatsOneMinuteReps || '0');
+    // Gap targets are on the one-minute squat scale, so only legacy squats feed them.
+    const lowerBodyResult = readLowerBody(formData);
+    const squats = lowerBodyResult?.protocol === 'squats-60sec' ? lowerBodyResult.reps : 0;
     const plankTime = parseFloat(formData?.plankDurationSeconds || '0');
     // Grip strength - handle all three methods
     const gripLeft = parseFloat(formData?.gripLeftKg || '0');
@@ -315,7 +318,7 @@ export function useGapAnalysisData(scores: ScoreSummary, formData?: FormData, pr
       );
       
       // Determine overall status based on gaps
-      const hasEnduranceData = pushups > 0 || squats > 0;
+      const hasEnduranceData = pushups > 0 || (lowerBodyResult?.reps ?? 0) > 0;
       const hasCoreData = plankTime > 0;
       const hasStrengthData = (gripStrength ?? 0) > 0;
       

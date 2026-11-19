@@ -4,6 +4,7 @@
  */
 
 import type { FormData } from '@/contexts/FormContext';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
 import type { ScoreCategory, ScoreSummary } from '@/lib/scoring';
 import type { GapAnalysisData } from '@/components/reports/useGapAnalysisData';
 import {
@@ -144,13 +145,16 @@ export function buildStrengthProgressionRows(
 ): ClientReportProgressionRow[] {
   if (!formData) return [];
   const pushups = safeParse(formData.pushupsOneMinuteReps || formData.pushupMaxReps);
-  const squats = safeParse(formData.squatsOneMinuteReps);
+  // Lower body: single-leg sit-to-stand average per leg, or legacy squats.
+  const lowerBody = readLowerBody(formData);
+  const squats = lowerBody?.reps ?? 0;
+  const singleLeg = lowerBody?.protocol === 'single-leg-sts-30sec';
   const plank = safeParse(formData.plankDurationSeconds);
   const gripLeft = safeParse(formData.gripLeftKg);
   const gripRight = safeParse(formData.gripRightKg);
   const grip = Math.max(gripLeft, gripRight);
   const hasAny = pushups > 0 || squats > 0 || plank > 0 || grip > 0;
-  const capturedZero = [formData.pushupsOneMinuteReps, formData.squatsOneMinuteReps, formData.plankDurationSeconds].some(v => v?.trim() === '0');
+  const capturedZero = [formData.pushupsOneMinuteReps, formData.plankDurationSeconds].some(v => v?.trim() === '0') || (lowerBody !== null && lowerBody.reps === 0);
   if (!hasAny && !capturedZero) return [];
 
   // Fall back to AXIS functional gap scores when no captured test data exists.
@@ -184,14 +188,14 @@ export function buildStrengthProgressionRows(
     if (r) rows.push(r);
   }
 
-  if (squats > 0 || formData.squatsOneMinuteReps?.trim() === '0') {
+  if (lowerBody) {
     const at16 = twelveWeekTrainingGain(
       squats,
       monthlyPct,
       1,
-      capFor(squats, 28 * span),
+      capFor(squats, (singleLeg ? 8 : 28) * span),
     );
-    const r = row(metricLabel('lowerBody'), squats, at16, 'reps', 0, true);
+    const r = row(metricLabel('lowerBody'), squats, at16, singleLeg ? 'reps per leg' : 'reps', Number.isInteger(squats) ? 0 : 1, true);
     if (r) rows.push(r);
   }
 
@@ -218,7 +222,7 @@ export function buildStrengthProgressionRows(
   }
 
   const detailIds: Record<string, string> = {
-    [metricLabel('upperBody')]: 'pushups', [metricLabel('lowerBody')]: 'squats',
+    [metricLabel('upperBody')]: 'pushups', [metricLabel('lowerBody')]: singleLeg ? 'singleLeg' : 'squats',
     [metricLabel('grip')]: 'grip', [metricLabel('core')]: 'plank',
   };
   const details = scores?.categories.find(c => c.id === 'strength')?.details ?? [];

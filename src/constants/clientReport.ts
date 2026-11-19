@@ -115,12 +115,20 @@ export const CLIENT_REPORT_COPY = {
   v2MovementStoryHeading: 'How you move',
   v2MovementFindingsHeading: 'Patterns to work on',
   strengthBalanceHeading: 'Left and right balance',
-  strengthBalanceTitle: 'Grip strength',
-  strengthBalanceFinding: (weak: string, strong: string, pct: number, weakKg: number, strongKg: number) =>
-    `Your ${weak} hand is ${pct}% weaker than your ${strong} (${weakKg} kg vs ${strongKg} kg). With a gap this size your stronger side quietly does more of the work in two-handed lifts, so the weaker side falls further behind and the uneven load can lead to aches.`,
+  strengthBalanceTitle: { grip: 'Grip strength', legs: 'Single-leg sit-to-stand' },
+  strengthBalanceFinding: {
+    grip: (weak: string, strong: string, pct: number, weakValue: number, strongValue: number) =>
+      `Your ${weak} hand is ${pct}% weaker than your ${strong} (${weakValue} kg vs ${strongValue} kg). With a gap this size your stronger side quietly does more of the work in two-handed lifts, so the weaker side falls further behind and the uneven load can lead to aches.`,
+    legs: (weak: string, strong: string, pct: number, weakValue: number, strongValue: number) =>
+      `Your ${weak} leg managed ${pct}% fewer reps than your ${strong} (${weakValue} vs ${strongValue} in 30 seconds). With a gap this size your stronger leg takes over in squats and lunges, so the weaker side falls further behind and the uneven load can lead to knee, hip or back aches.`,
+  },
   strengthBalanceFocus: "How we'll even it out",
-  strengthBalancePlan: (weak: string, strong: string) =>
-    `Single-arm and single-leg exercises, plus machines where each side moves on its own, so your stronger side can't take over. Every set starts on your ${weak} side, and your ${strong} side matches those reps, no more.`,
+  strengthBalancePlan: {
+    grip: (weak: string, strong: string) =>
+      `Single-arm and single-leg exercises, plus machines where each side moves on its own, so your stronger side can't take over. Every set starts on your ${weak} side, and your ${strong} side matches those reps, no more.`,
+    legs: (weak: string, strong: string) =>
+      `Single-leg exercises such as split squats and step-ups, plus machines where each leg moves on its own, so your stronger leg can't take over. Every set starts on your ${weak} leg, and your ${strong} leg matches those reps, no more.`,
+  },
   v2MovementPatternsOk: 'Patterns looked solid.',
   v2MovementGradeLimited: 'Limited',
   v2MovementGradeFair: 'Fair',

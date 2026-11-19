@@ -41,6 +41,8 @@ export function clientReportHasCapturedData(formData: FormData | undefined): boo
     hasPositiveNumber(formData.pushupsOneMinuteReps) ||
     hasPositiveNumber(formData.pushupMaxReps) ||
     hasPositiveNumber(formData.squatsOneMinuteReps) ||
+    hasPositiveNumber(formData.singleLegStandLeftReps) ||
+    hasPositiveNumber(formData.singleLegStandRightReps) ||
     hasPositiveNumber(formData.plankDurationSeconds) ||
     hasPositiveNumber(formData.gripLeftKg) ||
     hasPositiveNumber(formData.gripRightKg) ||

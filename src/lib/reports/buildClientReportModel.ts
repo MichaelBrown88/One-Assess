@@ -64,7 +64,13 @@ import {
   CLIENT_PLAN_WEEKS,
 } from '@/constants/clientReport';
 
-import { assessGripImbalance, type GripImbalance } from '@/lib/scoring/gripImbalance';
+import { assessSideImbalance, type SideImbalance } from '@/lib/scoring/sideImbalance';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
+
+export interface ClientSideBalance {
+  kind: 'grip' | 'legs';
+  imbalance: SideImbalance;
+}
 
 export type ClientPillarContentMode = 'progression' | 'lifestyle-factors' | 'movement-findings';
 
@@ -88,8 +94,8 @@ export interface ClientReportPillarModel {
   progressionRows: ClientReportProgressionRow[];
   contentMode: ClientPillarContentMode;
   movementFindings: ClientMovementFindingsModel | null;
-  /** Strength only: a material left/right grip gap, else null. */
-  gripImbalance: GripImbalance | null;
+  /** Strength only: material left/right gaps (grip, legs). Empty otherwise. */
+  sideBalances: ClientSideBalance[];
   goalTieIn: string | null;
   pillarRole: PillarRole;
 }
@@ -437,16 +443,22 @@ function buildPillarModel(
     progressionRows,
     contentMode,
     movementFindings,
-    gripImbalance: sectionId === 'strength' ? materialGripImbalance(formData) : null,
+    sideBalances: sectionId === 'strength' ? materialSideBalances(formData) : [],
     goalTieIn: buildPillarGoalTieIn(scoringId, pillarRole, goalCtx),
     pillarRole,
   };
 }
 
-function materialGripImbalance(formData: FormData | undefined): GripImbalance | null {
-  if (!formData) return null;
-  const imbalance = assessGripImbalance(formData.gripLeftKg, formData.gripRightKg);
-  return imbalance?.material ? imbalance : null;
+function materialSideBalances(formData: FormData | undefined): ClientSideBalance[] {
+  if (!formData) return [];
+  const out: ClientSideBalance[] = [];
+  const grip = assessSideImbalance(formData.gripLeftKg, formData.gripRightKg);
+  if (grip?.material) out.push({ kind: 'grip', imbalance: grip });
+  if (readLowerBody(formData)?.protocol === 'single-leg-sts-30sec') {
+    const legs = assessSideImbalance(formData.singleLegStandLeftReps, formData.singleLegStandRightReps);
+    if (legs?.material) out.push({ kind: 'legs', imbalance: legs });
+  }
+  return out;
 }
 
 function buildPillarGoalTieIn(

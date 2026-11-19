@@ -215,6 +215,9 @@ export interface FormData {
   pushupsOneMinuteReps: string;
   /** 'full' (toes) or 'knees'. Empty on older assessments: men full, women knees. */
   pushupType: string;
+  /** 30-second single-leg sit-to-stand, reps per leg (replaces one-minute squats). */
+  singleLegStandLeftReps: string;
+  singleLegStandRightReps: string;
   gripTestMethod: string; // 'deadhang' | 'pinch' - selection when equipment is disabled
   gripLeftKg: string;
   gripRightKg: string;
@@ -422,6 +425,8 @@ export const initialFormData: FormData = {
   squatsOneMinuteReps: '',
   pushupsOneMinuteReps: '',
   pushupType: '',
+  singleLegStandLeftReps: '',
+  singleLegStandRightReps: '',
   gripTestMethod: '',
   gripLeftKg: '',
   gripRightKg: '',

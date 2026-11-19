@@ -1,27 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/assessmentForm';
-import { assessGripImbalance, GRIP_IMBALANCE_PCT } from './gripImbalance';
+import { assessSideImbalance, SIDE_IMBALANCE_PCT } from './sideImbalance';
 import { scoreStrength } from './strengthScoring';
 
-describe('assessGripImbalance', () => {
+describe('assessSideImbalance', () => {
+  it('treats a recorded 0 on one side as a full gap', () => {
+    expect(assessSideImbalance('0', '6')).toMatchObject({ weakSide: 'left', gapPct: 100, material: true });
+    expect(assessSideImbalance('0', '0')).toBeNull();
+  });
+
   it('flags a gap of 10% or more and names the weaker side', () => {
-    const r = assessGripImbalance('36', '44');
-    expect(r).toEqual({ weakSide: 'left', strongSide: 'right', weakKg: 36, strongKg: 44, gapKg: 8, gapPct: 18, material: true });
+    const r = assessSideImbalance('36', '44');
+    expect(r).toEqual({ weakSide: 'left', strongSide: 'right', weak: 36, strong: 44, gap: 8, gapPct: 18, material: true });
   });
 
   it('treats a small dominant-hand difference as normal', () => {
-    const r = assessGripImbalance('42', '45');
+    const r = assessSideImbalance('42', '45');
     expect(r?.material).toBe(false);
-    expect(r?.gapPct).toBeLessThan(GRIP_IMBALANCE_PCT);
+    expect(r?.gapPct).toBeLessThan(SIDE_IMBALANCE_PCT);
   });
 
   it('flags at exactly the threshold', () => {
-    expect(assessGripImbalance('45', '50')?.material).toBe(true);
+    expect(assessSideImbalance('45', '50')?.material).toBe(true);
   });
 
   it('needs both hands', () => {
-    expect(assessGripImbalance('44', '')).toBeNull();
-    expect(assessGripImbalance(undefined, '44')).toBeNull();
+    expect(assessSideImbalance('44', '')).toBeNull();
+    expect(assessSideImbalance(undefined, '44')).toBeNull();
   });
 });
 

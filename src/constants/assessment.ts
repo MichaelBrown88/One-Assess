@@ -145,6 +145,8 @@ export const ASSESSMENT_LABELS = {
   },
   P5: {
     squatsOneMinuteReps: 'Squats in one minute',
+    singleLegStandLeftReps: 'Left leg (reps in 30 s)',
+    singleLegStandRightReps: 'Right leg (reps in 30 s)',
     pushupsOneMinuteReps: 'Pushups in one minute',
     pushupType: 'Push-up type',
     plankDurationSeconds: 'Plank duration (seconds)',
@@ -262,6 +264,8 @@ export const ASSESSMENT_TOOLTIPS = {
   },
   P5: {
     squatsOneMinuteReps: 'Instructions:\n1. Set timer for 60 seconds.\n2. Count only reps with full range of motion (thighs parallel to floor).\n3. Stop immediately when time expires.',
+    singleLegStandLeftReps: 'Single-leg sit-to-stand, 30 seconds per leg:\n1. Box or bench at knee height, arms crossed on the chest.\n2. Stand on one foot, the other just off the floor.\n3. Stand up fully and sit back until they touch the box, as many times as they can in 30 seconds.\n4. No hands, and the other foot stays up. A rep with either does not count.\n5. Rest about 30 seconds, then the other leg. Start with the leg you think is weaker.\nCan\'t do one rep? Enter 0.',
+    singleLegStandRightReps: 'Same as the left leg. Count only full, controlled reps with no hands and the other foot off the floor. Enter 0 if they could not do one.',
     pushupsOneMinuteReps: 'Instructions:\n1. Men: full push-ups on the toes. Women: push-ups on the knees. The scoring norms use these.\n2. Keep a rigid line from head to knees or heels.\n3. Chest comes within 5 cm of the floor, arms lock out at the top.',
     pushupType: 'Tap the type the client did. Men on the toes and women on the knees are scored against published norms; other combinations are recorded but not scored.',
     plankDurationSeconds: 'Instructions:\n1. Hold a forearm plank with a flat back and active core.\n2. Record the total time until form breaks or knees touch.',
@@ -325,6 +329,8 @@ export const ASSESSMENT_PLACEHOLDERS = {
   },
   P5: {
     squatsOneMinuteReps: 'e.g., 40',
+    singleLegStandLeftReps: 'e.g., 12',
+    singleLegStandRightReps: 'e.g., 12',
     pushupsOneMinuteReps: 'e.g., 25',
     plankDurationSeconds: 'e.g., 60',
     gripLeftKg: 'e.g., 24',

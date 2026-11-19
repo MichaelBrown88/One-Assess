@@ -1,4 +1,5 @@
 import type { FormData } from '@/types/assessmentForm';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
 import { computeScores, type ScoreSummary } from '@/lib/scoring';
 import { CLIENT_METRIC_LABELS } from '@/constants/clientReport';
 import type { ClientReportProgressionRow } from './clientProgressionRows';
@@ -56,7 +57,9 @@ export function comparisonReadings(form: FormData, scores = computeScores(form))
   // A max-rep test is not interchangeable with the timed test.
   if (form.pushupsOneMinuteReps?.trim()) add('upperBody', form.pushupsOneMinuteReps, 'reps', 'pushups-60sec', true);
   else add('upperBody', form.pushupMaxReps, 'reps', 'pushups-max', true);
-  add('lowerBody', form.squatsOneMinuteReps, 'reps', 'squats-60sec', true);
+  // Single-leg sit-to-stand and legacy squats are different protocols, so they never compare.
+  const lowerBody = readLowerBody(form);
+  if (lowerBody) add('lowerBody', String(lowerBody.reps), lowerBody.protocol === 'single-leg-sts-30sec' ? 'reps per leg' : 'reps', lowerBody.protocol, true);
   add('core', form.plankDurationSeconds, 'sec', 'plank-hold', true);
   // Compare the same hand coverage, not a left-only result with a best-of-two result.
   if (form.gripTestMethod === 'dynamometer') {

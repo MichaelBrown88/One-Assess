@@ -2,7 +2,8 @@ import type { FormData } from '@/contexts/FormContext';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { clamp, lookupNormativeScore, meanOfMeasured, scoreFromPoints } from './scoringUtils';
-import { assessGripImbalance } from './gripImbalance';
+import { assessSideImbalance } from './sideImbalance';
+import { readLowerBody, scoreSingleLegSitToStand } from './lowerBody';
 
 /**
  * Grip compared with the healthy young-adult peak (Dodds et al. 2014, PLOS ONE
@@ -24,11 +25,12 @@ export function scoreGripKg(kg: number, gender: string): number | null {
 
 export function scoreStrength(form: FormData, age: number, gender: string): ScoreCategory {
   const pushups = safeParse(form.pushupsOneMinuteReps);
-  const squats = safeParse(form.squatsOneMinuteReps);
+  // Lower body: single-leg sit-to-stand (average of both legs), or legacy squats.
+  const lowerBody = readLowerBody(form);
   const plank = safeParse(form.plankDurationSeconds);
 
   const hasPushups = !!(form.pushupsOneMinuteReps && form.pushupsOneMinuteReps.trim() !== '');
-  const hasSquats = !!(form.squatsOneMinuteReps && form.squatsOneMinuteReps.trim() !== '');
+  const hasLowerBody = lowerBody !== null;
   const hasPlank = !!(form.plankDurationSeconds && form.plankDurationSeconds.trim() !== '');
 
   // Check grip strength methods
@@ -56,20 +58,29 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
     (sex === 'male' && pushupType !== 'knees') || (sex === 'female' && pushupType !== 'full');
   const pushScore = hasPushups && pushupHasNorms ? normed('Push-up', pushups) : null;
   const plankScore = hasPlank ? normed('Plank Hold', plank) : null;
-  const squatScore = hasSquats ? clamp(squats * 2.5) : null;
+  const lowerScore = !lowerBody
+    ? null
+    : lowerBody.protocol === 'single-leg-sts-30sec'
+      ? scoreSingleLegSitToStand(lowerBody.reps, age, gender)
+      : clamp(lowerBody.reps * 2.5);
   const gripScore = hasGrip ? scoreGripKg(gripAvg, gender) : null;
 
   const details: ScoreDetail[] = [
     { id: 'pushups', label: pushupType === 'knees' ? 'Pushups on knees (1-min)' : 'Pushups (1-min)', value: pushups || '-', score: Math.round(pushScore ?? 0) },
-    { id: 'squats', label: 'Squats (1-min)', value: squats || '-', score: Math.round(squatScore ?? 0) },
     { id: 'plank', label: 'Plank hold', value: plank || '-', unit: 's', score: Math.round(plankScore ?? 0) },
   ];
+
+  if (lowerBody) {
+    details.splice(1, 0, lowerBody.protocol === 'single-leg-sts-30sec'
+      ? { id: 'singleLeg', label: 'Single-leg sit-to-stand (30 s, avg per leg)', value: lowerBody.reps, unit: 'reps', score: Math.round(lowerScore ?? 0) }
+      : { id: 'squats', label: 'Squats (1-min)', value: lowerBody.reps, score: Math.round(lowerScore ?? 0) });
+  }
 
   if (hasGrip) {
     details.push({ id: 'grip', label: 'Grip (avg)', value: Math.round(gripAvg * 10) / 10 || '-', unit: 'kg', score: Math.round(gripScore ?? 0) });
   }
 
-  const subScores = [pushScore, squatScore, plankScore, gripScore];
+  const subScores = [pushScore, lowerScore, plankScore, gripScore];
   const mean = meanOfMeasured(subScores);
   const score = mean === null ? 0 : Math.round(mean);
 
@@ -81,7 +92,7 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
 
   const items = [
     { label: 'Upper Body Endurance', score: pushScore },
-    { label: 'Lower Body Endurance', score: squatScore },
+    { label: 'Lower Body Endurance', score: lowerScore },
     { label: 'Core Stability', score: plankScore },
     { label: 'Grip Strength', score: gripScore }
   ].filter((i): i is { label: string; score: number } => i.score !== null)
@@ -95,16 +106,23 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
     }
   });
 
-  // Left/right grip imbalance leads the focus list: it changes how we train.
-  const imbalance = hasGripDynamometer ? assessGripImbalance(form.gripLeftKg, form.gripRightKg) : null;
-  if (imbalance?.material) {
-    const side = imbalance.weakSide === 'left' ? 'Left' : 'Right';
-    weaknesses.unshift(`${side} side grip is ${imbalance.gapPct}% weaker than the ${imbalance.strongSide}`);
+  // Left/right imbalances lead the focus list: they change how we train.
+  const legGap = lowerBody?.protocol === 'single-leg-sts-30sec'
+    ? assessSideImbalance(form.singleLegStandLeftReps, form.singleLegStandRightReps)
+    : null;
+  if (legGap?.material) {
+    const side = legGap.weakSide === 'left' ? 'Left' : 'Right';
+    weaknesses.unshift(`${side} leg managed ${legGap.gapPct}% fewer single-leg reps than the ${legGap.strongSide}`);
+  }
+  const gripGap = hasGripDynamometer ? assessSideImbalance(form.gripLeftKg, form.gripRightKg) : null;
+  if (gripGap?.material) {
+    const side = gripGap.weakSide === 'left' ? 'Left' : 'Right';
+    weaknesses.unshift(`${side} side grip is ${gripGap.gapPct}% weaker than the ${gripGap.strongSide}`);
   }
 
   if (score >= 75 && subScores.filter((x) => x !== null).length >= 2) strengths.push('Balanced muscular development across tests');
 
-  const assessed = hasPushups || hasSquats || hasPlank || hasGrip;
+  const assessed = hasPushups || hasLowerBody || hasPlank || hasGrip;
 
   return { id: 'strength', title: 'Functional Strength', score, assessed, details, strengths, weaknesses };
 }

@@ -26,10 +26,13 @@ export const phaseP5: PhaseDefinition = {
       title: SECTION_TITLES.P5['strength-endurance'],
       fields: [
         // Bodyweight endurance — one card so the coach records the whole circuit in place
-        { id: 'squatsOneMinuteReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.squatsOneMinuteReps, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.squatsOneMinuteReps, tooltip: ASSESSMENT_TOOLTIPS.P5.squatsOneMinuteReps },
         { id: 'pushupsOneMinuteReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.pushupsOneMinuteReps, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.pushupsOneMinuteReps, tooltip: ASSESSMENT_TOOLTIPS.P5.pushupsOneMinuteReps },
         { id: 'pushupType' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P5.pushupType, pairId: 'strength-endurance', skippable: true, tooltip: ASSESSMENT_TOOLTIPS.P5.pushupType, options: ASSESSMENT_OPTIONS.pushupType },
         { id: 'plankDurationSeconds' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.plankDurationSeconds, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.plankDurationSeconds, tooltip: ASSESSMENT_TOOLTIPS.P5.plankDurationSeconds },
+        // Lower body: 30-second single-leg sit-to-stand, both legs on one screen.
+        // Average = lower-body strength; left vs right = imbalance check.
+        { id: 'singleLegStandLeftReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.singleLegStandLeftReps, pattern: 'Single-leg sit-to-stand', side: 'left', pairId: 'single-leg-sts', placeholder: ASSESSMENT_PLACEHOLDERS.P5.singleLegStandLeftReps, tooltip: ASSESSMENT_TOOLTIPS.P5.singleLegStandLeftReps },
+        { id: 'singleLegStandRightReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.singleLegStandRightReps, pattern: 'Single-leg sit-to-stand', side: 'right', pairId: 'single-leg-sts', placeholder: ASSESSMENT_PLACEHOLDERS.P5.singleLegStandRightReps, tooltip: ASSESSMENT_TOOLTIPS.P5.singleLegStandRightReps },
         // Grip Strength - Test Method Selection
         { id: 'gripTestMethod' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P5.gripTestMethod, pattern: 'Grip Strength', tooltip: ASSESSMENT_TOOLTIPS.P5.gripTestMethod, options: ASSESSMENT_OPTIONS.gripTestMethod },
         // Grip Strength - Dynamometer

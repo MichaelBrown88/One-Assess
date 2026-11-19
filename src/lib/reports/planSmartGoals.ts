@@ -4,6 +4,7 @@
  */
 
 import type { FormData } from '@/contexts/FormContext';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
 import type { ScoreSummary } from '@/lib/scoring';
 import type { GapAnalysisData } from '@/components/reports/useGapAnalysisData';
 import {
@@ -330,8 +331,9 @@ function buildPerformanceCandidates(
     );
   }
 
-  const squats = safeParse(formData.squatsOneMinuteReps);
-  const squatProj = projectRepTest(squats, params, 0);
+  const lowerBody = readLowerBody(formData);
+  const squats = lowerBody?.reps ?? 0;
+  const squatProj = projectRepTest(squats, params, Number.isInteger(squats) ? 0 : 1);
   if (squatProj) {
     candidates.push(
       makeGoal(

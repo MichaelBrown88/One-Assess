@@ -91,7 +91,7 @@ export function ClientPillarBrief({
           {comparison && pillar.progressionRows.some(row => row.measuredChange) ? <p className="mt-2 text-xs leading-relaxed text-foreground-secondary">{CLIENT_REPORT_COPY.measuredChangeNote(comparisonDate(comparison.previousAssessedAt))}</p> : null}
           <ClientProgressionTable rows={pillar.progressionRows} />
           {pillar.scoringId === 'bodyComp' ? <TapeMeasurementsSection formData={formData} comparison={comparison} /> : null}
-          {pillar.gripImbalance ? <ClientStrengthBalance imbalance={pillar.gripImbalance} /> : null}
+          <ClientStrengthBalance balances={pillar.sideBalances} />
         </div>
       ) : null}
     </article>
