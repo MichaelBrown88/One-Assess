@@ -118,13 +118,16 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   // Fetch Advice Blocks
   const lifestyleAdvice: string[] = [];
 
-  if (sleepScore < 70) {
+  // Advice only for habits that were actually asked (a score of 0 = not answered).
+  if (sleepScore > 0 && sleepScore < 70) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Sleep' && a.riskLevel === 'High Risk')?.adviceBlock || '');
   } else if (sleepScore >= 85) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Sleep' && a.riskLevel === 'Optimal')?.adviceBlock || '');
   }
 
-  if (stressScore < 50) {
+  if (stressScore === 0) {
+    // not asked
+  } else if (stressScore < 50) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'High Risk')?.adviceBlock || '');
   } else if (stressScore < 75) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'Moderate Risk')?.adviceBlock || '');
@@ -132,7 +135,9 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'Low Risk')?.adviceBlock || '');
   }
 
-  if (steps < 5000) {
+  if (steps <= 0) {
+    // steps not recorded
+  } else if (steps < 5000) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Steps' && a.riskLevel === 'Sedentary')?.adviceBlock || '');
   } else if (steps < 10000) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Steps' && a.riskLevel === 'Active')?.adviceBlock || '');
@@ -141,7 +146,7 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   }
 
   const details: ScoreDetail[] = [
-    { id: 'sleep', label: 'Sleep Quality', value: lateCaffeine ? `${sleepQ || sleepArchetype || '-'} (late caffeine)` : (sleepQ || '-'), score: Math.round(sleepScore) },
+    { id: 'sleep', label: 'Sleep Quality', value: lateCaffeine ? `${sleepQ || sleepArchetype || '-'} (late caffeine)` : (sleepQ || sleepArchetype || '-'), score: Math.round(sleepScore) },
     { id: 'stress', label: 'Stress Management', value: stress || '-', score: Math.round(stressScore) },
     { id: 'hydration', label: 'Hydration', value: hydration || '-', score: Math.round(hydrationScore) },
     { id: 'nutrition', label: 'Nutrition', value: nutrition || '-', score: Math.round(nutritionScore) },
@@ -156,18 +161,19 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
-  if (sleepScore >= 75) strengths.push('Good sleep habits');
-  else weaknesses.push('Sleep quality needs improvement');
+  // Only answered habits become strengths or weaknesses.
+  const habit = (score: number, strong: string, weak: string) => {
+    if (score <= 0) return;
+    if (score >= 75) strengths.push(strong);
+    else weaknesses.push(weak);
+  };
+  habit(sleepScore, 'Good sleep habits', 'Sleep quality needs improvement');
   if (lateCaffeine === 'evening') weaknesses.push('Evening caffeine is likely cutting into sleep depth');
   else if (lateCaffeine === 'afternoon') weaknesses.push('Afternoon caffeine may be affecting sleep quality');
-  if (stressScore >= 75) strengths.push('Well-managed stress');
-  else weaknesses.push('Stress management needed');
-  if (hydrationScore >= 75) strengths.push('Good hydration');
-  else weaknesses.push('Hydration needs attention');
-  if (nutritionScore >= 75) strengths.push('Good nutrition habits');
-  else weaknesses.push('Nutrition needs improvement');
-  if (activityScore >= 75) strengths.push('Active lifestyle');
-  else weaknesses.push('Daily activity needs increase');
+  habit(stressScore, 'Well-managed stress', 'Stress management needed');
+  habit(hydrationScore, 'Good hydration', 'Hydration needs attention');
+  habit(nutritionScore, 'Good nutrition habits', 'Nutrition needs improvement');
+  habit(activityScore, 'Active lifestyle', 'Daily activity needs increase');
 
   return {
     id: 'lifestyle',
