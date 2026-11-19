@@ -30,6 +30,13 @@
         "destination": "/client.html"
       },
       {
+        "source": "/api/v1/**",
+        "function": {
+          "functionId": "publicApiV1",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -26,6 +26,9 @@ import {
   submitIntakeLink as handleSubmitIntakeLink,
 } from './intakeLink/handlers';
 import { firestoreIntakeLinkStore } from './intakeLink/firestoreStore';
+import { handlePublicApi } from './publicApi/handler';
+import { createOrgApiKey, firestoreApiStore, revokeOrgApiKey } from './publicApi/firestoreStore';
+import { APP_HOST } from './config';
 import { handleExecuteClientErasure } from './executeClientErasure';
 import { handleBackfillSnapshotPosture } from './backfillSnapshotPosture';
 import { handleFetchSnapshotImageBytes } from './fetchSnapshotImageBytes';
@@ -1623,4 +1626,59 @@ export const convertIntake = onCall({ enforceAppCheck: true }, async (request) =
   return intakeResult(await handleConvertIntake(intakeLinkStore(), {
     uid: request.auth?.uid, intakeId: data.intakeId, choice: data.choice, now: new Date(),
   }));
+});
+
+
+// ── Public API v1 (docs/api/assessment-intakes.md) ──────────────────────
+
+const API_KEY_NAME_MAX = 60;
+
+async function requireOrgAdmin(uid: string | undefined) {
+  if (!uid) throw new HttpsError('unauthenticated', 'unauthenticated', { reason: 'unauthenticated' });
+  const staff = await intakeLinkStore().getStaff(uid);
+  if (!staff?.isAdmin) throw new HttpsError('permission-denied', 'forbidden', { reason: 'forbidden' });
+  return staff;
+}
+
+export const createApiKey = onCall({ enforceAppCheck: true }, async (request) => {
+  const staff = await requireOrgAdmin(request.auth?.uid);
+  const raw = (request.data as { name?: unknown } | undefined)?.name;
+  const name = typeof raw === 'string' ? raw.trim().slice(0, API_KEY_NAME_MAX) : '';
+  if (!name) throw new HttpsError('invalid-argument', 'name_required', { reason: 'name_required' });
+  try {
+    return { ok: true, ...(await createOrgApiKey(admin.firestore(), staff.orgId, staff.uid, name)) };
+  } catch (error) {
+    if ((error as { reason?: string }).reason === 'too_many_keys') {
+      throw new HttpsError('resource-exhausted', 'too_many_keys', { reason: 'too_many_keys' });
+    }
+    throw error;
+  }
+});
+
+export const revokeApiKey = onCall({ enforceAppCheck: true }, async (request) => {
+  const staff = await requireOrgAdmin(request.auth?.uid);
+  const keyId = (request.data as { keyId?: unknown } | undefined)?.keyId;
+  if (typeof keyId !== 'string' || !/^[A-Za-z0-9]{12}$/.test(keyId)) {
+    throw new HttpsError('invalid-argument', 'invalid_key', { reason: 'invalid_key' });
+  }
+  if (!(await revokeOrgApiKey(admin.firestore(), staff.orgId, keyId))) {
+    throw new HttpsError('not-found', 'not_found', { reason: 'not_found' });
+  }
+  return { ok: true };
+});
+
+/** Server-to-server API: authenticated by per-org API keys, not App Check. Hosting rewrites /api/v1/** here. */
+export const publicApiV1 = onRequest({ cors: false, maxInstances: 10 }, async (req, res) => {
+  try {
+    const out = await handlePublicApi(
+      { method: req.method, path: req.path, header: (name) => req.header(name), rawBody: req.rawBody },
+      { store: firestoreApiStore(admin.firestore()), nowMs: Date.now(), appHost: APP_HOST },
+    );
+    for (const [name, value] of Object.entries(out.headers ?? {})) res.set(name, value);
+    res.status(out.status).json(out.body);
+  } catch (error) {
+    // Never log request bodies: they carry client health information.
+    logger.error('[publicApiV1] failed', error instanceof Error ? error.message : 'unknown');
+    res.status(500).json({ error: { code: 'internal', message: 'Something went wrong. Retry with the same Idempotency-Key.' } });
+  }
 });

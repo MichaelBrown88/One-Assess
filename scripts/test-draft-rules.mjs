@@ -50,6 +50,17 @@ try {
   await assertFails(setDoc(doc(coach, 'organizations/org-a/intakes/i2'), { status: 'new' }));
   await assertFails(setDoc(doc(admin, 'organizations/org-a/intakes/i1'), { status: 'converted' }));
   await assertFails(getDoc(doc(coach, 'intake-links/' + 'A'.repeat(22))));
+  // API keys: org admins see metadata only; secrets, idempotency and external links are server-only.
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'organizations/org-a/apiKeys/k1'), { name: 'CRM', preview: 'oa_live_…' });
+    await setDoc(doc(db, 'apiKeys/k1'), { orgId: 'org-a', secretHash: 'x' });
+  });
+  await assertSucceeds(getDoc(doc(admin, 'organizations/org-a/apiKeys/k1')));
+  await assertFails(getDoc(doc(coach, 'organizations/org-a/apiKeys/k1')));
+  await assertFails(setDoc(doc(admin, 'organizations/org-a/apiKeys/k2'), { name: 'x' }));
+  await assertFails(getDoc(doc(admin, 'apiKeys/k1')));
+  await assertFails(getDoc(doc(admin, 'organizations/org-a/externalClients/x')));
 } finally {
   await env.cleanup();
 }

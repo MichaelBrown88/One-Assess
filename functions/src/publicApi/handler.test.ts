@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { handlePublicApi, RATE_LIMIT_PER_MINUTE, type ApiStore, type StoredResponse } from './handler';
+import { handlePublicApi, RATE_LIMIT_PER_MINUTE, type ApiRequest, type ApiStore, type StoredResponse } from './handler';
 import { generateApiKey } from './keys';
 import type { ClientDoc } from '../intake/clientWrite';
 import type { DraftLike } from '../intake/mergeDraft';
@@ -49,7 +49,7 @@ const body = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function request(apiKey: string, payload: unknown = body(), opts: { path?: string; method?: string; idem?: string; raw?: string } = {}) {
+function request(apiKey: string, payload: unknown = body(), opts: { path?: string; method?: string; idem?: string; raw?: string } = {}): ApiRequest {
   const headers: Record<string, string> = { authorization: `Bearer ${apiKey}`, ...(opts.idem ? { 'idempotency-key': opts.idem } : {}) };
   return {
     method: opts.method ?? 'POST',
@@ -58,7 +58,7 @@ function request(apiKey: string, payload: unknown = body(), opts: { path?: strin
     rawBody: Buffer.from(opts.raw ?? JSON.stringify(payload)),
   };
 }
-const call = (m: ReturnType<typeof memory>, req: ReturnType<typeof request>) => handlePublicApi(req, { store: m.store, nowMs: NOW, appHost: APP });
+const call = (m: ReturnType<typeof memory>, req: ApiRequest) => handlePublicApi(req, { store: m.store, nowMs: NOW, appHost: APP });
 
 describe('POST /api/v1/assessment-intakes', () => {
   it('creates a client and draft and returns a deep link', async () => {

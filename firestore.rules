@@ -190,6 +190,17 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'email']);
       }
 
+      // API key metadata for the Integrations card (no secrets here; hashes live in server-only apiKeys/{keyId}).
+      match /apiKeys/{keyId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false;
+      }
+
+      // CRM external id → client slug, written only by the public API.
+      match /externalClients/{linkId} {
+        allow read, write: if false;
+      }
+
       // Intake-link submissions (unassigned leads). Written only by the intake Cloud Functions;
       // any active coach in the org may see and pick them up.
       match /intakes/{intakeId} {
