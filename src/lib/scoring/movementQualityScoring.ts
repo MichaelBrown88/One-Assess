@@ -3,6 +3,26 @@ import { MOVEMENT_LOGIC_DB } from '../clinical-data';
 import { POSTURE_STANDARD } from '@/lib/utils/postureAlignment';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { resolveMobilityForScoring } from './deriveMobilityFromPatterns';
+import { meanOfMeasured } from './scoringUtils';
+
+/**
+ * Score for every movement-pattern option value. Every option offered in
+ * ASSESSMENT_OPTIONS must appear here (tested): an unknown value used to score
+ * 0 and be silently dropped, hiding the fault.
+ */
+export const MOVEMENT_PATTERN_SCORES: Record<string, number> = {
+  'excellent': 100, 'good': 85, 'fair': 60, 'poor': 40,
+  'full-depth': 100, 'parallel': 80, 'quarter-depth': 50, 'no-depth': 30,
+  'full-range': 100, 'compensated': 60, 'limited': 30,
+  'upright': 100, 'moderate-lean': 60, 'excessive-lean': 30,
+  'none': 100, 'minor': 80, 'moderate': 50, 'severe': 25,
+  'stable': 100, 'tracks-straight': 100, 'neutral': 100,
+  'valgus': 40, 'varus': 40, 'pronation': 50, 'supination': 50,
+  'caves-inward': 40, 'bows-outward': 40,
+  'anterior-tilt': 50, 'posterior-tilt': 50,
+  'left': 60, 'right': 60,
+  'shifts-left': 60, 'shifts-right': 60,
+};
 
 export function scoreMovementQuality(form: FormData, age: number, gender: string): ScoreCategory {
   // 1. MOBILITY SCORING (explicit legacy fields or inferred from movement patterns)
@@ -79,8 +99,10 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (tilt < 10) tiltScore = 50;
       else tiltScore = 25;
     }
-    // Each area only counts when it has at least one finding; missing findings are not "perfect".
-    if (headData || tiltData) head = Math.round((fhpScore + tiltScore) / 2);
+    // Each area only counts when it has at least one finding, and within an area
+    // only the findings present are averaged — a missing finding is not "perfect".
+    const headMean = meanOfMeasured([headData ? fhpScore : null, tiltData ? tiltScore : null]);
+    if (headMean !== null) head = Math.round(headMean);
 
     // Shoulders (industry standard: Normal when height difference <1 cm)
     const shoulderData = ai.front?.shoulder_alignment;
@@ -115,9 +137,12 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (deg < 20) scoliosisScore = 50;
       else scoliosisScore = 25;
     }
-    if (kyphosisData || lordosisData || spineData) {
-      back = Math.round((kyphosisScore + lordosisScore + scoliosisScore) / 3);
-    }
+    const backMean = meanOfMeasured([
+      kyphosisData ? kyphosisScore : null,
+      lordosisData ? lordosisScore : null,
+      spineData ? scoliosisScore : null,
+    ]);
+    if (backMean !== null) back = Math.round(backMean);
 
     // Hips/Pelvis
     const pelvicSideData = ai['side-right']?.pelvic_tilt || ai['side-left']?.pelvic_tilt;
@@ -172,20 +197,7 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
     : 0;
 
   // 3. MOVEMENT PATTERN SCORING
-  const scoreMap: Record<string, number> = {
-    'excellent': 100, 'good': 85, 'fair': 60, 'poor': 40,
-    'full-depth': 100, 'parallel': 80, 'quarter-depth': 50, 'no-depth': 30,
-    'full-range': 100, 'compensated': 60, 'limited': 30,
-    'upright': 100, 'moderate-lean': 60, 'excessive-lean': 30,
-    'none': 100, 'minor': 80, 'moderate': 50, 'severe': 25,
-    'stable': 100, 'tracks-straight': 100, 'neutral': 100,
-    'valgus': 40, 'varus': 40, 'pronation': 50, 'supination': 50,
-    'caves-inward': 40, 'bows-outward': 40,
-    'anterior-tilt': 50, 'posterior-tilt': 50,
-    'left': 60, 'right': 60
-  };
-
-  const getScore = (v: string | undefined) => (v ? (scoreMap[v.toLowerCase()] ?? 0) : 0);
+  const getScore = (v: string | undefined) => (v ? (MOVEMENT_PATTERN_SCORES[v.toLowerCase()] ?? 0) : 0);
 
   const ohsFields = [form.ohsShoulderMobility, form.ohsTorsoLean, form.ohsSquatDepth, form.ohsHipShift, form.ohsKneeAlignment, form.ohsFeetPosition];
   const ohsScores = ohsFields.map(getScore).filter(s => s > 0);

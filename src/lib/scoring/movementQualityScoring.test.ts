@@ -28,7 +28,8 @@ describe('scoreMovementQuality with posture AI results', () => {
       'male',
     );
     expect(result.assessed).toBe(true);
-    expect(result.score).toBe(75);
+    // Moderate forward head alone = 50; a missing tilt finding isn't averaged in as 100.
+    expect(result.score).toBe(50);
   });
 
   it('scores neutral findings as 100', () => {
