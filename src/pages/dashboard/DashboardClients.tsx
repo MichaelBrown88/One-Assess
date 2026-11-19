@@ -3,10 +3,13 @@ import { useOutletContext } from 'react-router-dom';
 import { UnifiedClientTable } from '@/components/dashboard/sub-components/UnifiedClientTable';
 import { WorkspaceBreadcrumb } from '@/components/dashboard/WorkspaceBreadcrumb';
 import { WorkspaceKpiCard } from '@/components/dashboard/WorkspaceKpiCard';
+import { NewIntakesPanel } from '@/components/dashboard/NewIntakesPanel';
+import { useAuth } from '@/hooks/useAuth';
 import type { DashboardOutletContext } from './DashboardLayout';
 
 export default function DashboardClients() {
   const ctx = useOutletContext<DashboardOutletContext>();
+  const { profile, effectiveOrgId } = useAuth();
 
   const total = ctx.analytics?.totalClients ?? 0;
   const overdue = ctx.reassessmentQueue?.summary?.overdue ?? 0;
@@ -45,6 +48,8 @@ export default function DashboardClients() {
             : `${total} client${total === 1 ? '' : 's'} on your roster${attentionCount > 0 ? ` · ${attentionCount} need${attentionCount === 1 ? 's' : ''} attention` : ''}.`}
         </p>
       </header>
+
+      <NewIntakesPanel organizationId={effectiveOrgId || profile?.organizationId} />
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="grid grid-cols-2 divide-y divide-border lg:grid-cols-4 lg:divide-x lg:divide-y-0">

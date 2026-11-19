@@ -34,3 +34,23 @@ describe('ConsultationNotesPanel', () => {
     expect(container.querySelectorAll('dt')).toHaveLength(2);
   });
 });
+
+describe('ConsultationNotesPanel client PAR-Q', () => {
+  it('flags yes answers and records the coach confirmation', async () => {
+    const onConfirm = vi.fn();
+    await act(async () => root.render(<ConsultationNotesPanel notes={[]} parq={{ answers: { parq1: 'no', parq2: 'yes' }, onConfirm }} />));
+    expect(container.textContent).toContain('health answers to confirm');
+    expect(container.textContent).toContain('Yes: Do you feel pain in your chest');
+    expect(container.querySelector('details')?.open).toBe(true);
+    const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Confirmed with client');
+    await act(async () => button?.click());
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a confirmed, all-clear PAR-Q without a button', async () => {
+    await act(async () => root.render(<ConsultationNotesPanel notes={undefined} parq={{ answers: { parq1: 'no', parq2: 'no' }, confirmedAt: '2026-11-19T10:00:00Z', onConfirm: () => {} }} />));
+    expect(container.textContent).toContain('No to all 2 questions.');
+    expect(container.textContent).toContain('Confirmed with the client');
+    expect(container.querySelector('button')).toBeNull();
+  });
+});

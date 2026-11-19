@@ -33,7 +33,7 @@ describe('intake link screens', () => {
   it('requires every PAR-Q answer and medication details when taking medication', () => {
     const basic = { ...initialBasicFromPrefill({}), gender: 'male' };
     const check = (kind: 'parq' | 'medications', health: Record<string, string>) =>
-      isScreenValid({ id: kind, kind }, basic, INITIAL_LIFESTYLE_REMOTE, health, {}, INITIAL_PRE_ASSESSMENT_GOALS);
+      isScreenValid(kind === 'parq' ? { id: 'parq', kind: 'parq' } : { id: 'medications', kind: 'medications' }, basic, INITIAL_LIFESTYLE_REMOTE, health, {}, INITIAL_PRE_ASSESSMENT_GOALS);
     const allNo = Object.fromEntries(visibleParqIds('male').map((id) => [id, 'no']));
     expect(check('parq', allNo)).toBe(true);
     expect(check('parq', { ...allNo, parq3: '' })).toBe(false);

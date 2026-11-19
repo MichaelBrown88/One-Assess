@@ -414,7 +414,16 @@ export const PhaseFormContent = ({
         />
 
         <IntakePrefillBanner />
-        {!isResultsPhase ? <ConsultationNotesPanel notes={formData.consultationNotes} /> : null}
+        {!isResultsPhase ? (
+          <ConsultationNotesPanel
+            notes={formData.consultationNotes}
+            parq={formData.parqSource === 'client' ? {
+              answers: formData as unknown as Record<string, string>,
+              confirmedAt: formData.parqConfirmedAt,
+              onConfirm: () => updateFormData({ parqConfirmedAt: new Date().toISOString() }),
+            } : undefined}
+          />
+        ) : null}
 
         <section className="space-y-6">
           <PhaseFormSingleFieldFlow

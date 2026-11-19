@@ -12,6 +12,10 @@ export interface FormData {
   assessedAt?: string;
   /** Read-only consultation notes from the OFS hand-off; shown to the coach, never scored. */
   consultationNotes?: ConsultationNote[];
+  /** 'client' when PAR-Q answers came from the client's own intake, not the coach. */
+  parqSource?: string;
+  /** ISO time the coach confirmed client-reported PAR-Q answers with the client. */
+  parqConfirmedAt?: string;
   /** Client Profile */
   fullName: string;
   email: string;

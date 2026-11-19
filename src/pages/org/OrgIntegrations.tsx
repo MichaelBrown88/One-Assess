@@ -2,6 +2,7 @@ import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { WebhooksManager } from '@/components/org/integrations/WebhooksManager';
 import { CsvClientImport } from '@/components/org/integrations/CsvClientImport';
+import { IntakeLinkCard } from '@/components/org/integrations/IntakeLinkCard';
 import type { OrgAdminOutletContext } from './OrgAdminLayout';
 
 export default function OrgIntegrations() {
@@ -18,6 +19,10 @@ export default function OrgIntegrations() {
         <p className="text-sm text-muted-foreground mt-1">
           Connect your external tools and import client data.
         </p>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-background p-6">
+        <IntakeLinkCard organizationId={organizationId} />
       </div>
 
       <div className="rounded-2xl border border-border bg-background p-6">
