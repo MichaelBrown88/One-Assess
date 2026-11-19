@@ -92,7 +92,7 @@ export interface OrgSettings {
   brandHex?: string;
   modules: {
     parq: boolean; // P0 - PAR-Q health screening
-    bodycomp: boolean; // P2 - Body composition scan (section: 'body-comp')
+    bodycomp: boolean; // P2 - Analyzer + tape (sections: 'inbody-results', 'tape-measurements')
     fitness: boolean; // P3 - Metabolic fitness assessment (section: 'fitness-assessment')
     posture: boolean; // P2 - Posture photos (section: 'posture')
     overheadSquat: boolean; // P4 - Overhead squat assessment (section: 'overhead-squat')
