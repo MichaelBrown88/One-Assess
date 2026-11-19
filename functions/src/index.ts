@@ -19,9 +19,6 @@ import {
   handleListRecentInvoices,
 } from './stripe';
 import { handleSubmitPublicErasureRequest } from './publicErasureRequest';
-import { defineSecret } from 'firebase-functions/params';
-import { handleOfsHandoff } from './ofsHandoff/handler';
-import { firestoreHandoffStore } from './ofsHandoff/firestoreStore';
 import { handleExecuteClientErasure } from './executeClientErasure';
 import { handleBackfillSnapshotPosture } from './backfillSnapshotPosture';
 import { handleFetchSnapshotImageBytes } from './fetchSnapshotImageBytes';
@@ -149,25 +146,6 @@ export const stripeWebhook = onRequest(
   handleStripeWebhook,
 );
 
-const OFS_HANDOFF_SECRET = defineSecret('OFS_HANDOFF_SECRET');
-
-/**
- * Server-to-server hand-off from the studio CRM (OFS): HMAC-signed, not a callable,
- * so App Check does not apply. Writes only to the org in OFS_HANDOFF_ORG_ID.
- * Contract: docs/ofs-handoff-endpoint.md.
- */
-export const ofsHandoff = onRequest(
-  { cors: false, secrets: [OFS_HANDOFF_SECRET], maxInstances: 5 },
-  async (req, res) => {
-    const out = await handleOfsHandoff(req, {
-      secret: OFS_HANDOFF_SECRET.value(),
-      orgId: (process.env.OFS_HANDOFF_ORG_ID || '').trim(),
-      store: firestoreHandoffStore(admin.firestore()),
-      nowMs: Date.now(),
-    });
-    res.status(out.status).json(out.body);
-  },
-);
 
 export const createCustomerPortalSession = onCall({
   enforceAppCheck: true,
