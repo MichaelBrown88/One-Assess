@@ -8,7 +8,7 @@
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { assertRateLimit } from '../rateLimit';
 import type { IntakeDoc, IntakeLinkStore, Staff } from './handlers';
-import type { DraftLike } from '../intake/mergeDraft';
+import { intakeRefs, readIntakeTargets, writeIntakeResult } from '../intake/firestoreWrite';
 
 const STAFF_ROLES = new Set(['org_admin', 'coach']);
 
@@ -78,37 +78,16 @@ export function firestoreIntakeLinkStore(db: Firestore): IntakeLinkStore {
     },
 
     async convert(orgId, intakeId, slug, convertedBy, build) {
-      const clientRef = db.doc(`organizations/${orgId}/clients/${slug}`);
-      const draftRef = db.doc(`organizations/${orgId}/clients/${slug}/assessmentDrafts/draft`);
+      const refs = intakeRefs(db, orgId, slug);
       return db.runTransaction(async (tx) => {
-        const [intakeSnap, clientSnap, draftSnap, orgSnap] = await Promise.all([
-          tx.get(intakeRef(orgId, intakeId)), tx.get(clientRef), tx.get(draftRef), tx.get(orgRef(orgId)),
-        ]);
+        const intakeSnap = await tx.get(intakeRef(orgId, intakeId));
+        const targets = await readIntakeTargets(tx, refs);
         if (intakeSnap.get('status') !== 'new') return { kind: 'conflict' as const, reason: 'already_handled' as const };
-        const out = build(
-          clientSnap.exists ? clientSnap.data() ?? {} : null,
-          draftSnap.exists ? (draftSnap.data() as DraftLike) : null,
-          orgSnap.exists ? orgSnap.data() ?? {} : null,
-        );
+        const out = build(targets.client, targets.draft, targets.org);
         if (out.kind === 'conflict') return out;
-        const now = FieldValue.serverTimestamp();
-        if (out.newClient) tx.create(clientRef, { ...out.newClient, createdAt: now });
-        tx.set(clientRef, { hasAssessmentDraft: true, draftUpdatedAt: now }, { merge: true });
-        const { formData, activePhaseId, activePhaseIdx, importPath, externalImport } = out.draft;
-        // update() takes dotted field paths, so `externalImports.{provider}` lands as a nested key.
-        const draftFields = {
-          clientName: formData.fullName,
-          organizationId: orgId,
-          formData,
-          updatedAt: now,
-          [importPath]: externalImport,
-          ...(activePhaseId ? { activePhaseId } : {}),
-          ...(typeof activePhaseIdx === 'number' ? { activePhaseIdx } : {}),
-        };
-        if (draftSnap.exists) tx.update(draftRef, draftFields);
-        else tx.set(draftRef, { ...draftFields, [importPath]: externalImport });
-        tx.update(intakeRef(orgId, intakeId), { status: 'converted', clientSlug: slug, convertedBy, handledAt: now });
-        return { kind: 'ok' as const, created: Boolean(out.newClient) };
+        const { created } = writeIntakeResult(tx, refs, orgId, out, targets.draft !== null);
+        tx.update(intakeRef(orgId, intakeId), { status: 'converted', clientSlug: slug, convertedBy, handledAt: FieldValue.serverTimestamp() });
+        return { kind: 'ok' as const, created };
       });
     },
   };
