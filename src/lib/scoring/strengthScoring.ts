@@ -47,13 +47,19 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
     const v = lookupNormativeScore(test, gender, age, value);
     return v > 0 ? v : null;
   };
-  const pushScore = hasPushups ? normed('Push-up', pushups) : null;
+  // The ACSM tables cover men on the toes and women on the knees. Any other
+  // combination has no published norms, so it is recorded but not scored.
+  const sex = (gender || '').toLowerCase();
+  const pushupType = (form.pushupType || '').toLowerCase();
+  const pushupHasNorms =
+    (sex === 'male' && pushupType !== 'knees') || (sex === 'female' && pushupType !== 'full');
+  const pushScore = hasPushups && pushupHasNorms ? normed('Push-up', pushups) : null;
   const plankScore = hasPlank ? normed('Plank Hold', plank) : null;
   const squatScore = hasSquats ? clamp(squats * 2.5) : null;
   const gripScore = hasGrip ? scoreGripKg(gripAvg, gender) : null;
 
   const details: ScoreDetail[] = [
-    { id: 'pushups', label: 'Pushups (1-min)', value: pushups || '-', score: Math.round(pushScore ?? 0) },
+    { id: 'pushups', label: pushupType === 'knees' ? 'Pushups on knees (1-min)' : 'Pushups (1-min)', value: pushups || '-', score: Math.round(pushScore ?? 0) },
     { id: 'squats', label: 'Squats (1-min)', value: squats || '-', score: Math.round(squatScore ?? 0) },
     { id: 'plank', label: 'Plank hold', value: plank || '-', unit: 's', score: Math.round(plankScore ?? 0) },
   ];

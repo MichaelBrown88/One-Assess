@@ -146,6 +146,7 @@ export const ASSESSMENT_LABELS = {
   P5: {
     squatsOneMinuteReps: 'Squats in one minute',
     pushupsOneMinuteReps: 'Pushups in one minute',
+    pushupType: 'Push-up type',
     plankDurationSeconds: 'Plank duration (seconds)',
     gripTestMethod: 'Select grip test method',
     gripLeftKg: 'Left hand (kg)',
@@ -261,7 +262,8 @@ export const ASSESSMENT_TOOLTIPS = {
   },
   P5: {
     squatsOneMinuteReps: 'Instructions:\n1. Set timer for 60 seconds.\n2. Count only reps with full range of motion (thighs parallel to floor).\n3. Stop immediately when time expires.',
-    pushupsOneMinuteReps: 'Instructions:\n1. Maintain a rigid plank position throughout.\n2. Chest must come within 2 inches of the floor.\n3. Arms must reach full lockout at the top.',
+    pushupsOneMinuteReps: 'Instructions:\n1. Men: full push-ups on the toes. Women: push-ups on the knees. The scoring norms use these.\n2. Keep a rigid line from head to knees or heels.\n3. Chest comes within 5 cm of the floor, arms lock out at the top.',
+    pushupType: 'Tap the type the client did. Men on the toes and women on the knees are scored against published norms; other combinations are recorded but not scored.',
     plankDurationSeconds: 'Instructions:\n1. Hold a forearm plank with a flat back and active core.\n2. Record the total time until form breaks or knees touch.',
     gripTestMethod: 'Choose the test method based on your client\'s needs and available equipment.',
     gripLeftKg: 'Instructions:\n1. Squeeze the dynamometer with maximum effort.\n2. Keep arm at your side, not touching your body.\n3. Record the best of 3 attempts.',
@@ -593,6 +595,10 @@ export const ASSESSMENT_OPTIONS = {
     { value: 'poor', label: 'Poor' },
   ],
   // P5 Options
+  pushupType: [
+    { value: 'full', label: 'Full (toes)' },
+    { value: 'knees', label: 'Knees' },
+  ],
   gripTestMethod: [
     { value: 'deadhang', label: 'Dead Hang Test' },
     { value: 'pinch', label: 'Plate Pinch Test' },

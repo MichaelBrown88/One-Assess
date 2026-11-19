@@ -213,6 +213,8 @@ export interface FormData {
   pushupMaxReps: string;
   squatsOneMinuteReps: string;
   pushupsOneMinuteReps: string;
+  /** 'full' (toes) or 'knees'. Empty on older assessments: men full, women knees. */
+  pushupType: string;
   gripTestMethod: string; // 'deadhang' | 'pinch' - selection when equipment is disabled
   gripLeftKg: string;
   gripRightKg: string;
@@ -419,6 +421,7 @@ export const initialFormData: FormData = {
   pushupMaxReps: '',
   squatsOneMinuteReps: '',
   pushupsOneMinuteReps: '',
+  pushupType: '',
   gripTestMethod: '',
   gripLeftKg: '',
   gripRightKg: '',

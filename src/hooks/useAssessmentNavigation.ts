@@ -269,7 +269,8 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
       });
     }
 
-    return visibleFields.every(field => {
+    // Skippable fields (e.g. push-up type) never block completion.
+    return visibleFields.filter(f => !(f as { skippable?: boolean }).skippable).every(field => {
       const value = formData[field.id as keyof FormData];
       if (Array.isArray(value)) return value.length > 0;
       return value !== undefined && value !== null && value !== '';

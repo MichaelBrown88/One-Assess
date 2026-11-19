@@ -88,7 +88,8 @@ export interface NormativeBenchmark {
 }
 
 export const NORMATIVE_SCORING_DB: NormativeBenchmark[] = [
-  // Push-up (Standard for Men, Modified for Women)
+  // Push-up (ACSM): men = full push-ups on the toes, women = modified (knees).
+  // strengthScoring only uses a row when the recorded push-up type matches.
   { testId: '1', testName: 'Push-up', gender: 'male', ageBracket: '20-29', thresholds: { poor: 16, average: 22, excellent: 47 }, fitnessAgeStandard: 22, unit: 'Repetitions' },
   { testId: '2', testName: 'Push-up', gender: 'male', ageBracket: '30-39', thresholds: { poor: 11, average: 17, excellent: 39 }, fitnessAgeStandard: 22, unit: 'Repetitions' },
   { testId: '3', testName: 'Push-up', gender: 'male', ageBracket: '40-49', thresholds: { poor: 9, average: 13, excellent: 30 }, fitnessAgeStandard: 22, unit: 'Repetitions' },

@@ -28,6 +28,7 @@ export const phaseP5: PhaseDefinition = {
         // Bodyweight endurance — one card so the coach records the whole circuit in place
         { id: 'squatsOneMinuteReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.squatsOneMinuteReps, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.squatsOneMinuteReps, tooltip: ASSESSMENT_TOOLTIPS.P5.squatsOneMinuteReps },
         { id: 'pushupsOneMinuteReps' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.pushupsOneMinuteReps, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.pushupsOneMinuteReps, tooltip: ASSESSMENT_TOOLTIPS.P5.pushupsOneMinuteReps },
+        { id: 'pushupType' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P5.pushupType, pairId: 'strength-endurance', skippable: true, tooltip: ASSESSMENT_TOOLTIPS.P5.pushupType, options: ASSESSMENT_OPTIONS.pushupType },
         { id: 'plankDurationSeconds' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P5.plankDurationSeconds, pairId: 'strength-endurance', placeholder: ASSESSMENT_PLACEHOLDERS.P5.plankDurationSeconds, tooltip: ASSESSMENT_TOOLTIPS.P5.plankDurationSeconds },
         // Grip Strength - Test Method Selection
         { id: 'gripTestMethod' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P5.gripTestMethod, pattern: 'Grip Strength', tooltip: ASSESSMENT_TOOLTIPS.P5.gripTestMethod, options: ASSESSMENT_OPTIONS.gripTestMethod },

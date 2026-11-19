@@ -189,6 +189,41 @@ describe('1.10 every movement option has a score', () => {
   });
 });
 
+describe('1.11 mobility inferred from the squat is not counted twice', () => {
+  it('a knee cave-in is not offset by an inferred "good mobility" score', () => {
+    const r = scoreMovementQuality(
+      form({ ohsShoulderMobility: 'full-range', ohsTorsoLean: 'upright', ohsSquatDepth: 'full-depth', ohsHipShift: 'none', ohsKneeAlignment: 'valgus', ohsFeetPosition: 'stable' }),
+      30,
+      'male',
+    );
+    expect(detail(r, 'mobility')?.score).toBe(0);
+    expect(r.score).toBe(90);
+  });
+});
+
+describe('1.13 push-ups are scored only against a matching table', () => {
+  const push = (sex: string, type: string) =>
+    detail(scoreStrength(form({ pushupsOneMinuteReps: '15', pushupType: type }), 35, sex), 'pushups')!.score;
+
+  it('women on knees and men on toes are scored', () => {
+    expect(push('female', 'knees')).toBeGreaterThan(0);
+    expect(push('male', 'full')).toBeGreaterThan(0);
+  });
+
+  it('older assessments without a type keep scoring (men toes, women knees)', () => {
+    expect(push('female', '')).toBe(push('female', 'knees'));
+    expect(push('male', '')).toBe(push('male', 'full'));
+  });
+
+  it('combinations with no published norms are recorded but not scored', () => {
+    const r = scoreStrength(form({ pushupsOneMinuteReps: '15', pushupType: 'full', squatsOneMinuteReps: '30' }), 35, 'female');
+    expect(detail(r, 'pushups')?.value).toBe(15);
+    expect(detail(r, 'pushups')?.score).toBe(0);
+    expect(r.score).toBe(75); // squats only: 30 x 2.5
+    expect(push('male', 'knees')).toBe(0);
+  });
+});
+
 describe('1.14 age is taken at the assessment date', () => {
   it('calculateAge accepts a reference date', () => {
     expect(calculateAge('1990-06-01', '2026-05-31')).toBe(35);
