@@ -85,6 +85,8 @@ export function IntakeLinkCard({ organizationId, origin = window.location.origin
               Add <code>?name=</code> and <code>&amp;email=</code> to fill those in from your CRM. Regenerating stops the old link working.
             </p>
           </div>
+          {/* QR codes need a light quiet zone to scan in dark mode too, so this stays white. */}
+          {/* eslint-disable-next-line no-restricted-syntax */}
           <div className="rounded-lg bg-white p-2 self-start" aria-label="QR code for the intake link">
             <QRCodeSVG value={url} size={QR_SIZE} />
           </div>

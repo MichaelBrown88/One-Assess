@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildRemoteIntakeScreens, isScreenValid, INITIAL_PRE_ASSESSMENT_GOALS, visibleParqIds } from './remoteIntakeFlow';
+import { buildRemoteIntakeScreens, healthToFields, isScreenValid, INITIAL_PRE_ASSESSMENT_GOALS, visibleParqIds } from './remoteIntakeFlow';
 import { initialBasicFromPrefill } from './remoteIntakePrefill';
 import { INITIAL_LIFESTYLE_REMOTE } from '@/components/remote/PublicRemoteLifestyleFields';
-import { readIntakeLinkPrefill } from '@/pages/PublicIntakeLink';
+import { readIntakeLinkPrefill } from './intakeLinkPrefill';
 
 const LINK_KEYS = new Set(['fullName', 'email', 'parq1', 'medicationsFlag', 'activityLevel', 'clientGoals']);
 const ids = (keys: Set<string>, includePosture?: boolean) =>
@@ -50,5 +50,17 @@ describe('readIntakeLinkPrefill', () => {
   });
   it('ignores blank or oversized values', () => {
     expect(readIntakeLinkPrefill(new URLSearchParams(`name=%20&email=${'x'.repeat(81)}`))).toEqual({});
+  });
+});
+
+describe('healthToFields', () => {
+  const keys = new Set(['parq1', 'parq12', 'medicationsFlag', 'medicationsNotes']);
+  it('sends answers for the questions shown', () => {
+    expect(healthToFields({ parq1: 'no', parq12: 'yes', medicationsFlag: 'yes', medicationsNotes: ' Example ' }, keys, 'female'))
+      .toEqual({ parq1: 'no', parq12: 'yes', medicationsFlag: 'yes', medicationsNotes: 'Example' });
+  });
+  it('drops pregnancy answers after a gender change, stale notes and unknown keys', () => {
+    expect(healthToFields({ parq1: 'no', parq12: 'yes', medicationsFlag: 'no', medicationsNotes: 'old', parq5: 'yes' }, keys, 'male'))
+      .toEqual({ parq1: 'no', medicationsFlag: 'no' });
   });
 });

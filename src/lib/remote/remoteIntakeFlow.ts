@@ -93,6 +93,20 @@ const LIFESTYLE_SELECTS: {
   { field: 'hydrationHabits', label: P1.hydrationHabits, options: selectOptions(ASSESSMENT_OPTIONS.hydrationHabits) },
 ];
 
+/** Health answers to submit: only allowed keys, only questions shown for this gender, notes only with a yes. */
+export function healthToFields(health: RemoteHealthState, allowedKeys: Set<string>, gender: string): Record<string, string> {
+  const shown = new Set(visibleParqIds(gender));
+  const out: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(health)) {
+    const value = raw.trim();
+    if (!value || !allowedKeys.has(key)) continue;
+    if (/^parq\d+$/.test(key) && !shown.has(key)) continue;
+    if (key === 'medicationsNotes' && health.medicationsFlag !== 'yes') continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 export function buildRemoteIntakeScreens(params: {
   allowedKeys: Set<string>;
   prefill: RemoteBasicInfoPrefill;

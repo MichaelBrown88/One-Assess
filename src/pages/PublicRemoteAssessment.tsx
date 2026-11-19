@@ -37,7 +37,7 @@ import {
   isScreenValid,
   screenSubtitle,
   screenTitle,
-  visibleParqIds,
+  healthToFields,
   type PreAssessmentGoalsState,
   type RemoteHealthState,
   type RemoteIntakeScreen,
@@ -231,7 +231,6 @@ export function RemoteIntakeWizard({ source }: { source: IntakeSource }) {
 
   const handleSubmitAll = async () => {
     if (!token) return;
-    const parqIds = new Set(visibleParqIds(basicInfo.gender));
     setError(null);
     setSubmitting(true);
     try {
@@ -248,12 +247,7 @@ export function RemoteIntakeWizard({ source }: { source: IntakeSource }) {
       if (goals.trainingFrequency.trim()) {
         fields.trainingFrequency = goals.trainingFrequency.trim();
       }
-      for (const [key, value] of Object.entries(health)) {
-        if (!allowedKeys.has(key)) continue;
-        if (key.startsWith('parq') && !parqIds.has(key)) continue;
-        if (key === 'medicationsNotes' && health.medicationsFlag !== 'yes') continue;
-        fields[key] = value.trim();
-      }
+      Object.assign(fields, healthToFields(health, allowedKeys, basicInfo.gender));
       for (const k of Object.keys(fields)) {
         if (!fields[k]) delete fields[k];
       }
