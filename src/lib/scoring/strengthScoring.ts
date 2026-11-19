@@ -17,6 +17,26 @@ const GRIP_POINTS: Record<'male' | 'female', readonly (readonly [number, number]
   female: [[16, 10], [19, 25], [25.3, 50], [31.4, 75], [37.5, 100]],
 };
 
+/**
+ * Plank: forearm plank to form failure, compared with healthy young adults
+ * (Strand et al. 2014, J Hum Kinet 40:93, Table 3, non-varsity students:
+ * 10th-90th percentiles). Score = percentile. The test stops at 3:00, so a man
+ * tops out around the 88th percentile; women reach 100 at 3:00. No age
+ * adjustment (no published age norms; same young-adult approach as grip).
+ * Body mass correlates only weakly (r about -0.3), so it isn't adjusted for.
+ */
+export const PLANK_CAP_SECONDS = 180;
+const PLANK_POINTS: Record<'male' | 'female', readonly (readonly [number, number])[]> = {
+  male: [[0, 0], [49, 10], [72, 20], [83, 30], [95, 40], [103, 50], [115, 60], [125, 70], [142, 80], [189, 90]],
+  female: [[0, 0], [34, 10], [47, 20], [56, 30], [62, 40], [70, 50], [79, 60], [91, 70], [103, 80], [130, 90], [180, 100]],
+};
+
+export function scorePlankStrand(seconds: number, gender: string): number | null {
+  const sex = (gender || '').toLowerCase();
+  if (seconds < 0 || (sex !== 'male' && sex !== 'female')) return null;
+  return Math.round(scoreFromPoints(Math.min(seconds, PLANK_CAP_SECONDS), PLANK_POINTS[sex]));
+}
+
 export function scoreGripKg(kg: number, gender: string): number | null {
   const sex = (gender || '').toLowerCase();
   if (!(kg > 0) || (sex !== 'male' && sex !== 'female')) return null;
@@ -57,7 +77,7 @@ export function scoreStrength(form: FormData, age: number, gender: string): Scor
   const pushupHasNorms =
     (sex === 'male' && pushupType !== 'knees') || (sex === 'female' && pushupType !== 'full');
   const pushScore = hasPushups && pushupHasNorms ? normed('Push-up', pushups) : null;
-  const plankScore = hasPlank ? normed('Plank Hold', plank) : null;
+  const plankScore = hasPlank ? scorePlankStrand(plank, gender) : null;
   const lowerScore = !lowerBody
     ? null
     : lowerBody.protocol === 'single-leg-sts-30sec'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { initialFormData, type FormData } from '@/types/assessmentForm';
 import { readLowerBody, scoreSingleLegSitToStand } from './lowerBody';
-import { scoreStrength } from './strengthScoring';
+import { scorePlankStrand, scoreStrength } from './strengthScoring';
 
 const form = (o: Partial<FormData>): FormData => ({ ...initialFormData, ...o });
 
@@ -62,5 +62,28 @@ describe('strength pillar uses the single-leg test', () => {
   it('keeps scoring legacy squats the old way', () => {
     const r = scoreStrength(form({ squatsOneMinuteReps: '30' }), 35, 'male');
     expect(r.details.find((d) => d.id === 'squats')?.score).toBe(75);
+  });
+});
+
+describe('plank scored on Strand 2014 (non-athlete percentiles, 3-minute cap)', () => {
+  it('maps printed percentiles to the same score', () => {
+    expect(scorePlankStrand(103, 'male')).toBe(50);
+    expect(scorePlankStrand(70, 'female')).toBe(50);
+    expect(scorePlankStrand(189, 'male')).toBe(88); // capped at 180 s
+    expect(scorePlankStrand(130, 'female')).toBe(90);
+  });
+
+  it('caps at 3 minutes and needs sex', () => {
+    expect(scorePlankStrand(400, 'female')).toBe(100);
+    expect(scorePlankStrand(400, 'male')).toBe(scorePlankStrand(180, 'male'));
+    expect(scorePlankStrand(60, 'any')).toBeNull();
+    expect(scorePlankStrand(0, 'male')).toBe(0);
+  });
+
+  it('is used by the strength pillar without an age adjustment', () => {
+    const young = scoreStrength(form({ plankDurationSeconds: '103' }), 25, 'male');
+    const older = scoreStrength(form({ plankDurationSeconds: '103' }), 65, 'male');
+    expect(young.details.find((d) => d.id === 'plank')?.score).toBe(50);
+    expect(older.details.find((d) => d.id === 'plank')?.score).toBe(50);
   });
 });
