@@ -14,6 +14,7 @@ import { getAppShellSeoForPathname } from '@/constants/seo';
 import { UI_COMMAND_MENU } from '@/constants/ui';
 import { useClientDetail } from '@/hooks/useClientDetail';
 import { useAuth } from '@/hooks/useAuth';
+import { useResumeFromUrl } from '@/hooks/useResumeFromUrl';
 import {
   ArrowLeft,
   UserPlus,
@@ -94,6 +95,8 @@ export default function ClientDetailLayout() {
     handleReactivateClient,
     handleDeleteClientPermanently,
   } = clientData;
+
+  useResumeFromUrl(clientName, !loading && Boolean(user));
 
   const isPaused = profile?.status === 'paused';
   const isArchived = profile?.status === 'archived';

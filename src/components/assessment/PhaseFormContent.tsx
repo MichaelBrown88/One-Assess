@@ -22,6 +22,7 @@ import { PhaseFormPhaseHeader } from '@/components/assessment/phaseForm/PhaseFor
 import { PhaseFormViewResultsCta } from '@/components/assessment/phaseForm/PhaseFormViewResultsCta';
 import { PhaseFormResultsPanel } from '@/components/assessment/phaseForm/PhaseFormResultsPanel';
 import { PhaseFormConfidentialFooter } from '@/components/assessment/phaseForm/PhaseFormConfidentialFooter';
+import { ConsultationNotesPanel } from './ConsultationNotesPanel';
 import { IntakePrefillBanner } from '@/components/assessment/IntakePrefillBanner';
 import { PhaseFormSingleFieldFlow } from '@/components/assessment/phaseForm/PhaseFormSingleFieldFlow';
 import { computeScores, buildRoadmap } from '@/lib/scoring';
@@ -413,6 +414,7 @@ export const PhaseFormContent = ({
         />
 
         <IntakePrefillBanner />
+        {!isResultsPhase ? <ConsultationNotesPanel notes={formData.consultationNotes} /> : null}
 
         <section className="space-y-6">
           <PhaseFormSingleFieldFlow

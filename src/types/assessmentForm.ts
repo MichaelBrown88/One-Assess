@@ -1,9 +1,17 @@
 import type { PostureAnalysisResult } from '@/lib/ai/postureAnalysis';
 import type { AssessmentPlan } from '@/lib/types/assessmentPlan';
 
+/** One read-only note carried over from the studio CRM consultation. */
+export interface ConsultationNote {
+  label: string;
+  value: string;
+}
+
 export interface FormData {
   /** Original physical assessment time (ISO); preserved when photos/results are updated. */
   assessedAt?: string;
+  /** Read-only consultation notes from the OFS hand-off; shown to the coach, never scored. */
+  consultationNotes?: ConsultationNote[];
   /** Client Profile */
   fullName: string;
   email: string;
