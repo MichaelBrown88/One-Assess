@@ -30,6 +30,9 @@ export const APP_HOST =
   process.env.VITE_PUBLIC_APP_HOST ||
   'https://app.one-assess.com';
 
+/** Coach-facing site for links handed to other systems (API deep links); separate from APP_HOST. */
+export const PUBLIC_SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://one-assess.com').trim();
+
 export const STORAGE_REPORT_PREFIX = 'reports';
 
 /** Strip whitespace, first line only, quotes, and invisible chars (bad pastes). */

@@ -28,7 +28,7 @@ import {
 import { firestoreIntakeLinkStore } from './intakeLink/firestoreStore';
 import { handlePublicApi } from './publicApi/handler';
 import { createOrgApiKey, firestoreApiStore, revokeOrgApiKey } from './publicApi/firestoreStore';
-import { APP_HOST } from './config';
+import { PUBLIC_SITE_URL } from './config';
 import { handleExecuteClientErasure } from './executeClientErasure';
 import { handleBackfillSnapshotPosture } from './backfillSnapshotPosture';
 import { handleFetchSnapshotImageBytes } from './fetchSnapshotImageBytes';
@@ -1672,7 +1672,7 @@ export const publicApiV1 = onRequest({ cors: false, maxInstances: 10 }, async (r
   try {
     const out = await handlePublicApi(
       { method: req.method, path: req.path, header: (name) => req.header(name), rawBody: req.rawBody },
-      { store: firestoreApiStore(admin.firestore()), nowMs: Date.now(), appHost: APP_HOST },
+      { store: firestoreApiStore(admin.firestore()), nowMs: Date.now(), appHost: PUBLIC_SITE_URL },
     );
     for (const [name, value] of Object.entries(out.headers ?? {})) res.set(name, value);
     res.status(out.status).json(out.body);
