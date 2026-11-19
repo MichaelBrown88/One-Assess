@@ -39,6 +39,17 @@ try {
   await assertFails(setDoc(doc(outsider,'organizations/org-a/clients/missing'),{coachUid:'outsider'}));
   await assertSucceeds(getDoc(doc(admin,'organizations/org-a/clients/other-client/assessmentDrafts/draft')));
   process.stdout.write('Draft rules: owner reads, admin reads, atomic creation, scoped queries and cross-coach/org isolation passed.\n');
+  // Intake-link submissions: org staff read, nobody writes from the client; lookup docs are server-only.
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'organizations/org-a/intakes/i1'), { status: 'new', clientName: 'Test Client' });
+    await setDoc(doc(db, 'intake-links/' + 'A'.repeat(22)), { organizationId: 'org-a', enabled: true });
+  });
+  await assertSucceeds(getDoc(doc(coach, 'organizations/org-a/intakes/i1')));
+  await assertFails(getDoc(doc(outsider, 'organizations/org-a/intakes/i1')));
+  await assertFails(setDoc(doc(coach, 'organizations/org-a/intakes/i2'), { status: 'new' }));
+  await assertFails(setDoc(doc(admin, 'organizations/org-a/intakes/i1'), { status: 'converted' }));
+  await assertFails(getDoc(doc(coach, 'intake-links/' + 'A'.repeat(22))));
 } finally {
   await env.cleanup();
 }

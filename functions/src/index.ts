@@ -19,6 +19,13 @@ import {
   handleListRecentInvoices,
 } from './stripe';
 import { handleSubmitPublicErasureRequest } from './publicErasureRequest';
+import {
+  convertIntake as handleConvertIntake,
+  getIntakeLink as handleGetIntakeLink,
+  manageIntakeLink as handleManageIntakeLink,
+  submitIntakeLink as handleSubmitIntakeLink,
+} from './intakeLink/handlers';
+import { firestoreIntakeLinkStore } from './intakeLink/firestoreStore';
 import { handleExecuteClientErasure } from './executeClientErasure';
 import { handleBackfillSnapshotPosture } from './backfillSnapshotPosture';
 import { handleFetchSnapshotImageBytes } from './fetchSnapshotImageBytes';
@@ -1563,3 +1570,57 @@ export const extractRemoteBodyCompOcr = onCall(
     return handleExtractRemoteBodyCompOcr(request);
   },
 );
+
+
+// ── Reusable per-org intake link (docs/superpowers/specs/2026-11-19-crm-intake-design.md) ──
+
+type FunctionsErrorCode = ConstructorParameters<typeof HttpsError>[0];
+const INTAKE_ERROR_CODES: Record<string, FunctionsErrorCode> = {
+  unauthenticated: 'unauthenticated',
+  forbidden: 'permission-denied',
+  other_coach_client: 'permission-denied',
+  invalid: 'not-found',
+  not_found: 'not-found',
+  disabled: 'failed-precondition',
+  already_handled: 'failed-precondition',
+  client_cap_reached: 'resource-exhausted',
+  rate_limited: 'resource-exhausted',
+  name_taken: 'already-exists',
+  client_mismatch: 'already-exists',
+  client_inactive: 'failed-precondition',
+};
+
+/** Failures carry the reason in `details.reason` so the UI can show the right copy. */
+function intakeResult<T extends { ok: boolean }>(result: T): T {
+  if (result.ok) return result;
+  const reason = (result as unknown as { reason: string }).reason;
+  throw new HttpsError(INTAKE_ERROR_CODES[reason] ?? 'invalid-argument', reason, { reason });
+}
+
+const intakeLinkStore = () => firestoreIntakeLinkStore(admin.firestore());
+
+export const manageIntakeLink = onCall({ enforceAppCheck: true }, async (request) =>
+  intakeResult(await handleManageIntakeLink(intakeLinkStore(), request.auth?.uid, (request.data as { action?: unknown } | undefined)?.action)),
+);
+
+export const getIntakeLink = onCall({ enforceAppCheck: true, invoker: 'public' }, async (request) => {
+  const db = admin.firestore();
+  await assertRateLimit(db, buildRateLimitKey('intakeLinkPeek', undefined, request.rawRequest?.ip), { maxRequests: 40, windowSeconds: 60 });
+  const result = await handleGetIntakeLink(intakeLinkStore(), (request.data as { linkToken?: unknown } | undefined)?.linkToken);
+  // Invalid/disabled links are a normal page state, not an error.
+  return result;
+});
+
+export const submitIntakeLink = onCall({ enforceAppCheck: true, invoker: 'public' }, async (request) => {
+  const data = (request.data ?? {}) as { linkToken?: unknown; fields?: unknown };
+  return intakeResult(await handleSubmitIntakeLink(intakeLinkStore(), {
+    linkToken: data.linkToken, fields: data.fields, ip: request.rawRequest?.ip, now: new Date(),
+  }));
+});
+
+export const convertIntake = onCall({ enforceAppCheck: true }, async (request) => {
+  const data = (request.data ?? {}) as { intakeId?: unknown; choice?: unknown };
+  return intakeResult(await handleConvertIntake(intakeLinkStore(), {
+    uid: request.auth?.uid, intakeId: data.intakeId, choice: data.choice, now: new Date(),
+  }));
+});

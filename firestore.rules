@@ -190,6 +190,13 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'email']);
       }
 
+      // Intake-link submissions (unassigned leads). Written only by the intake Cloud Functions;
+      // any active coach in the org may see and pick them up.
+      match /intakes/{intakeId} {
+        allow read: if canReadOrgData(orgId);
+        allow write: if false;
+      }
+
       // Clients + all subcollections (current, sessions, roadmap, achievements, drafts)
       // Data minimisation: regular coaches may only read/write their assigned clients.
       // Org admins and platform admins with data access retain full visibility.
