@@ -174,6 +174,25 @@ describe('1.9 missing posture findings are not averaged in as perfect', () => {
   });
 });
 
+describe('4.4 side-view pelvic tilt is an observation unless marked', () => {
+  const pelvic = (deg: number) =>
+    scoreMovementQuality(
+      form({ postureAiResults: { 'side-right': { pelvic_tilt: { status: 'Anterior Tilt', anterior_tilt_degrees: deg } } } as unknown as FormData['postureAiResults'] }),
+      30,
+      'male',
+    ).score;
+
+  it('a mild or moderate reading does not lower the score', () => {
+    expect(pelvic(8)).toBe(100);
+    expect(pelvic(14)).toBe(100);
+  });
+
+  it('a marked reading does', () => {
+    expect(pelvic(22)).toBe(50);
+    expect(pelvic(35)).toBe(25);
+  });
+});
+
 describe('1.10 every movement option has a score', () => {
   const fields = ['ohsShoulderMobility', 'ohsTorsoLean', 'ohsSquatDepth', 'ohsHipShift', 'ohsKneeAlignment', 'ohsFeetPosition', 'hingeDepth', 'hingeBackRounding', 'lungeBalance', 'lungeKneeAlignment', 'lungeHipShift'] as const;
   it.each(fields)('%s', (field) => {

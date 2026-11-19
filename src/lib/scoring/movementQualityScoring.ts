@@ -24,6 +24,9 @@ export const MOVEMENT_PATTERN_SCORES: Record<string, number> = {
   'shifts-left': 60, 'shifts-right': 60,
 };
 
+/** Side-view pelvic reading (in the app's estimated degrees) treated as marked. Provisional. */
+export const PELVIC_SIDE_MARKED_DEG = 20;
+
 export function scoreMovementQuality(form: FormData, age: number, gender: string): ScoreCategory {
   // 1. MOBILITY SCORING (explicit legacy fields or inferred from movement patterns)
   const mapMobility = (v: string) => (v === 'good' ? 100 : v === 'fair' ? 60 : v === 'poor' ? 30 : 0);
@@ -150,12 +153,14 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
     const pelvicSideData = ai['side-right']?.pelvic_tilt || ai['side-left']?.pelvic_tilt;
     const pelvicFrontData = ai.front?.pelvic_tilt || ai.back?.pelvic_tilt;
     let pelvicScore = 100;
+    // Side view: the camera sees hip joints, not the pelvic bones, and most
+    // healthy people stand with some anterior tilt. So this is a coach
+    // observation that only lowers the score when the reading is marked
+    // (owner decision 19 Nov; band to be calibrated on studio captures).
     if (pelvicSideData && pelvicSideData.status !== 'Neutral') {
       const tilt = Math.abs(pelvicSideData.anterior_tilt_degrees ?? 0);
-      if (tilt < 5) pelvicScore = 100;
-      else if (tilt < 10) pelvicScore = 75;
-      else if (tilt < 15) pelvicScore = 50;
-      else pelvicScore = 25;
+      if (tilt >= PELVIC_SIDE_MARKED_DEG + 10) pelvicScore = 25;
+      else if (tilt >= PELVIC_SIDE_MARKED_DEG) pelvicScore = 50;
     }
     if (pelvicFrontData && pelvicFrontData.status !== 'Neutral') {
       const lateralTilt = Math.abs(pelvicFrontData.lateral_tilt_degrees ?? 0);
