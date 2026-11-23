@@ -30,7 +30,9 @@ export const phaseP0: PhaseDefinition = {
         { id: 'fullName' as keyof FormData, type: 'text' as FieldType, label: ASSESSMENT_LABELS.P0.fullName, required: true, placeholder: ASSESSMENT_PLACEHOLDERS.P0.fullName, tooltip: ASSESSMENT_TOOLTIPS.P0.fullName, conditional: { showWhen: { field: 'fullName', exists: false } } },
         { id: 'email' as keyof FormData, type: 'email' as FieldType, label: ASSESSMENT_LABELS.P0.email, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.email, tooltip: ASSESSMENT_TOOLTIPS.P0.email, conditional: { showWhen: { field: 'email', exists: false } } },
         { id: 'phone' as keyof FormData, type: 'tel' as FieldType, label: ASSESSMENT_LABELS.P0.phone, required: false, placeholder: ASSESSMENT_PLACEHOLDERS.P0.phone, tooltip: ASSESSMENT_TOOLTIPS.P0.phone, conditional: { showWhen: { field: 'phone', exists: false } } },
-        { id: 'dateOfBirth' as keyof FormData, type: 'date' as FieldType, label: ASSESSMENT_LABELS.P0.dateOfBirth, required: true, tooltip: ASSESSMENT_TOOLTIPS.P0.dateOfBirth },
+        // Skippable: coaches often prefill before the client arrives and don't know
+        // the DOB yet. Basic Info stays marked incomplete so it gets filled later.
+        { id: 'dateOfBirth' as keyof FormData, type: 'date' as FieldType, label: ASSESSMENT_LABELS.P0.dateOfBirth, required: true, skippable: true, tooltip: ASSESSMENT_TOOLTIPS.P0.dateOfBirth },
         { id: 'gender' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P0.gender, required: true, options: ASSESSMENT_OPTIONS.gender, tooltip: ASSESSMENT_TOOLTIPS.P0.gender },
         {
           id: 'trainingHistory' as keyof FormData,

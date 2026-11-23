@@ -1429,9 +1429,19 @@ export async function createBaselineClient(clientName: string, email: string, or
   const ref = doc(getDb(), ORGANIZATION.clients.doc(orgId, slug));
   await runTransaction(getDb(), async (transaction) => {
     const existing = await transaction.get(ref);
-    if (existing.exists()) throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
-    const draft = await transaction.get(doc(getDb(), ORGANIZATION.clients.draft(orgId, slug)));
-    if (draft.exists()) throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
+    const draftRef = doc(getDb(), ORGANIZATION.clients.draft(orgId, slug));
+    const draft = await transaction.get(draftRef);
+    if (existing.exists()) {
+      const data = existing.data() as { status?: string; assessmentCount?: number } | undefined;
+      if (data?.status !== 'deleted') throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
+      // A trashed client that never had a saved assessment holds nothing worth
+      // keeping — the coach deleted it to start again, so let them. One with
+      // history is protected: they must restore it or pick another name.
+      if ((data.assessmentCount ?? 0) > 0) throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS_IN_TRASH);
+      if (draft.exists()) transaction.delete(draftRef);
+    } else if (draft.exists()) {
+      throw new Error(ASSESSMENT_DRAFT_COPY.EXISTS);
+    }
     transaction.set(ref, baselineClientRecord(clientName, orgId, uid, serverTimestamp(), { email }));
   });
 }
