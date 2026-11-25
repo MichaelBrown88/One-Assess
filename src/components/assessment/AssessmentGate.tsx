@@ -106,7 +106,7 @@ export function AssessmentGate({
     return () => {
       cancelled = true;
     };
-  }, [hasClientFromUrl, profile?.organizationId, updateFormData, setSearchParams]);
+  }, [hasClientFromUrl, profile?.organizationId, updateFormData, setSearchParams, toast]);
 
   useEffect(() => {
     try {

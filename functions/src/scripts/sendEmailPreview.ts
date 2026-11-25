@@ -310,7 +310,7 @@ async function main(): Promise<void> {
 
   jobs.push({
     label: 'Lifecycle [team]: monthly digest',
-    subject: `${PREVIEW_TAG} Your team\'s March 2026 recap`,
+    subject: `${PREVIEW_TAG} Your team's March 2026 recap`,
     from: founderSender,
     ...renderDigestEmail({
       subject: `${PREVIEW_TAG} Your team's March 2026 recap`,

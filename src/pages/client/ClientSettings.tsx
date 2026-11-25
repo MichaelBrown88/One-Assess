@@ -9,7 +9,6 @@ import type { ClientDetailOutletContext } from './ClientDetailLayout';
 export default function ClientSettings() {
   const ctx = useOutletContext<ClientDetailOutletContext>();
   const {
-    clientName,
     displayClientName,
     profile,
     editData,
@@ -31,7 +30,7 @@ export default function ClientSettings() {
         notes: profile.notes ?? '',
       });
     }
-  }, [profile, clientName, setEditData]);
+  }, [profile, displayClientName, setEditData]);
 
   return (
     <div className="space-y-8">

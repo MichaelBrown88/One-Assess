@@ -5,7 +5,7 @@ import { useResumeAssessment } from '@/hooks/useResumeAssessment';
 export const RESUME_QUERY_PARAM = 'resume';
 
 /**
- * `?resume=1` on a client page (sent by the OFS hand-off) opens that client's draft through the
+ * `?resume=1` on a client page opens that client's draft through the
  * same path as the Resume button. Fires once, then drops the flag so a reload does not repeat it.
  */
 export function useResumeFromUrl(clientKey: string, ready: boolean): void {

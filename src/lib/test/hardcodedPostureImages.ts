@@ -6,8 +6,6 @@
  * 1. Upload new images via the UI
  * 2. Check browser console for base64 data
  * 3. Copy the base64 strings here
- * 
- * Or use the extract-base64.html tool in the project root
  */
 
 export const HARDCODED_TEST_IMAGES: Record<string, string> = {

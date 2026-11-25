@@ -10,7 +10,7 @@ export interface ConsultationNote {
 export interface FormData {
   /** Original physical assessment time (ISO); preserved when photos/results are updated. */
   assessedAt?: string;
-  /** Read-only consultation notes from the OFS hand-off; shown to the coach, never scored. */
+  /** Read-only consultation notes shown to the coach, never scored. */
   consultationNotes?: ConsultationNote[];
   /** 'client' when PAR-Q answers came from the client's own intake, not the coach. */
   parqSource?: string;
