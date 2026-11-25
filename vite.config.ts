@@ -9,6 +9,7 @@ import os from "node:os";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { vitePwaCoachManifest } from "./src/constants/productBranding";
+import { COACH_RUNTIME_CACHING } from "./src/pwa/runtimeCaching";
 
 /**
  * VitePWA injects the coach `manifest.webmanifest` link into every HTML entry.
@@ -117,66 +118,20 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // Immediately activate new service workers to prevent stale chunk references
         // (old SW serving old index.html that references non-existent JS filenames)
+        // autoUpdate also forces clientsClaim. Script and Firebase requests are
+        // not in runtimeCaching, so claiming the page cannot stall those fetches.
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Only precache critical shell assets (CSS, HTML, fonts) -- NOT JS chunks.
-        // JS is cached lazily via runtimeCaching to avoid a 4+ MB precache storm on mobile.
+        // Only precache the shell (CSS, HTML, fonts). Hashed JS stays on the
+        // browser HTTP cache so a cold dynamic import is not fetched inside the worker.
         globPatterns: ['**/*.{css,html,woff2}'],
         globIgnores: ['**/heic2any-*', '**/heic-to-*', '**/generateCategoricalChart-*', '**/pose-*'],
         maximumFileSizeToCacheInBytes: 300_000, // 300 KB safety cap
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/companion\//, /^\/r($|\/)/],
-        runtimeCaching: [
-          {
-            // Firestore long-polling Listen channel — must never be cached; failures here
-            // are usually aborted/reconnecting streams (noisy in console, SDK retries).
-            urlPattern: /^https:\/\/firestore\.googleapis\.com\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Some Storage URLs use storage.googleapis.com (not only *.googleapis.com subdomain shape).
-            urlPattern: /^https:\/\/storage\.googleapis\.com\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Never intercept ANY googleapis.com request -- Firestore streaming,
-            // Auth tokens, and Storage uploads must bypass the service worker entirely.
-            urlPattern: /^https:\/\/.*\.googleapis\.com\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Same for Firebase Auth (securetoken)
-            urlPattern: /^https:\/\/securetoken\.google\.com\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Callable HTTPS (e.g. syncPublicRoadmapMirror) — never cache or run through chunk strategies.
-            urlPattern: /^https:\/\/([a-z0-9-]+\.)?cloudfunctions\.net\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Gen2 / Cloud Run function endpoints
-            urlPattern: /^https:\/\/.*\.run\.app\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // JS chunks: cache lazily, but use NetworkFirst (not StaleWhileRevalidate)
-            // so stale chunks get replaced immediately on new deployments
-            urlPattern: /\/assets\/[^/]+\.js$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'js-chunks',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 3 },
-            },
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'images', expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 } },
-          },
-        ],
+        // Scripts and Firebase/Google traffic are intentionally absent. See runtimeCaching.ts.
+        runtimeCaching: COACH_RUNTIME_CACHING,
       },
     }),
     stripCoachManifestFromClientHtml(),
