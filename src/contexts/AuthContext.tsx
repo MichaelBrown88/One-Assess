@@ -28,6 +28,7 @@ import { getOrgSettings, type OrgSettings } from '@/services/organizations';
 import type { UserProfile } from '@/types/auth';
 import { isStaffRole } from '@/types/auth';
 import { AuthContext } from '@/hooks/useAuth';
+import { isCoachSessionReady } from '@/lib/auth/authSessionGate';
 import { logger } from '@/lib/utils/logger';
 import {
   deriveInitialStaffDisplayName,
@@ -166,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setOrgSettings(null);
         setFirestoreProfileSyncError(null);
         setFirestoreOrgSyncError(null);
-        setLoading(false);
+        setLoading(!isCoachSessionReady({ authResolved: true, hasUser: false, hasProfile: false }));
         previousUserIdRef.current = null;
         return;
       }
@@ -259,6 +260,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setProfile(currentProfile);
+        // Organisation settings are not required to route. The deep link used to
+        // sit on the route fallback until this second snapshot connected.
+        setLoading(!isCoachSessionReady({ authResolved: true, hasUser: true, hasProfile: true }));
 
         if (
           currentProfile.organizationId &&
@@ -345,14 +349,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 onboardingCompletedAt: orgData.onboardingCompletedAt,
               } as OrgSettings);
             }
-            setLoading(false);
           }, (err) => {
             logger.error('Settings snapshot error:', err.message);
             setFirestoreOrgSyncError(firestoreListenErrorLabel(err));
-            setLoading(false);
           });
-        } else {
-          setLoading(false);
         }
       }, (err) => {
         logger.error('Profile snapshot error:', err.message);

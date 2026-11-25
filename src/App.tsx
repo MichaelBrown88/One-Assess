@@ -1,4 +1,5 @@
 import { ROUTES } from "@/constants/routes";
+import { preloadEntryChunks } from "@/lib/routing/entryChunks";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -71,6 +72,10 @@ const Blog = lazy(() => import("./pages/Blog"));
 const Demo = lazy(() => import("./pages/Demo"));
 // Dev-only: may load a real client snapshot from the local machine; never ship to production.
 const SampleReportPreview = import.meta.env.DEV ? lazy(() => import("./pages/SampleReportPreview")) : null;
+
+if (typeof window !== 'undefined') {
+  preloadEntryChunks(window.location.pathname, window.location.search);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
