@@ -73,15 +73,17 @@ export function shouldShowStudioIntakeReview(
   return remoteIntakeResume && !isRemoteIntakeFormComplete(formData);
 }
 
+/**
+ * Only the explicit remote-intake flag removes P0/P1. Field presence must not:
+ * in studio the coach fills those same fields, and dropping P0/P1 mid-flow
+ * shifts the phase index and skips the rest of lifestyle and goals.
+ */
 export function filterPhasesForStudioBaseline(
   phaseIds: PhaseId[],
-  formData: FormData,
   remoteIntakeResume: boolean,
 ): PhaseId[] {
   let ids = [...phaseIds];
-  const remoteIntakeCaptured =
-    remoteIntakeResume || isRemoteIntakeFormComplete(formData);
-  if (remoteIntakeCaptured) {
+  if (remoteIntakeResume) {
     ids = ids.filter((id) => id !== 'P0' && id !== 'P1');
   }
   return sortStudioPhaseIds(ids);

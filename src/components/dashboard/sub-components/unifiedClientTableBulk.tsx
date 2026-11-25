@@ -293,7 +293,7 @@ export function ClientTableBulkActions({
                 confirmDelete();
               }}
             >
-              {bulkBusy ? 'Deleting…' : 'Delete permanently'}
+              {bulkBusy ? 'Moving to trash…' : 'Move to trash'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

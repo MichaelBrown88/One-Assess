@@ -209,7 +209,11 @@ export default function AppShell({
                 variant="ghost"
                 size="icon"
                 onClick={onMenuToggle}
-                className="lg:hidden h-10 w-10 sm:h-9 sm:w-9 text-muted-foreground"
+                aria-label="Assessment steps"
+                // Visible at every width: the step list is hidden until opened, so
+                // hiding this on large screens (iPad landscape, laptops) left no way
+                // to jump back to an earlier step.
+                className="h-10 w-10 sm:h-9 sm:w-9 text-muted-foreground"
               >
                 <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>

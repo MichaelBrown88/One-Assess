@@ -11,4 +11,5 @@ export const ASSESSMENT_DRAFT_COPY = {
   SAVE_ERROR_DESCRIPTION: 'Your answers are still in this tab. Check your connection and try Save and exit again.',
   NEW_ERROR: 'Could not start assessment',
   EXISTS: 'This client already exists. Open their profile to continue.',
+  EXISTS_IN_TRASH: 'A deleted client with this name still has saved assessments. Restore them from Clients → Trash, or use a different name.',
 } as const;
