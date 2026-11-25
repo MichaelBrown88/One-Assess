@@ -231,12 +231,15 @@ service cloud.firestore {
           allow write: if canWriteOrgData(orgId);
         }
 
-        // Assessment event log — append-only, immutable after write
+        // Assessment event log. A new assessment creates a session.
+        // Editing a saved assessment updates that session in place (same writer
+        // gate as create). Delete stays platform-admin only.
+        // This rule must ship with the app via `firebase deploy`, not hosting-only.
         match /sessions/{sessionId} {
           allow read: if canReadClientDoc(orgId, clientSlug);
-          // Only allow create (no update/delete — sessions are immutable)
           allow create: if canWriteOrgData(orgId);
-          allow update, delete: if isPlatformAdmin();
+          allow update: if canWriteOrgData(orgId) || isPlatformAdmin();
+          allow delete: if isPlatformAdmin();
         }
 
         // Roadmap — phases and metric thresholds

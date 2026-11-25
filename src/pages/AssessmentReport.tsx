@@ -17,6 +17,7 @@ import {
   removePrefillClient,
   writeEditAssessmentPayload,
 } from '@/lib/assessment/assessmentSessionStorage';
+import { isAssessmentSessionId } from '@/lib/assessment/editSaveTarget';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,16 +135,21 @@ const AssessmentReport = () => {
     : COACH_ASSESSMENT_REPORT_NAV.BACK_TO_DASHBOARD_ARIA;
 
   const navigateToEdit = async () => {
-    if (!formData?.fullName?.trim()) return;
+    const editedForm = versionSelector.selectedFormData ?? formData;
+    if (!editedForm?.fullName?.trim()) return;
     // assessmentId must be the client slug (org/clients/{slug}), not a session
     // timestamp from /coach/assessments/:id — otherwise edit save looks up a
-    // missing summary doc and surfaces Sync Error.
+    // missing summary doc and surfaces Sync Error. The session being edited is
+    // carried separately as snapshotId.
     const { generateClientSlug } = await import('@/services/clientProfiles');
-    const clientSlug = generateClientSlug(formData.fullName) || id || 'unnamed-client';
+    const clientSlug = generateClientSlug(editedForm.fullName) || id || 'unnamed-client';
+    const selectedId = allSnapshots[versionSelector.selectedIndex]?.id;
+    const snapshotId = isAssessmentSessionId(selectedId) ? selectedId : undefined;
     writeEditAssessmentPayload({
       assessmentId: clientSlug,
-      formData: formData,
-      clientName: formData.fullName.trim(),
+      formData: editedForm,
+      clientName: editedForm.fullName.trim(),
+      ...(snapshotId ? { snapshotId } : {}),
     });
     removePartialAssessment();
     removePrefillClient();
