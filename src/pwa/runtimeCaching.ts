@@ -12,8 +12,6 @@
  * this list does not answer script or Firebase requests.
  */
 
-const SAME_ORIGIN_IMAGE = /\.(?:png|jpg|jpeg|svg|gif|webp)$/;
-
 export interface CoachRuntimeCacheRule {
   urlPattern: RegExp | ((input: { url: URL }) => boolean);
   handler: 'CacheFirst';
@@ -27,8 +25,12 @@ export const COACH_RUNTIME_CACHING: CoachRuntimeCacheRule[] = [
   {
     // Same-origin images only. A bare extension test also matches Storage URLs
     // (posture.jpg on storage.googleapis.com), which must stay out of the worker.
+    // The expression has to be self-contained: Workbox copies urlPattern with
+    // Function#toString(), so a regex declared beside this function is missing
+    // in sw.js and throws ReferenceError on every non-navigation request.
     urlPattern: ({ url }) =>
-      SAME_ORIGIN_IMAGE.test(url.pathname) && !url.hostname.endsWith('googleapis.com'),
+      /\.(?:png|jpg|jpeg|svg|gif|webp)$/.test(url.pathname) &&
+      !url.hostname.endsWith('googleapis.com'),
     handler: 'CacheFirst',
     options: {
       cacheName: 'images',
