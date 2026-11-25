@@ -29,6 +29,7 @@ import type { UserProfile } from '@/types/auth';
 import type { OrgSettings } from '@/services/organizations';
 import { CLIENT_PROFILE_LAST_BODY_COMP_AT } from '@/lib/utils/clientProfileBodyCompDate';
 import { decrementSandboxTrialAfterSuccessfulSave } from '@/lib/utils/sandboxTrialDecrement';
+import { isAssessmentSessionId, resolveEditSessionTarget } from '@/lib/assessment/editSaveTarget';
 import { isRetryableFirestoreOrNetworkError } from '@/lib/firebase/isRetryableFirestoreOrNetworkError';
 import { ASSESSMENT_SAVE_RETRY_QUEUE_COPY } from '@/constants/assessmentSaveRetryCopy';
 
@@ -182,9 +183,8 @@ export function useAssessmentSave({
             }
           : null;
         if (parsedEdit?.assessmentId && profile?.organizationId) {
-            // Sessions are append-only in Firestore rules (coaches cannot update/delete
-            // past session docs). Edit saves must update current/state and append a new
-            // session via updateCoachAssessment — never mutate historical sessions.
+            // Editing a saved assessment updates that session in place.
+            // A new session is appended only when no existing session can be identified.
             const { generateClientSlug } = await import('@/services/clientProfiles');
             const clientSlug = generateClientSlug(clientName) || parsedEdit.assessmentId;
             let dataToSave = formData;
@@ -196,14 +196,67 @@ export function useAssessmentSave({
                   ? { ...current.formData, ...formData }
                   : formData;
             }
-            await updateCoachAssessment(
-              user.uid,
-              clientSlug,
-              dataToSave,
-              scores.overall,
-              profile.organizationId,
-              profile,
-            );
+            const { getSnapshots, updateSnapshotInPlace } = await import('@/services/assessmentHistory');
+            const explicitId = parsedEdit.snapshotId?.trim();
+            if (explicitId && !isAssessmentSessionId(explicitId)) {
+              logger.warn('[Assessment] Edit snapshotId is not a session id; looking up the current session', {
+                snapshotId: explicitId,
+              });
+            }
+            let latestSessionId: string | undefined;
+            if (!isAssessmentSessionId(explicitId)) {
+              const sessions = await getSnapshots(user.uid, clientName, 1, profile.organizationId);
+              latestSessionId = sessions[0]?.id;
+            }
+            const target = resolveEditSessionTarget({
+              snapshotId: explicitId,
+              latestSessionId,
+            });
+            if (target.mode === 'in-place') {
+              let updated = false;
+              try {
+                const result = await updateSnapshotInPlace(
+                  user.uid,
+                  clientName,
+                  target.sessionId,
+                  dataToSave,
+                  scores.overall,
+                  profile.organizationId,
+                );
+                updated = result.success;
+                if (!updated) {
+                  logger.warn('[Assessment] Edit could not update the saved session in place', {
+                    snapshotId: target.sessionId,
+                    message: result.message,
+                  });
+                }
+              } catch (error) {
+                logger.error('[Assessment] Edit in-place update failed', error instanceof Error ? error.message : String(error));
+                updated = false;
+              }
+              if (!updated) {
+                toast({
+                  title: UI_TOASTS.ERROR.FAILED_TO_SAVE,
+                  description: 'The saved assessment could not be updated. No new assessment was added.',
+                  variant: 'destructive',
+                });
+                setSaving(false);
+                saveInitiatedRef.current = false;
+                return;
+              }
+            } else {
+              logger.warn('[Assessment] Edit has no saved session to update; appending a new session', {
+                assessmentId: clientSlug,
+              });
+              await updateCoachAssessment(
+                user.uid,
+                clientSlug,
+                dataToSave,
+                scores.overall,
+                profile.organizationId,
+                profile,
+              );
+            }
             assessmentId = clientSlug;
             removeEditAssessment();
             removePartialAssessment();

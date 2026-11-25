@@ -9,7 +9,7 @@
  *     coaches/{coachId}               ← coachId = Firebase Auth UID
  *     clients/{clientSlug}            ← clientSlug = stable slug from name
  *       current/state                 ← live composite assessment state (one per client)
- *       sessions/{sessionId}          ← immutable assessment events (append-only)
+ *       sessions/{sessionId}          ← assessment events (new saves append; edits update in place)
  *       roadmap/plan                  ← phases + metrics
  *       achievements/{achievementId}  ← per-definition docs
  *       assessmentDrafts/draft        ← save-for-later partial draft

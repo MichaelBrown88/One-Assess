@@ -301,7 +301,8 @@ export async function updateCurrentAssessment(
 }
 
 /**
- * Write an immutable session document to the sessions sub-collection.
+ * Write a new session document. New assessments append one session.
+ * Edits of a saved assessment use updateSnapshotInPlace and do not call this.
  * Uses a chronologically-sortable ISO timestamp as the document ID.
  */
 export async function createSnapshot(
@@ -557,9 +558,17 @@ export async function updateSnapshotInPlace(
     return { success: false, message: "Snapshot not found" };
   }
 
+  const { summarizeScores } = await import("@/lib/scoring");
+  const summary = summarizeScores(formData);
+  const score = typeof overallScore === "number" ? overallScore : 0;
+  const persisted = sanitizeForFirestore(prepareFormDataForPersistence(formData));
+  const displayName = (formData.fullName || clientName || "Unnamed client").trim();
+  const captured = assessmentDate(formData.assessedAt);
+
   await updateDoc(snapRef, {
-    formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
-    overallScore: typeof overallScore === "number" ? overallScore : 0,
+    formData: persisted,
+    overallScore: score,
+    scoresSummary: summary,
     lastUpdated: serverTimestamp(),
   });
 
@@ -567,32 +576,42 @@ export async function updateSnapshotInPlace(
   const isLatest = snapshots[0]?.id === snapshotId;
 
   if (isLatest) {
+    const current = await getCurrentAssessment(coachUid, clientName, organizationId);
     const currentRef = getCurrentStateDoc(organizationId, clientName);
     await setDoc(
       currentRef,
       {
-        formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
-        overallScore: typeof overallScore === "number" ? overallScore : 0,
+        formData: persisted,
+        overallScore: score,
+        scoresSummary: summary,
         lastUpdated: serverTimestamp(),
-        clientName: clientName || "Unnamed client",
+        clientName: displayName,
         organizationId,
         coachUid: coachUid || "unknown",
+        ...(current?.assessmentDateCorrections
+          ? { assessmentDateCorrections: current.assessmentDateCorrections }
+          : {}),
       },
       { merge: false },
     );
 
-    const { summarizeScores } = await import("@/lib/scoring");
-    const summary = summarizeScores(formData);
     const clientRef = getClientProfileDoc(organizationId, clientName);
     const clientSnap = await getDoc(clientRef);
     if (clientSnap.exists()) {
       const prevScore = snapshots.length >= 2 ? snapshots[1].overallScore : 0;
       await updateDoc(clientRef, {
-        formData: sanitizeForFirestore(prepareFormDataForPersistence(formData)),
-        overallScore: typeof overallScore === "number" ? overallScore : 0,
+        clientName: displayName,
+        clientNameLower: displayName.toLowerCase(),
+        formData: persisted,
+        overallScore: score,
         scoresSummary: summary,
+        goals: Array.isArray(formData.clientGoals) ? formData.clientGoals : [],
+        ...(captured ? { assessedAt: Timestamp.fromDate(captured) } : {}),
         previousScore: prevScore,
-        trend: (typeof overallScore === "number" ? overallScore : 0) - prevScore,
+        trend: score - prevScore,
+        isPartial: false,
+        category: "all",
+        updatedAt: serverTimestamp(),
       });
     }
   }

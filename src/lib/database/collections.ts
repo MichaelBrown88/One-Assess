@@ -65,7 +65,7 @@ export const getClientCurrentStateDoc = (
 ): DocumentReference => doc(getDb(), ORGANIZATION.clients.current(orgId, clientSlug));
 
 // ---------------------------------------------------------------------------
-// Sessions  (assessment event log, append-only)
+// Sessions  (assessment event log — new saves append; edits update in place)
 // ---------------------------------------------------------------------------
 
 export const getClientSessionsCollection = (
