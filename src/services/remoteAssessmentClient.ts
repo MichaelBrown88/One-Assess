@@ -81,7 +81,7 @@ export async function submitRemoteAssessmentFields(
  * (coaching focus, starting notes) belong post-assessment when there's
  * actual signal to act on.
  */
-export interface RemoteAssessmentClientIntake extends RemoteBasicInfoPrefill {}
+export type RemoteAssessmentClientIntake = RemoteBasicInfoPrefill;
 
 export async function createRemoteAssessmentTokenForClient(
   organizationId: string,

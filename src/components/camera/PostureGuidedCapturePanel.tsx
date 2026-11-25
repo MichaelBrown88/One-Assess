@@ -59,6 +59,13 @@ export const PostureGuidedCapturePanel: React.FC<PostureGuidedCapturePanelProps>
   const profile = isRemote ? null : props.profile;
   const onClose = props.onClose;
   const remotePathsRef = useRef<Partial<Record<RemotePostureView, string>>>({});
+  // `props` is a new object every render. beginViewCapture feeds startSequence, and the
+  // auto-start effect depends on startSequence, so a `props` dependency would retrigger
+  // capture while pose updates re-render this panel. Read the latest callback from a ref.
+  const remoteOnCompleteRef = useRef<
+    ((paths: Partial<Record<RemotePostureView, string>>) => void) | null
+  >(null);
+  remoteOnCompleteRef.current = props.mode === 'remoteIntake' ? props.onComplete : null;
 
   const companionLog = useCallback(
     (message: string, level: 'info' | 'warn' | 'error' = 'info') => {
@@ -304,7 +311,7 @@ export const PostureGuidedCapturePanel: React.FC<PostureGuidedCapturePanelProps>
         setFlowState('ready');
       }
     }
-  }, [flowState, gateVertical, relaxPostureUpright, hasPermission, sessionId, poseDetectionResult.poseValidation]);
+  }, [flowState, gateVertical, relaxPostureUpright, hasPermission, sessionId, poseDetectionResult.poseValidation, companionLog]);
 
   const captureImage = useCallback(
     async (viewIdx: number): Promise<boolean> => {
@@ -471,9 +478,7 @@ export const PostureGuidedCapturePanel: React.FC<PostureGuidedCapturePanelProps>
       if (isSequenceCancelledRef.current) return;
       if (viewIdx >= VIEWS.length) {
         setFlowState('complete');
-        if (props.mode === 'remoteIntake') {
-          props.onComplete({ ...remotePathsRef.current });
-        }
+        remoteOnCompleteRef.current?.({ ...remotePathsRef.current });
         throttledSpeak("That's all the photos done. Great job!", true);
         return;
       }
@@ -640,7 +645,7 @@ export const PostureGuidedCapturePanel: React.FC<PostureGuidedCapturePanelProps>
       isRemote ? 'Posture guided capture opened (remote intake)' : 'Posture guided capture opened (coach device)',
       'info',
     );
-  }, [companionLog, hasPermission, isRemote]);
+  }, [companionLog, hasPermission, isRemote, sessionId]);
 
   useEffect(() => {
     return () => {

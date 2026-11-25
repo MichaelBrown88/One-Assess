@@ -1,75 +1,38 @@
-# Welcome to your Lovable project
+# One Assess
 
-## Project info
+One Assess is the assessment app for fitness coaches. A coach adds a client, runs a baseline assessment, and produces an AXIS report.
 
-**URL**: https://lovable.dev/projects/729a98ce-6777-4dbf-9bc6-c9429af84ff7
+## Stack
 
-## How can I edit this code?
+React, Vite, TypeScript, Tailwind CSS, shadcn/ui, Firebase (Firestore, Cloud Functions, Hosting), and MediaPipe.
 
-There are several ways of editing your application.
+## Develop
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/729a98ce-6777-4dbf-9bc6-c9429af84ff7) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Node 22. From the repo root:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm ci
 npm run dev
+npm run typecheck
+npm run lint
+npm run test:ci
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+Cloud Functions:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+cd functions && npm ci && npm run build
+```
 
-**Use GitHub Codespaces**
+Copy `functions/.env.example` to `functions/.env` for local function runs. Do not commit values.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Deploy
 
-## What technologies are used for this project?
+Rules, Cloud Functions, and the app must ship together when they change together. Use:
 
-This project is built with:
+```sh
+firebase deploy
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/729a98ce-6777-4dbf-9bc6-c9429af84ff7) and click on Share -> Publish.
-
-For Firebase Hosting (custom scan subdomain, `firebase.json` constraints), see [DEPLOYMENT.md](./DEPLOYMENT.md).
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+`npm run deploy:preview` and `deploy-preview.sh` publish hosting only. Do not use them when `firestore.rules` or `functions/` changed, or when the client-erasure function and its org screen changed. Split deploys break coach reads or leave erasure half-shipped. See `CLAUDE.md`.

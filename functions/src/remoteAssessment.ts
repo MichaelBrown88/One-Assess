@@ -88,7 +88,7 @@ const GENDER_VALUES = new Set(['male', 'female']);
 type BasicInfoKey = (typeof BASIC_INFO_KEYS)[number];
 export type RemoteSessionPrefill = Partial<Record<BasicInfoKey, string>>;
 
-interface ParsedIntake extends RemoteSessionPrefill {}
+type ParsedIntake = RemoteSessionPrefill;
 
 function pickBasicPrefill(source: Record<string, unknown> | undefined): RemoteSessionPrefill {
   if (!source) return {};
