@@ -44,7 +44,7 @@ PASS: OFS consultation → prefilled One Assess assessment → save and exit →
 - One Assess full suite: 703 tests passed in 108 files. Final app typecheck, Functions build, hosting build, focused completion/intake tests and changed-code lint passed.
 - OFS integration release: PR #123, merged as `8135eaa0913994acd9a1b351021125acfe35462b`. Full CI: 3,986 tests passed, one pre-existing skip; typecheck and Vercel preview passed.
 - Coverage includes exact consultation binding, wrong coach/contact, draft versus full session, duplicate/stale events, inactive/deleted clients, report URL validation, signed webhook validation, storage failure/retry, SQL permissions and stale-form-save protection.
-- The live walkthrough identified a brief Open ONE ASSESS flash while completed status loaded. Follow-up changes show a quiet Checking assessment state until the response arrives; six focused UI tests pass, including the pending-response case.
+- The live walkthrough identified a brief Open ONE ASSESS flash while completed status loaded. Follow-up PR #125, merged as `dd23654ab0ef34cd936e5fc7272add6fd3b1fa47`, shows a quiet Checking assessment state until the response arrives. All 3,987 OFS tests and type checks passed; six focused UI tests include the pending-response case. Production was deployed and the quiet checking state was observed in Chrome.
 - One Assess backend and production Hosting deployed. OFS migration applied, production webhook environment configured and signed completion subscription enabled.
 - [One Assess Hosting preview](https://assessment-engine-8f633--preview-20261126-203055-ckdw8cgy.web.app).
 
