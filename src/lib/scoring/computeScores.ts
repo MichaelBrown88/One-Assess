@@ -11,7 +11,8 @@ import { generateSynthesis } from './synthesisGenerator';
 const PILLAR_IDS = ['bodyComp', 'cardio', 'strength', 'movementQuality', 'lifestyle'] as const;
 
 export function computeScores(form: FormData): ScoreSummary {
-  const age = calculateAge(form.dateOfBirth);
+  // Age at the assessment, so re-opening an old report doesn't change its scores.
+  const age = calculateAge(form.dateOfBirth, form.assessedAt);
   const gender = (form.gender || 'any').toLowerCase();
 
   const categories = [
@@ -22,6 +23,8 @@ export function computeScores(form: FormData): ScoreSummary {
     scoreLifestyle(form, age, gender),
   ];
 
+  // Overall = equal-weight mean of the pillars that were assessed (20% each
+  // when all five are). Unassessed pillars are left out, never counted as 0.
   const assessedCategories = categories.filter((c) => c.assessed);
   const overallRaw =
     assessedCategories.length > 0

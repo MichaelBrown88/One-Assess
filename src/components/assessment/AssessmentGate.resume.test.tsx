@@ -72,7 +72,7 @@ const headings = () => Array.from(container.querySelectorAll('h1,h2,h3')).map((n
 
 describe('Resume through the real assessment gate', () => {
   it.each([
-    ['P3', 'Metabolic Fitness'],
+    ['P3', 'Fitness'],
     ['P4', 'Movement Quality'],
     ['P5', 'Functional Strength'],
     ['P2', 'Body Composition'],

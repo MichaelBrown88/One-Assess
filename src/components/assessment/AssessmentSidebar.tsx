@@ -50,6 +50,13 @@ export const AssessmentSidebar = ({
   isMobile: _isMobile,
   timeEstimate,
 }: AssessmentSidebarProps) => {
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [sidebarOpen, setSidebarOpen]);
+
   const handlePhaseClick = (idx: number, sections: PhaseSection[]) => {
     setIsReviewMode(true);
     setActivePhaseIdx(idx);

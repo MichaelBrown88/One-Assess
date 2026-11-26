@@ -160,7 +160,7 @@ function buildFitnessHorizons(formData: FormData, levels: ReturnType<typeof merg
     peak,
     rec,
     formData.recentActivity,
-    { pillarRole: 'primary' },
+    { pillarRole: 'primary', protocolVersion: formData.cardioProtocolVersion },
   );
   const vo2 = cardio.vo2.current;
   const profile = buildClientProfile(formData);

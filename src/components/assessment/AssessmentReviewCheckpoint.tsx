@@ -1,3 +1,4 @@
+import type { MissingAssessmentSection } from '@/lib/assessment/baselineReadiness';
 /**
  * Pre-results checkpoint: explicit save + generate vs keep editing vs save and exit.
  */
@@ -23,6 +24,9 @@ export type AssessmentReviewCheckpointProps = {
   isCompleteForReport: boolean;
   primaryActionLabel: string;
   primaryDisabled: boolean;
+  missingSections?: MissingAssessmentSection[];
+  validationIssues?: string[];
+  onGoToSection?: (section: string) => void;
   onGenerate: () => void;
   onKeepEditing: () => void;
   onSaveAndExit: () => void;
@@ -36,6 +40,9 @@ export function AssessmentReviewCheckpoint({
   isCompleteForReport,
   primaryActionLabel,
   primaryDisabled,
+  missingSections = [],
+  validationIssues = [],
+  onGoToSection,
   onGenerate,
   onKeepEditing,
   onSaveAndExit,
@@ -72,6 +79,14 @@ export function AssessmentReviewCheckpoint({
             <p className="text-xs text-muted-foreground">{ASSESSMENT_SETUP_COPY.REVIEW_MISSING_HINT}</p>
           ) : null}
         </div>
+        {missingSections.length > 0 && (
+          <ul className="max-h-48 space-y-1 overflow-y-auto" aria-label="Still to complete">
+            {missingSections.map(section => <li key={section.id}>
+              <Button variant="ghost" className="h-auto min-h-11 w-full justify-start whitespace-normal text-left" onClick={() => onGoToSection?.(section.id)}>{section.label}</Button>
+            </li>)}
+          </ul>
+        )}
+        {validationIssues.length > 0 && <ul role="alert" className="space-y-1 text-sm text-destructive">{validationIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
         <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
           <Button
             type="button"

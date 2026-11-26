@@ -11,6 +11,16 @@ import { ASSESSMENT_OPTIONS, ASSESSMENT_LABELS } from '@/constants/assessment';
 const P1_LABELS = ASSESSMENT_LABELS.P1;
 
 export type LifestyleRemoteState = {
+  sleepHours: string;
+  sleepRegularity: string;
+  stressFrequency: string;
+  stressCoping: string;
+  exerciseMinutesWeek: string;
+  strengthDaysWeek: string;
+  proteinMeals: string;
+  fruitVegPortions: string;
+  takeawaysWeek: string;
+  lastCaffeineIntake: string;
   activityLevel: string;
   sleepArchetype: string;
   stressLevel: string;
@@ -21,6 +31,16 @@ export type LifestyleRemoteState = {
 };
 
 export const INITIAL_LIFESTYLE_REMOTE: LifestyleRemoteState = {
+  sleepHours: '',
+  sleepRegularity: '',
+  stressFrequency: '',
+  stressCoping: '',
+  exerciseMinutesWeek: '',
+  strengthDaysWeek: '',
+  proteinMeals: '',
+  fruitVegPortions: '',
+  takeawaysWeek: '',
+  lastCaffeineIntake: '',
   activityLevel: '',
   sleepArchetype: '',
   stressLevel: '',
@@ -45,6 +65,15 @@ export function PublicRemoteLifestyleFields({
 
   return (
     <div className="space-y-4">
+      {(['sleepHours', 'sleepRegularity', 'stressFrequency', 'stressCoping', 'exerciseMinutesWeek', 'strengthDaysWeek', 'proteinMeals', 'fruitVegPortions', 'takeawaysWeek'] as const).filter(key => allowedKeys.has(key)).map(key => (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={`remote-${key}`}>{P1_LABELS[key]}</Label>
+          <Select value={value[key]} onValueChange={answer => patch({ [key]: answer })}>
+            <SelectTrigger id={`remote-${key}`}><SelectValue placeholder="Select" /></SelectTrigger>
+            <SelectContent>{ASSESSMENT_OPTIONS[key].map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      ))}
       {allowedKeys.has('activityLevel') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.activityLevel}</Label>
@@ -63,7 +92,7 @@ export function PublicRemoteLifestyleFields({
         </div>
       ) : null}
 
-      {allowedKeys.has('sleepArchetype') ? (
+      {!allowedKeys.has('sleepHours') && allowedKeys.has('sleepArchetype') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.sleepArchetype}</Label>
           <Select value={value.sleepArchetype} onValueChange={(v) => patch({ sleepArchetype: v })}>
@@ -81,7 +110,7 @@ export function PublicRemoteLifestyleFields({
         </div>
       ) : null}
 
-      {allowedKeys.has('stressLevel') ? (
+      {!allowedKeys.has('sleepHours') && allowedKeys.has('stressLevel') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.stressLevel}</Label>
           <Select value={value.stressLevel} onValueChange={(v) => patch({ stressLevel: v })}>
@@ -99,7 +128,7 @@ export function PublicRemoteLifestyleFields({
         </div>
       ) : null}
 
-      {allowedKeys.has('nutritionHabits') ? (
+      {!allowedKeys.has('sleepHours') && allowedKeys.has('nutritionHabits') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.nutritionHabits}</Label>
           <Select value={value.nutritionHabits} onValueChange={(v) => patch({ nutritionHabits: v })}>
@@ -117,7 +146,7 @@ export function PublicRemoteLifestyleFields({
         </div>
       ) : null}
 
-      {allowedKeys.has('hydrationHabits') ? (
+      {!allowedKeys.has('sleepHours') && allowedKeys.has('hydrationHabits') ? (
         <div className="space-y-2">
           <Label>{P1_LABELS.hydrationHabits}</Label>
           <Select value={value.hydrationHabits} onValueChange={(v) => patch({ hydrationHabits: v })}>

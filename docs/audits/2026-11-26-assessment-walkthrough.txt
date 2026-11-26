@@ -1,0 +1,103 @@
+ONE ASSESS: LIVE COACH WALKTHROUGH
+Date: 26 November 2026
+Environment: https://one-assess.com, authenticated Chrome desktop session.
+Scope: new client -> in-studio intake -> physical assessment -> generated report -> saved client report -> full reload.
+This is an audit, not a fix release. No application code or deployment changed during this walkthrough.
+
+OUTCOME
+PASS: a new synthetic assessment reached 100%, generated an AXIS report, saved successfully, reopened from the client workspace, and survived a full browser reload.
+Test client: ZZ QA November Walkthrough
+Test email: qa-20261126@example.com
+Saved report: https://one-assess.com/dashboard/clients/ZZ%20QA%20November%20Walkthrough/report
+Screenshot: 2026-11-26-assessment-report.jpg alongside this audit.
+The clearly named test client remains available for review. No report email or pre-assessment invitation was sent.
+
+WHAT PASSED
+- New assessment -> Start in studio opened successfully; no missing-module crash in this run.
+- Lifestyle stayed in its section until the questions were completed.
+- Save and exit from Fitness produced a saved draft. Resume assessment restored the Fitness phase and all three heart-rate values.
+- Fitness age/sex guidance identified Women 36-45.
+- Physical order was Fitness -> Movement -> Strength -> Body composition/analyzer -> Tape -> Posture -> Results.
+- Movement and Strength navigation progressed without the previously reported snapping/stuck-section problem.
+- Tape measurements were reachable; empty mandatory tape fields blocked Section Complete.
+- Manual posture provided a usable route to finish without photos.
+- Generation showed a building state, followed by saving state and Assessment saved confirmation.
+- Saved/reopened report retained entered body measurements, corrected pushups, all ten tape sites and three goals.
+- Female tape silhouette appeared; expandable measurements were legible on desktop.
+- Report showed the correct female age group, a 16-week plan, four proposed training visits, and no false previous-assessment comparison.
+- Report protein was 160g/day for 72kg (rounded from the configured 2.2g/kg); food guide and lifestyle nutrition advice agreed.
+
+PRIORITY FINDINGS
+
+1. HIGH: Incomplete baseline is labelled ready for a report.
+Reproduction: after entering lifestyle/fitness and the first movement pattern, click Generate Report. Dialog showed Completion 50%, but also Ready to generate the report, with an enabled Generate Report action. No missing-test list appeared. Kept editing rather than generating a deliberately incomplete report.
+Impact: coach can reasonably believe a partial baseline is complete and finish too early. Generate Report was visible from early lifestyle screens.
+Code confirmation: src/lib/assessmentCompleteness.ts treats full mode as complete when ANY pillar score is above zero. usePhaseFormSubmitLabels.ts feeds that result to AssessmentReviewCheckpoint.tsx.
+Recommended correction: baseline completion should follow required captured sections, separate draft saving from finalization, and identify remaining sections.
+
+2. HIGH: Manual posture findings disappear from the client report.
+Reproduction: manual observation recorded forward head and rounded shoulders; remaining posture selections neutral. Report completed but contained no Posture section or these findings, including after reopening.
+Impact: coach spends time collecting findings with no visible client-facing result.
+Code confirmation: buildPostureModel in src/lib/reports/buildClientReportModel.ts returns null when neither photos nor postureAiResults exist; manual posture fields are not included.
+Recommended correction: carry manual observations into a plain-language report subsection without requiring photographs.
+
+3. HIGH: Implausible strength input passes without warning.
+Reproduction: entered 2525 pushups for the one-minute test, clicked Next and reached Grip. Back showed 2525 retained. Corrected to 18 before generating the saved report.
+Impact: an extra digit can silently affect scoring and the debrief.
+Recommended correction: numeric bounds and an explicit plausibility warning before section completion and final save; support legitimate zero scores.
+
+4. MEDIUM: Report language contradicts the answers and entry guidance.
+- Hydration answer: I try to stay hydrated but often forget. Report: Good / On track and You drink enough through the day.
+- Nutrition answer: I try to eat healthy but struggle with consistency. Report: Good / On track, losing the stated inconsistency.
+- Sleep table: Good / On track, while the lifestyle summary says sleep could be better.
+- Resting HR 74: entry guidance for women 36-45 classed 67-74 as Good; report called resting HR a little high.
+- Movement summary: Your joints move freely. Keep doing what you're doing, directly above two patterns needing work.
+Code confirmation: assessment.ts maps the hydration/nutrition answers above to good. Client lifestyle factors display the stored category; clientPillarSummary.ts selects fixed strong/nudge copy using detail-score thresholds. The UI and narrative therefore use different signals.
+Recommended correction: preserve answer meaning and align narrative, status labels, and input reference bands. This audit establishes internal inconsistency; it is not a clinical validation of the normative bands.
+
+5. MEDIUM: Analyzer manual entry remains unnecessarily large.
+Observed eleven analyzer fields including fat mass, five segmental lean values and BMR, despite the intended slim confirmation. Optional fields were not clearly distinguished. The section could be completed using muscle, BF%, WHR and visceral fat without those extra fields.
+Impact: coach may search a printout for values that are unnecessary, or assume missing optional data blocks progress.
+Recommended correction: emphasize weight/BF%/muscle, optional visceral/WHR, and keep height where needed; remove nonessential analyzer fields from this capture step.
+
+6. MEDIUM: Movement completion behaves differently depending on the answer.
+Looks good immediately saves and advances. Selecting a fault needs Section Complete. The immediate transition can make the coach's next pain/continue click land on the following pattern. Looks good is visually prominent even before a choice is made.
+Code confirmation: MovementPatternCapture.tsx handleLooksGood calls onComplete immediately and applies benign values, preserving an existing explicit pain answer.
+Recommended correction: use a consistent, clearly signposted completion action; ensure pain is deliberately recorded. Also reset scroll when changing patterns: during this run the next pattern opened with its title partially clipped above the viewport.
+
+7. MEDIUM: A secondary save write failed silently.
+Captured console warning at save: [Assessment] Failed to write consent record (non-fatal): FirebaseError: Missing or insufficient permissions.
+Assessment/report save itself succeeded and survived reload.
+Code location: src/hooks/useAssessmentSave.ts attempts organizations/{org}/clients/{client}/consents/health_data_v1 after the main save and catches the failure. Current firestore.rules does not contain a matching consents-specific rule.
+Recommended correction: investigate the intended consent-record flow and narrow authorization for that write. Do not broaden client-data permissions as a workaround. No legal-compliance conclusion was made in this audit.
+
+SMALLER COACH FRICTION
+- Recent activity offers Currently Training, Stopped <3 months, Stopped >6 months; no answer for 3-6 months.
+- Fitness instructions say speed 5 / incline 10 without units or percent.
+- Fitness number controls lacked accessible names in the DOM snapshot, despite nearby visible text.
+- Fitness repeats Metabolic Fitness/fitness headings and uses more technical language than necessary.
+- Intro still refers to health screening although PAR-Q/medication collection is removed.
+- InBody results label remains in section progress; assessment header/footer still use One Fitness while workspace uses One Assess.
+- Early lifestyle offers both Save for Later and Save and exit with no clear distinction.
+- Progress counters describe individual sections rather than the whole visit; caffeine changes the lifestyle count from nine to ten.
+- Hydration choices refer to water, while report advice correctly counts all fluids.
+- Dashboard counts/statuses visibly changed during data loading after draft save; loading should not briefly look like final metrics.
+- View Client from generated results opened the client's Report tab rather than Summary. Minor naming ambiguity.
+
+SYNTHETIC TEST DATA
+Female, DOB 1990-05-15; intermediate; currently training; moderately active.
+Lifestyle: sufficient but variable sleep; some stress/copes reasonably; healthy eating but inconsistent; often forgets hydration; 7000 steps; two caffeine cups, last at 14:00; three training sessions/week.
+Goals: Build muscle, Weight loss, Improve fitness.
+Fitness: resting 74, peak 148, recovery 112 bpm.
+Movement: overhead squat knees cave inward; hinge looks good; lunge left balance issue. No pain for overhead squat and lunge; hinge used Looks good default path.
+Strength: squats 30, pushups 18, plank 75 seconds; grip left 27kg/right 29kg.
+Body: height 165cm, weight 72kg, BF32%, skeletal muscle26kg, WHR0.82, visceral9.
+Tape cm: shoulders103, chest94, left arm29/right29.5, waist82, hips100, left thigh58/right58.5, left calf36/right36.5.
+Manual posture: forward head, rounded shoulders; spine/hips/knees neutral.
+Saved report: overall80; body83, strength71, fitness83, movement89, lifestyle76. Food guide1900kcal, protein160g, carbohydrate180g, fat60g.
+
+COVERAGE LIMITS
+This was a desktop Chrome in-studio walkthrough using synthetic measurements. It did not test a new OFS-originated handoff, remote intake/email delivery, camera permissions, analyzer OCR, coach-held/QR posture photography, photo upload/analysis persistence, report PDF download/email, offline operation, mobile/tablet hardware, or dark theme. Those paths remain unverified by this run. The invalid pushup value was not left in the saved report. The earlier preview-only chunk-recovery patch was not deployed to production by this audit.
+
+SUGGESTED FIX ORDER
+Completion gate and validation -> manual posture/report consistency -> save warning -> analyzer and movement interaction cleanup -> copy/accessibility polish -> dedicated camera/OCR and OFS/remote regression walkthrough.

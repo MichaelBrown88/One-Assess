@@ -101,7 +101,7 @@ export default function OverallRadarPolygon({
     })
     .join(' ');
 
-  const hullPts = vertices.map((v) => `${v.x.toFixed(2)},${v.y.toFixed(2)}`).join(' ');
+  const hullPts = vertices.filter((_, i) => data[i].assessed !== false).map((v) => `${v.x.toFixed(2)},${v.y.toFixed(2)}`).join(' ');
 
   const prevHullPts = prevVertices
     ? prevVertices.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ')
@@ -154,6 +154,7 @@ export default function OverallRadarPolygon({
               stroke={CHART_HEX.gridLight}
               strokeWidth={0.9}
               opacity={0.7}
+              strokeDasharray={data[i].assessed === false ? '4 4' : undefined}
             />
           );
         })}
@@ -178,7 +179,7 @@ export default function OverallRadarPolygon({
           strokeLinejoin="round"
         />
 
-        {vertices.map((v, i) => (
+        {vertices.map((v, i) => data[i].assessed === false ? null : (
           <circle
             key={`dot-${i}`}
             cx={v.x}
@@ -244,11 +245,11 @@ export default function OverallRadarPolygon({
               {name}
               <tspan
                 dx={hero ? 7 : 5}
-                fill={GRADE_FG[scoreGrade(score)]}
+                fill={d.assessed === false ? 'hsl(var(--muted-foreground))' : GRADE_FG[scoreGrade(score)]}
                 fontWeight={700}
                 className="tabular-nums"
               >
-                {score}
+                {d.assessed === false ? 'Not measured' : score}
               </tspan>
             </text>
           );

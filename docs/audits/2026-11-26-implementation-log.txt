@@ -1,0 +1,71 @@
+ONE ASSESS: IMPLEMENTATION AND RELEASE REVIEW
+26 November 2026
+Status: implemented locally on develop; report review approval required before commit/push/deployment.
+Plan: docs/superpowers/plans/2026-11-26-assessment-reconciliation.txt (unchanged).
+Original plan: docs/superpowers/plans/2026-11-19-foolproof-one-assess.md (unchanged).
+
+INTEGRATION
+Clean no-commit merge of claude/amazing-lamport-3d26a8 at c06a977, preserving newer develop/OFS/draft/chunk-recovery work. Merge remains open pending release review. No OFS repository changes, real-client edits, emails or production deletions in this implementation.
+Integrated commits: c06a977, dc7e9a7, 1571141, 0b3e07c, 8b08558, e198d57, fad7a4d, d3bfe7d, 46b65a8, 79c781f, 749ec99, 995b0b5, 9d76116, 0da76b5, c7384c4, b2c926e.
+Preserved unrelated untracked November 16 draft-resume plan.
+
+ORIGINAL PLAN OUTCOMES
+Tier 0 (0.1–0.4): retained existing navigation/module fixes. Intake completion is now captured at entry so new answers cannot remove P0/P1 mid-visit. Partial remote intake remains reachable. Movement selections persist immediately, including when saving before Section complete.
+Tier 1 (1.1–1.17): integrated scoring corrections and reviewed missing-versus-zero handling. Grip uses recorded hands only; alternative grip protocols are not converted to invented kg. Age uses assessment date; missing age is not a young-adult age bracket. Analyzer scoring uses sex-aware references; tape stays progress-only and no neck collection is added. Unmeasured findings do not receive perfect scores. Inferred mobility is not counted twice and cannot claim freely moving joints. Push-up type is captured. Overall score remains equal-weighted across assessed pillars.
+1.3/1.16 are superseded for NEW data by approved Tier 4 four-minute incline-walk protocol. New cardioProtocolVersion distinguishes this from historical three-minute records; old reports do not silently receive the new estimator. HR guidance/scoring now agree, and measured zero/negative recovery is retained.
+2.1–2.3, 2.10, 2.12: whole-visit progress, scroll reset, one Save and exit, final-stage generation and missing-section checklist. Baseline readiness checks captured data, not any positive score. Legitimate zero reps remain valid. Physical order is unchanged.
+2.4: visible New assessment header action and client cards below 900px.
+2.5: hard limits prevent impossible values; unusual but possible values get nonblocking checks. Legacy plank values up to 600 seconds remain readable; new protocol advises stopping at 180 seconds.
+2.6: draft scores hidden; no bulk stored-score migration performed.
+2.7: schedule loading/error states explicit instead of briefly claiming On track.
+2.8–2.9: clear selected chips, consistent completion, explicit pain answer, neutral left/right labels, activity 3–6 month option, plain Fitness copy and labelled HR fields.
+2.11: Escape closes sidebar; existing close/navigation behavior retained.
+3.1: missing radar areas marked Not measured instead of measured zero; assessed count displayed.
+3.2: removed unsupported AXIS population-percentile headline; age/sex reference context retained without claiming a validated overall peer percentile.
+3.3: intentionally retained captured peak HR per current AGENTS.md; no fabricated projection.
+3.4–3.5: answered-only lifestyle, status derived from scored answers, inconsistent hydration/nutrition meaning preserved for legacy records, caffeine reflected in sleep, manual posture appears in client report. Missing/inferred mobility no longer produces contradictory praise.
+3.6: retained existing goal-first hero and plan; did not add competing priority panel or invented check-in date, following AGENTS.md.
+3.7: collapsed tape header shows waist and hips, retaining sex-matched expandable figure.
+4.1: four-minute 5 km/h / 10% incline protocol, versioned; FRIEND table verified. Estimator remains a coaching estimate. Removed unsupported ±15% accuracy claim. Not equivalent to measured laboratory VO2.
+4.2: Strand non-varsity plank table verified and corrected. Female 90th percentile stays 90, not an invented 100 at 180 seconds. Reference is explicitly young-adult, not age adjusted.
+4.3: nine habits integrated through studio, remote UI, server whitelist and intake API. Legacy records supported; new hydration archetype removed per approved plan. Caffeine retained, timing shown only when consumed. Standard intake advertisement omits PAR-Q/medications/deadline; legacy API compatibility preserved.
+4.4: marked-only pelvic observation integrated. Camera threshold calibration across 30–50 real studio captures remains pending; no claim that MediaPipe hip points measure pelvic anatomical tilt.
+4.5: heels-lift chip, optional conditional knee-to-wall measurement, qualified coaching-review prompt below 10cm, movement report feedback. No invented degree conversion or validated diagnostic cutoff claim.
+4.6: deterministic coach-only programming brief from pain, imbalance, BMI, movement restrictions, fitness, experience and recovery. No extra AI call, report section or automatic external transmission.
+Single-leg sit-to-stand: 30 seconds per leg replaces new one-minute bilateral squat capture. Historical squat fields retained as historical protocol. Side results/imbalance shown; provisional reference bands are labelled in coach guidance.
+
+WALKTHROUGH FIXES BEYOND ORIGINAL PLAN
+- Slim analyzer capture: height, weight, body fat, muscle, optional visceral/WHR. No BMR/BFM/segmental requirement.
+- Removed fabricated automatic health-consent write; no consent inferred from finishing an assessment and no broad permission workaround.
+- Client cleanup: Move to Trash, Restore, then separately confirmed permanent deletion from Trash. Assessment deletion explicitly distinguishes keeping the client, deleting older history, and replacing the current report with the prior snapshot.
+- Found client-side session deletion prohibited by existing rules. New App Check protected callable requires organization membership AND exact assigned coach ownership. No broader Firestore rule introduced. Latest-snapshot deletion transaction updates current state/counts and revokes old public report data. Permanent cleanup retains a retryable Trash record until cleanup succeeds and marks erasure as started. Three composite indexes added.
+- Actual cloud deletion invocation is NOT verified until deployment. Unit tests cover scoping, snapshot variants and storage failure. Permanent purge is not claimed to be race-proof under concurrent external writes; restore is prevented after an erasure-start marker is observed.
+- Full baseline readiness currently assumes the baseline modules are available. Organizations that disable mandatory baseline modules need a separate product decision/validation; current tested organization has those modules enabled.
+
+VALIDATION
+- npm run typecheck: PASS.
+- npm --prefix functions run build: PASS.
+- npm run test:ci: PASS, 697 tests in 107 files.
+- npm run build: PASS, including PWA. Existing bundle-size/Browserslist notices remain.
+- Changed frontend TypeScript ESLint: 0 errors, 2 warnings (remote helper/component mixed exports; existing white photo overlay token).
+- git diff --check: PASS. firestore.indexes.json parses; only three appended indexes.
+- Regression coverage: baseline missing sections and zero results; numeric validation; legacy/new cardio protocol isolation; manual posture; intake field parity; coach brief; actual React movement capture persistence/explicit pain/conditional mobility; server deletion authorization/history/failure behavior.
+- Local browser report review: captured sample baseline, female example, synthetic complete new-protocol assessment. Verified single-leg left/right report, manual posture observations, correct female muscle/fitness plan, responsive hero and readable light/dark presentation. 1024x900 and 390x844 checked; temporary viewport reset. Synthetic localhost fixture removed after inspection.
+- Screenshot: docs/audits/2026-11-26-local-report-review.png.
+- Local approval page: http://127.0.0.1:8080/preview/sample-report (dev server left running).
+- Prior production walkthrough reached a saved/reopened/reloaded synthetic report and tested Save and exit/resume; see 2026-11-26-assessment-walkthrough.txt. That establishes the pre-change baseline, not live validation of this release.
+
+REFERENCE CHECKS
+FRIEND 2015 Table 3: https://pmc.ncbi.nlm.nih.gov/articles/PMC4919021/
+Strand 2014 Table 3: https://pmc.ncbi.nlm.nih.gov/articles/PMC4096102/
+Public primary paper PDF: https://rcastoragev2.blob.core.windows.net/2501e2e5eab8479d2b8ec4f43b45de0b/PMC4096102.pdf
+Gallagher original table remains not independently rechecked; inherited implementation documents reproduced ACSM ranges. Single-leg bands remain provisional coaching references.
+
+RELEASE GATE AND REMAINING LIVE CHECKS
+AGENTS.md: for AXIS report number/layout changes, show local example on real report data and wait for approval before deploying anything. No deploy/commit/push performed in this implementation. After approval, commit/push develop, deploy changed backend functions and indexes through Firebase, then npm run deploy:preview and provide its exact Hosting channel URL. Hosting alone cannot activate deletion or new remote-field support.
+Then exercise a fresh synthetic OFS handoff through intake, physical assessment, save/reopen and report; validate new callable deletion using disposable test data and explicit irreversible-deletion approval when required. Confirm deployed remote intake mapping. No report email or real-client data migration is part of this release.
+Hardware-only paths still unverified: analyzer OCR/camera, coach-held/QR posture capture/upload/analysis, device/offline recovery. PDF/email delivery and real-client remote invitations remain untested. Preview invitation URLs still use production APP_HOST; production hosting approval/deploy is needed before validating /remote for real clients.
+
+RELEASE APPROVAL AND FINAL HANDOFF CHECK
+User approved report/deployment and asked to use the release for Fahad's 12:00 Kuwait assessment. Production hosting is required because OFS opens one-assess.com, not a preview URL. Preserve Fahad's client and draft: the OFS handoff matches the same record, fills blanks and replays identical requests for 24 hours. Trash/permanent deletion is not a supported fresh-start mechanism for that button.
+Final inspection corrected server firstIncompletePhase: activityLevel alone no longer skips the unanswered lifestyle/goals questions on a fresh intake. Existing draft position remains preserved. All 697 tests pass after this correction; Functions build passes.

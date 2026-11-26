@@ -5,6 +5,7 @@
 import type { PillarRole } from '@/lib/goals/goalContext';
 import { resolveCardioPillarRole, parseClientGoals, type ClientGoalContext } from '@/lib/goals/goalContext';
 import { classifyHrrDrop, classifyRhr, classifyVo2 } from '@/lib/goals/metricBands';
+import { estimateVo2maxFromWalk } from '@/lib/cardio/fitnessEstimate';
 import {
   computeHigherIsBetterTarget,
   computeLowerIsBetterTarget,
@@ -22,6 +23,7 @@ export interface CardioGapsResult {
 export type FitnessAmbitionLevel = 'health' | 'active' | 'athletic' | 'elite';
 
 export interface CardioAnalysisOptions {
+  protocolVersion?: string;
   /** Pillar role from client goals (preferred). */
   pillarRole?: PillarRole;
   /** @deprecated Use pillarRole — `maintenance` maps to supporting/off-path. */
@@ -109,30 +111,11 @@ export function calculateCardioAnalysis(
 
   const currentRecovery = peakHR > 0 && recoveryHR > 0 ? peakHR - recoveryHR : 0;
 
-  let currentVO2 = 0;
-  if (peakHR > 0 && restingHR > 0 && age > 0) {
-    const maxHREstimate = 208 - 0.7 * age;
-    const hrReserve = maxHREstimate - restingHR;
-    if (hrReserve > 0) {
-      const effortUsed = (peakHR - restingHR) / hrReserve;
-      if (effortUsed > 0.12) {
-        /** VO2 reserve scale top used for %HRR mapping (ml/kg/min). */
-        const vo2Ceiling = 50;
-        const vo2AtPeak = 3.5 + (vo2Ceiling - 3.5) * Math.min(effortUsed, 1);
-        // Extrapolate to max only when the test was strenuous enough; low peak HR
-        // (submax test) previously used 1/effort and inflated VO2 (e.g. 68+).
-        if (effortUsed >= 0.52) {
-          // Uth–Sørensen (HRmax / HRrest). Do not divide the %HRR estimate by
-          // effortUsed — that algebraically equals vo2Ceiling (50) for every
-          // strenuous test and freezes Fitness level at 50.0.
-          currentVO2 = 15.3 * (maxHREstimate / restingHR);
-        } else {
-          currentVO2 = vo2AtPeak;
-        }
-        currentVO2 = Math.max(12, Math.min(75, round1(currentVO2)));
-      }
-    }
-  }
+  // Same estimate as the fitness score: ACSM walk cost + share of heart-rate
+  // reserve used on the standard walk. No number when the walk was too easy.
+  const walk = options?.protocolVersion === 'incline-walk-4min-v1'
+    ? estimateVo2maxFromWalk({ age, restingHr: restingHR, workHr: peakHR }) : { status: 'missing' as const };
+  const currentVO2 = walk.status === 'ok' ? walk.vo2max : 0;
 
   const vo2Band = classifyVo2(currentVO2, gender, age);
   const rhrBand = classifyRhr(restingHR);

@@ -38,8 +38,10 @@ describe('sanitizeIntakeFields', () => {
     expect(sanitizeIntakeFields('x')).toEqual({});
   });
 
-  it('lists every key it accepts', () => {
-    expect(STANDARD_INTAKE_KEYS).toContain('parq13');
+  it('offers current intake fields while retaining legacy API support', () => {
+    expect(STANDARD_INTAKE_KEYS).not.toContain('parq13');
+    expect(STANDARD_INTAKE_KEYS).not.toContain('medicationsFlag');
+    expect(STANDARD_INTAKE_KEYS).toContain('sleepHours');
     expect(STANDARD_INTAKE_KEYS).toContain('clientGoals');
     expect(STANDARD_INTAKE_KEYS).not.toContain('inbodyWeightKg');
   });

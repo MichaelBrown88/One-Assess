@@ -13,9 +13,18 @@ export type MetricRow = { field: string; label: string; value: string; unit: str
 const YES_NO = ['yes', 'no'] as const;
 
 export const ENUM_FIELDS = {
+  sleepHours: ['under-5', '5-6', '6-7', '7-9', 'over-9'],
+  sleepRegularity: ['regular', 'varies-1h', 'varies-more'],
+  stressFrequency: ['rarely', 'sometimes', 'often', 'always'],
+  stressCoping: ['well', 'mostly', 'struggling', 'not-coping'],
+  exerciseMinutesWeek: ['0', 'under-60', '60-149', '150-299', '300-plus'],
+  strengthDaysWeek: ['0', '1', '2', '3-plus'],
+  proteinMeals: ['rarely', 'some', 'most', 'every'],
+  fruitVegPortions: ['0-1', '2-3', '4', '5-plus'],
+  takeawaysWeek: ['0-1', '2-3', '4-6', '7-plus'],
   gender: ['male', 'female'],
   trainingHistory: ['beginner', 'intermediate', 'advanced'],
-  recentActivity: ['currently-training', 'stopped-3-months', 'stopped-6-months'],
+  recentActivity: ['currently-training', 'stopped-3-months', 'stopped-3-to-6-months', 'stopped-6-months'],
   activityLevel: ['sedentary', 'lightly-active', 'moderately-active', 'very-active', 'extremely-active'],
   sleepArchetype: ['excellent', 'good', 'fair', 'poor'],
   stressLevel: ['very-low', 'low', 'moderate', 'high'],
@@ -30,7 +39,7 @@ export const ENUM_FIELDS = {
 export const CLIENT_GOALS = ['build-muscle', 'weight-loss', 'body-recomposition', 'build-strength', 'improve-fitness', 'general-health'] as const;
 export const PARQ_KEYS = ['parq1', 'parq2', 'parq3', 'parq4', 'parq5', 'parq6', 'parq7', 'parq12', 'parq13'] as const;
 
-const TEXT_FIELDS = ['fullName', 'email', 'phone', 'medicationsNotes'] as const;
+const TEXT_FIELDS = ['fullName', 'email', 'phone', 'medicationsNotes', 'lastCaffeineIntake'] as const;
 const NUMBER_FIELDS = {
   heightCm: [100, 250],
   stepsPerDay: [0, 60000],
@@ -45,7 +54,7 @@ export type IntakeFormData = Partial<Record<StringField, string>> & { clientGoal
 
 /** Every key the standard intake accepts (used as the link's allowed keys). */
 export const STANDARD_INTAKE_KEYS: readonly string[] = [
-  ...TEXT_FIELDS, ...Object.keys(NUMBER_FIELDS), ...DATE_FIELDS, ...Object.keys(ENUM_FIELDS), 'clientGoals',
+  ...TEXT_FIELDS.filter(key => key !== 'medicationsNotes'), ...Object.keys(NUMBER_FIELDS), 'dateOfBirth', ...Object.keys(ENUM_FIELDS).filter(key => !key.startsWith('parq') && key !== 'medicationsFlag'), 'clientGoals',
 ];
 
 export const LIMITS = {
@@ -100,6 +109,8 @@ export function sanitizeIntakeFields(raw: unknown, now: Date = new Date()): Inta
   if (email) out.email = email;
   const phone = text(raw.phone, LIMITS.field);
   if (phone) out.phone = phone;
+  const caffeineTime = text(raw.lastCaffeineIntake, 5);
+  if (caffeineTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(caffeineTime)) out.lastCaffeineIntake = caffeineTime;
   const meds = text(raw.medicationsNotes, LIMITS.note);
   if (meds) out.medicationsNotes = meds;
   for (const [field, [min, max]] of Object.entries(NUMBER_FIELDS) as [keyof typeof NUMBER_FIELDS, readonly [number, number]][]) {

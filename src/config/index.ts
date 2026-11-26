@@ -293,18 +293,6 @@ export const CONFIG = {
 
   // --- SCORING & ALGORITHMS ---
   SCORING: {
-    WEIGHTS: {
-      BODY_FAT: 0.45,
-      SMM: 0.25,
-      VISCERAL: 0.20,
-      WHR: 0.10,
-    },
-    THRESHOLDS: {
-      BF_HEALTHY_MIN: 12,
-      SMM_RATIO_SCALE: 300,
-      VISCERAL_RISK_START: 8,
-      WHR_RISK_START: 0.9,
-    },
     ROADMAP: {
       WEIGHT_LOSS_KG_PER_WEEK: 0.5,
       MUSCLE_GAIN_KG_PER_WEEK_BEG: 0.25,

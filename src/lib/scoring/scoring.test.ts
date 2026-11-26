@@ -137,9 +137,9 @@ describe('scoreBodyComp', () => {
     expect(result.assessed).toBe(true);
   });
 
-  it('returns assessed=true when only body measurements are provided', () => {
+  it('returns assessed=false when only tape measurements are provided (tape is progress-only)', () => {
     const result = scoreBodyComp(makeMeasurementForm(), 35, 'male');
-    expect(result.assessed).toBe(true);
+    expect(result.assessed).toBe(false);
   });
 
   it('returns assessed=false when no body data is provided', () => {

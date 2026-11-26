@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   doc,
   getDoc,
@@ -21,7 +22,6 @@ import {
 } from 'firebase/firestore';
 import {
   ORG_CLIENT_PROFILES_QUERY_LIMIT,
-  PUBLIC_REPORTS_BY_CLIENT_DELETE_LIMIT,
 } from '@/constants/firestoreQueryLimits';
 import { getDb, auth } from '@/services/firebase';
 import { baselineClientRecord } from '@/lib/clients/baselineClientRecord';
@@ -1240,6 +1240,7 @@ export async function restoreClient(params: {
 
   const snap = await getDoc(clientRef);
   if (!snap.exists()) throw new Error('Client not found');
+  if (snap.data().permanentDeletionStartedAt) throw new Error('Permanent deletion has started. Retry Delete permanently to finish cleanup; this client can no longer be restored.');
 
   await updateDoc(clientRef, {
     status: 'active',
@@ -1316,77 +1317,8 @@ export async function purgeClientData(params: {
   clientSlug: string;
   clientName: string;
 }): Promise<void> {
-  const { organizationId, clientSlug, clientName } = params;
-  const db = getDb();
-
-  async function deleteSubcollection(colPath: string): Promise<void> {
-    const colRef = collection(db, colPath);
-    const PAGE = 400;
-    while (true) {
-      const snap = await getDocs(query(colRef, limit(PAGE)));
-      if (snap.empty) return;
-      let batch = writeBatch(db);
-      let count = 0;
-      for (const docSnap of snap.docs) {
-        batch.delete(docSnap.ref);
-        count++;
-        if (count >= PAGE) {
-          await batch.commit();
-          batch = writeBatch(db);
-          count = 0;
-        }
-      }
-      if (count > 0) await batch.commit();
-      if (snap.size < PAGE) return;
-    }
-  }
-
-  // 1. Delete sessions sub-collection
-  await deleteSubcollection(ORGANIZATION.clients.sessions.collection(organizationId, clientSlug)).catch((): void => undefined);
-
-  // 2. Delete current/state doc
-  await deleteDoc(doc(db, ORGANIZATION.clients.current(organizationId, clientSlug))).catch((): void => undefined);
-
-  // 3. Delete draft
-  await deleteDoc(doc(db, ORGANIZATION.clients.draft(organizationId, clientSlug))).catch((): void => undefined);
-
-  // 4. Delete roadmap and achievements
-  await deleteDoc(doc(db, ORGANIZATION.clients.roadmap(organizationId, clientSlug))).catch((): void => undefined);
-  await deleteSubcollection(ORGANIZATION.clientAchievements.collection(organizationId, clientSlug)).catch(
-    (): void => undefined,
-  );
-
-  // 4b. Consultation transcripts and coach notes
-  await deleteSubcollection(ORGANIZATION.clients.consultations.collection(organizationId, clientSlug)).catch(
-    (): void => undefined,
-  );
-  await deleteDoc(doc(db, ORGANIZATION.clients.coachNotes(organizationId, clientSlug))).catch((): void => undefined);
-
-  // 5. Delete public report share tokens
-  try {
-    const publicReportsSnap = await getDocs(
-      query(
-        collection(db, 'shared-reports'),
-        where('clientName', '==', clientName),
-        where('organizationId', '==', organizationId),
-        limit(PUBLIC_REPORTS_BY_CLIENT_DELETE_LIMIT),
-      ),
-    );
-    if (!publicReportsSnap.empty) {
-      const batch = writeBatch(db);
-      publicReportsSnap.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-  } catch { /* non-fatal */ }
-
-  // 6. Delete client profile doc
-  await deleteDoc(doc(db, ORGANIZATION.clients.doc(organizationId, clientSlug)));
-
-  // 7. Decrement org stats
-  await updateDoc(doc(db, ORGANIZATION.doc(organizationId)), {
-    'stats.clientCount': increment(-1),
-    'stats.lastUpdated': serverTimestamp(),
-  }).catch((): void => undefined);
+  const remove = httpsCallable<{ organizationId: string; clientId: string }, { success: boolean }>(getFunctions(), 'deleteCoachClientData');
+  await remove({ organizationId: params.organizationId, clientId: params.clientSlug });
 }
 
 /**

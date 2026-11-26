@@ -263,9 +263,10 @@ export async function generateDemoData(): Promise<Partial<FormData>> {
   const strengthBase = skeletalMuscleMassKg / weightKg;
   const isStrong = strengthBase > 0.45 || activityLevel === 'very-active' || activityLevel === 'extremely-active';
   
-  const squatsOneMinuteReps = isStrong
-    ? Math.floor(35 + rng() * 20) // 35-55
-    : Math.floor(15 + rng() * 20); // 15-35
+  // 30-second single-leg sit-to-stand, reps per leg (replaces one-minute squats).
+  const singleLegBase = isStrong ? 12 + Math.floor(rng() * 6) : 6 + Math.floor(rng() * 6);
+  const singleLegStandLeftReps = singleLegBase;
+  const singleLegStandRightReps = Math.max(0, singleLegBase + Math.round((rng() - 0.5) * 4));
   const pushupsOneMinuteReps = isStrong
     ? Math.floor(20 + rng() * 20) // 20-40
     : Math.floor(8 + rng() * 15); // 8-23
@@ -421,7 +422,8 @@ export async function generateDemoData(): Promise<Partial<FormData>> {
     mobilityHip,
     mobilityShoulder,
     mobilityAnkle,
-    squatsOneMinuteReps: String(squatsOneMinuteReps),
+    singleLegStandLeftReps: String(singleLegStandLeftReps),
+    singleLegStandRightReps: String(singleLegStandRightReps),
     pushupsOneMinuteReps: String(pushupsOneMinuteReps),
     plankDurationSeconds: String(plankDurationSeconds),
     gripLeftKg: String(gripLeftKg),

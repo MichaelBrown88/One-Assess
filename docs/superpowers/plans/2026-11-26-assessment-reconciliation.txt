@@ -1,0 +1,25 @@
+ONE ASSESS: RECONCILE THE APPROVED WORK AND COMPLETE THE COACH FLOW
+26 November 2026
+
+Authorization: user asked to work through the planned changes and all findings from the live walkthrough, including client/assessment deletion friction.
+Execute this plan as specified. Do not edit this plan file; record outcomes separately.
+
+Sources of scope
+- Preserve the original 19 November foolproof plan and its item IDs, in the Claude worktree. Do not recreate its task list.
+- Complete applicable outstanding work from that plan, reconcile the already implemented scoring/protocol commits with current develop, and address the 26 November walkthrough audit.
+- Preserve current OFS/public intake, draft recovery, saved-assessment editing, and service-worker fixes.
+- Work on develop. Do not delete the existing Claude/OFS worktrees or user data.
+
+Execution order
+1. Integrate the parked Claude branch without overwriting newer work. Review scoring/protocol assumptions and tests. The named single-leg sit-to-stand is 30 seconds each side; retain old squat data as a separate protocol. Include push-up type and the capped plank. Reconcile the planned four-minute walk consistently across entry and calculations; do not silently apply a different protocol to old data. Clearly distinguish provisional coaching references from population percentiles.
+2. Complete baseline readiness, plausible numeric inputs, consistent movement completion, scroll reset, progress and one save action (original Tier 2 plus audit findings 1,3,6). Preserve zero as a legitimate measured result and support optional fields without hiding required ones.
+3. Make analyzer capture slim, finish manual-posture reporting, align report narrative with answers/reference bands, and complete applicable Tier 3 fixes. Retain the established goal-first report hierarchy, healthy projections, tape rules and shared macros. Do not add a competing hero priorities panel or medical promises. Missing data must stay unmeasured.
+4. Reconcile lifestyle capture across studio, remote, intake validation and old records. Keep caffeine and accepted legacy records; no PAR-Q/medications/alcohol reintroduction. Address supported posture/mobility and coach-note work from Tier 4 using deterministic logic and appropriately qualified reference material, without presenting unvalidated camera thresholds as clinical facts.
+5. Simplify deletion consistently: recoverable Move to trash for routine client cleanup, visible restoration, separate permanent erasure with clear confirmation. Clarify deleting an assessment versus deleting the client and what happens when the latest/only assessment is removed. Repair data consistency and loading/error handling, using isolated tests rather than deleting real clients.
+6. Resolve the failed secondary consent write according to the intended data model, without inventing consent or loosening unrelated permissions. Complete audit copy/accessibility/branding and loading-state fixes.
+7. Validate with targeted regressions, typecheck, relevant lint, full tests and build. Exercise the local assessment-to-report path, save/resume and deletion dialogs. Check responsive layouts and light/dark contrast. Verify remote/OFS mappings with fixtures and existing tests; distinguish these from real-camera or end-user delivery checks.
+8. Show the local /preview/sample-report example on the existing real-report fixture and summarize the changes. AGENTS.md explicitly requires approval before any deployment for report number/layout changes. Only after that approval: commit/push develop and deploy the preview; deploy backend/rules through Firebase if they changed. Provide the exact preview-channel URL and describe any remaining device-only validation.
+
+Completion evidence
+- Record integrated commits, original plan item outcomes, new regression coverage, test/build results, and any unverified hardware paths in a separate implementation log.
+- No broad production data migrations, no mass deletion, no report emails, and no changes to real-client assessments as part of testing.

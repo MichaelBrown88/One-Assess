@@ -1,3 +1,4 @@
+import { missingBaselineSections } from './baselineReadiness';
 /**
  * Studio baseline session steps (before / between phase navigation).
  */
@@ -32,13 +33,7 @@ export function sortStudioPhaseIds(ids: PhaseId[]): PhaseId[] {
 
 export function isRemoteIntakeFormComplete(formData: FormData | null | undefined): boolean {
   if (!formData) return false;
-  const name = typeof formData.fullName === 'string' ? formData.fullName.trim() : '';
-  const recent = typeof formData.recentActivity === 'string' ? formData.recentActivity.trim() : '';
-  const history =
-    typeof formData.trainingHistory === 'string' ? formData.trainingHistory.trim() : '';
-  const activity =
-    typeof formData.activityLevel === 'string' ? formData.activityLevel.trim() : '';
-  return Boolean(name && recent && history && activity);
+  return !missingBaselineSections(formData).some(section => ['basic-client-info', 'lifestyle-overview'].includes(section.id));
 }
 
 export function hasRemotePostureCaptureComplete(formData: FormData | null | undefined): boolean {

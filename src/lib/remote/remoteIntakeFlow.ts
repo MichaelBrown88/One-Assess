@@ -87,6 +87,15 @@ const LIFESTYLE_SELECTS: {
   optional?: boolean;
 }[] = [
   { field: 'activityLevel', label: P1.activityLevel, options: selectOptions(ASSESSMENT_OPTIONS.activityLevel) },
+  { field: 'sleepHours', label: P1.sleepHours, options: selectOptions(ASSESSMENT_OPTIONS.sleepHours) },
+  { field: 'sleepRegularity', label: P1.sleepRegularity, options: selectOptions(ASSESSMENT_OPTIONS.sleepRegularity) },
+  { field: 'stressFrequency', label: P1.stressFrequency, options: selectOptions(ASSESSMENT_OPTIONS.stressFrequency) },
+  { field: 'stressCoping', label: P1.stressCoping, options: selectOptions(ASSESSMENT_OPTIONS.stressCoping) },
+  { field: 'exerciseMinutesWeek', label: P1.exerciseMinutesWeek, options: selectOptions(ASSESSMENT_OPTIONS.exerciseMinutesWeek) },
+  { field: 'strengthDaysWeek', label: P1.strengthDaysWeek, options: selectOptions(ASSESSMENT_OPTIONS.strengthDaysWeek) },
+  { field: 'proteinMeals', label: P1.proteinMeals, options: selectOptions(ASSESSMENT_OPTIONS.proteinMeals) },
+  { field: 'fruitVegPortions', label: P1.fruitVegPortions, options: selectOptions(ASSESSMENT_OPTIONS.fruitVegPortions) },
+  { field: 'takeawaysWeek', label: P1.takeawaysWeek, options: selectOptions(ASSESSMENT_OPTIONS.takeawaysWeek) },
   { field: 'sleepArchetype', label: P1.sleepArchetype, options: selectOptions(ASSESSMENT_OPTIONS.sleepArchetype) },
   { field: 'stressLevel', label: P1.stressLevel, options: selectOptions(ASSESSMENT_OPTIONS.stressLevel) },
   { field: 'nutritionHabits', label: P1.nutritionHabits, options: selectOptions(ASSESSMENT_OPTIONS.nutritionHabits) },
@@ -228,6 +237,7 @@ export function buildRemoteIntakeScreens(params: {
 
   for (const row of LIFESTYLE_SELECTS) {
     if (!params.allowedKeys.has(row.field)) continue;
+    if (params.allowedKeys.has('sleepHours') && ['sleepArchetype', 'stressLevel', 'nutritionHabits', 'hydrationHabits'].includes(row.field)) continue;
     screens.push({
       id: `lifestyle_${row.field}`,
       kind: 'select',
@@ -238,6 +248,7 @@ export function buildRemoteIntakeScreens(params: {
       optional: row.optional,
     });
   }
+
 
   if (params.allowedKeys.has('caffeineCupsPerDay')) {
     screens.push({
@@ -251,6 +262,10 @@ export function buildRemoteIntakeScreens(params: {
     });
   }
 
+
+  if (params.allowedKeys.has('lastCaffeineIntake')) {
+    screens.push({ id: 'lastCaffeineIntake', kind: 'text', field: 'lastCaffeineIntake', label: P1.lastCaffeineIntake, inputType: 'time', domain: 'lifestyle' });
+  }
 
   if (params.allowedKeys.has('clientGoals')) {
     screens.push({
@@ -302,6 +317,7 @@ export function isScreenValid(
     case 'dateOfBirth':
       return basic.dateOfBirth.trim().length > 0;
     case 'text': {
+      if (screen.field === 'lastCaffeineIntake' && !(Number(lifestyle.caffeineCupsPerDay) > 0)) return true;
       const v =
         screen.domain === 'basic'
           ? basic[screen.field as keyof BasicInfoState]

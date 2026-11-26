@@ -1,3 +1,4 @@
+import { completeBaseline } from '@/test/fixtures/completeBaseline';
 import { describe, it, expect } from 'vitest';
 import type { FormData } from '@/contexts/FormContext';
 import {
@@ -8,12 +9,7 @@ import {
   sortStudioPhaseIds,
 } from './studioSessionSteps';
 
-const completeIntake = {
-  fullName: 'Jane Doe',
-  recentActivity: 'currently-training',
-  trainingHistory: 'beginner',
-  activityLevel: 'moderate',
-} as FormData;
+const completeIntake = completeBaseline();
 
 describe('studioSessionSteps', () => {
   it('sortStudioPhaseIds orders studio baseline phases (fitness first, private room last)', () => {

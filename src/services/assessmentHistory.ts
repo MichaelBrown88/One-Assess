@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   doc,
   getDoc,
@@ -483,59 +484,9 @@ export async function deleteSnapshot(
   snapshotId: string,
   organizationId: string,
 ): Promise<{ success: boolean; message: string }> {
-  const db = getDb();
-  const snapshots = await getSnapshots(coachUid, clientName, 100, organizationId);
-  const toDelete = snapshots.find((s) => s.id === snapshotId);
-  if (!toDelete) {
-    return { success: false, message: "Snapshot not found" };
-  }
-
-  const clientSlug = slug(clientName);
-  const snapRef = doc(db, ORGANIZATION.clients.sessions.doc(organizationId, clientSlug, snapshotId));
-  await deleteDoc(snapRef);
-
-  const wasLatest = snapshots[0]?.id === snapshotId;
-
-  if (wasLatest && snapshots.length > 1) {
-    const prev = snapshots[1];
-    await restoreFromSnapshot(coachUid, clientName, prev.id, organizationId);
-    const { summarizeScores } = await import("@/lib/scoring");
-    const summary = summarizeScores(prev.formData);
-    const clientRef = getClientProfileDoc(organizationId, clientName);
-    const prevScore = snapshots.length > 2 ? snapshots[2].overallScore : 0;
-    await updateDoc(clientRef, {
-      formData: prev.formData,
-      overallScore: prev.overallScore,
-      scoresSummary: summary,
-      previousScore: prevScore,
-      trend: prev.overallScore - prevScore,
-    });
-    return { success: true, message: "Snapshot deleted; current restored from previous." };
-  }
-
-  if (wasLatest && snapshots.length === 1) {
-    const currentRef = getCurrentStateDoc(organizationId, clientName);
-    const emptyFormData = {} as FormData;
-    await setDoc(
-      currentRef,
-      { formData: emptyFormData, overallScore: 0, lastUpdated: serverTimestamp(), organizationId },
-      { merge: true },
-    );
-    const clientRef = getClientProfileDoc(organizationId, clientName);
-    const clientSnap = await getDoc(clientRef);
-    if (clientSnap.exists()) {
-      await updateDoc(clientRef, {
-        formData: emptyFormData,
-        overallScore: 0,
-        scoresSummary: { overall: 0, categories: [] },
-        previousScore: 0,
-        trend: 0,
-      });
-    }
-    return { success: true, message: "Snapshot deleted; current cleared." };
-  }
-
-  return { success: true, message: "Snapshot deleted." };
+  const remove = httpsCallable<{ organizationId: string; clientId: string; snapshotId: string }, { success: boolean; message: string }>(getFunctions(), 'deleteCoachClientData');
+  const result = await remove({ organizationId, clientId: slug(clientName), snapshotId });
+  return result.data;
 }
 
 /**

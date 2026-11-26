@@ -1,3 +1,4 @@
+import { completeBaseline } from '@/test/fixtures/completeBaseline';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,7 +50,7 @@ import { useAssessmentSave } from './useAssessmentSave';
 
 const SESSION = '2026-11-01T10-00-00-000Z';
 const formData = {
-  ...createEmptyAssessmentForm(),
+  ...completeBaseline(),
   fullName: 'Jane Doe',
   activityLevel: 'moderately-active',
 } as FormData;

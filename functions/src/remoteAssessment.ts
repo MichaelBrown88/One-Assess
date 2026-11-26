@@ -19,6 +19,7 @@ const BASIC_INFO_KEYS = [
 ] as const;
 
 const LIFESTYLE_KEYS = new Set([
+  'sleepHours', 'sleepRegularity', 'stressFrequency', 'stressCoping', 'exerciseMinutesWeek', 'strengthDaysWeek', 'proteinMeals', 'fruitVegPortions', 'takeawaysWeek', 'lastCaffeineIntake',
   'activityLevel', 'sleepArchetype', 'stressLevel', 'nutritionHabits',
   'hydrationHabits', 'stepsPerDay', 'sedentaryHours', 'caffeineCupsPerDay',
 ]);
@@ -27,7 +28,6 @@ const LIFESTYLE_KEYS = new Set([
 const PRE_ASSESSMENT_GOAL_KEYS = new Set([
   'clientGoals',
   'trainingFrequency',
-  'goalDeadline',
 ]);
 
 const BODY_COMP_KEYS = [

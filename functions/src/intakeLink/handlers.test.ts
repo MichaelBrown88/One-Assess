@@ -158,11 +158,11 @@ describe('convertIntake', () => {
   const run = (store: IntakeLinkStore, uid: string, choice?: unknown) =>
     convertIntake(store, { uid, intakeId: 'i1', choice, now: NOW });
 
-  it('creates a client and a draft on the first physical step when nobody matches', async () => {
+  it('creates a client and opens missing lifestyle questions when nobody matches', async () => {
     const { store, state } = memoryStore({ intakes: { i1: newIntake() } });
     expect(await run(store, 'coach')).toEqual({ ok: true, kind: 'converted', clientSlug: 'test-client', created: true });
     expect(state.clients['test-client']).toMatchObject({ assignedCoachUid: 'coach', email: 'client@example.test' });
-    expect(state.drafts['test-client']).toMatchObject({ activePhaseId: 'P3', externalImport: { provider: 'intake-link' } });
+    expect(state.drafts['test-client']).toMatchObject({ activePhaseId: 'P1', externalImport: { provider: 'intake-link' } });
     expect((state.drafts['test-client'] as { formData: Record<string, unknown> }).formData.parqSource).toBe('client');
     expect(state.intakes.i1.status).toBe('converted');
   });

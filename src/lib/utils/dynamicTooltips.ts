@@ -24,10 +24,6 @@ export function getDynamicTooltip(
   const fieldId = field.id as string;
   let tooltip = baseTooltip || field.tooltip || '';
   
-  // Get selected test type if available
-  const selectedTest = formData?.cardioTestSelected?.toLowerCase() || '';
-  const isTreadmillTest = selectedTest === 'treadmill';
-  const isStepTest = selectedTest === 'ymca-step';
 
   // ========================================
   // HEART RATE SENSOR INSTRUCTIONS
@@ -111,23 +107,8 @@ export function getDynamicTooltip(
     }
   }
 
-  if (fieldId === 'cardioPeakHr') {
-    const hasCardioEquipment = equipmentConfig.cardioEquipment?.enabled === true;
-    if (isTreadmillTest || (hasCardioEquipment && !isStepTest)) {
-      tooltip += '\n\n⏱️ Treadmill Test:\n• Record HR right before stopping the treadmill at exactly the 3-minute mark.\n• This is the peak heart rate achieved during the test.\n• If using a HR sensor, note the reading from the display.';
-    } else if (isStepTest || !hasCardioEquipment) {
-      tooltip += '\n\n⏱️ Step Test:\n• Record HR immediately after the client steps down from the platform at the 3-minute mark.\n• This is the peak heart rate achieved during the stepping protocol.\n• Have the client sit down immediately after stepping down to prepare for recovery measurement.';
-    }
-  }
-  
-  if (fieldId === 'cardioPost1MinHr') {
-    const hasCardioEquipment = equipmentConfig.cardioEquipment?.enabled === true;
-    if (isTreadmillTest || (hasCardioEquipment && !isStepTest)) {
-      tooltip += '\n\n⏱️ Treadmill Test Recovery:\n• After stopping at 3:00, have the client sit down immediately.\n• Wait exactly 60 seconds from when the treadmill stopped.\n• Record HR at the 1-minute mark - timing is critical for accurate recovery assessment.';
-    } else if (isStepTest || !hasCardioEquipment) {
-      tooltip += '\n\n⏱️ Step Test Recovery:\n• After stepping down at 3:00, have the client sit down immediately.\n• Wait exactly 60 seconds from when they stepped down.\n• Record HR at the 1-minute mark - timing is critical for accurate recovery assessment.';
-    }
-  }
+  // Peak and recovery HR use the one incline-walk protocol described in the
+  // base tooltip; no treadmill/step-test variants (they contradicted it).
 
   // ========================================
   // BODY MEASUREMENT INSTRUCTIONS

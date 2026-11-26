@@ -157,6 +157,9 @@ export interface FormData {
   ohsSquatDepth: string;
   ohsHipShift: string;
   ohsFeetPosition: string;
+  ohsHeelsLift?: string;
+  kneeToWallLeftCm?: string;
+  kneeToWallRightCm?: string;
   ohsFootKneeBehavior: string;
   ohsHasPain: string;
   ohsPainLevel: string;
@@ -196,6 +199,7 @@ export interface FormData {
 
   /** Phase 4 — Cardiovascular Fitness */
   cardioTestType: string;
+  cardioProtocolVersion?: 'incline-walk-4min-v1';
   cardioTestSelected: string;
   cardioRestingHr: string;
   cardioPeakHr: string;
@@ -225,6 +229,21 @@ export interface FormData {
   pushupMaxReps: string;
   squatsOneMinuteReps: string;
   pushupsOneMinuteReps: string;
+  /** 'full' (toes) or 'knees'. Empty on older assessments: men full, women knees. */
+  pushupType: string;
+  /** Lifestyle habit questions (Nov 2026); see src/lib/scoring/lifestyleHabits.ts. */
+  sleepHours: string;
+  sleepRegularity: string;
+  stressFrequency: string;
+  stressCoping: string;
+  exerciseMinutesWeek: string;
+  strengthDaysWeek: string;
+  proteinMeals: string;
+  fruitVegPortions: string;
+  takeawaysWeek: string;
+  /** 30-second single-leg sit-to-stand, reps per leg (replaces one-minute squats). */
+  singleLegStandLeftReps: string;
+  singleLegStandRightReps: string;
   gripTestMethod: string; // 'deadhang' | 'pinch' - selection when equipment is disabled
   gripLeftKg: string;
   gripRightKg: string;
@@ -370,7 +389,7 @@ export const initialFormData: FormData = {
   ohsHipShift: '',
   ohsFeetPosition: '',
   ohsFootKneeBehavior: '',
-  ohsHasPain: 'no',
+  ohsHasPain: '',
   ohsPainLevel: '0',
   ohsNotes: '',
   modifiedThomasResult: '',
@@ -378,7 +397,7 @@ export const initialFormData: FormData = {
   hingeBalance: '',
   hingeDepth: '',
   hingeBackRounding: '',
-  hingeHasPain: 'no',
+  hingeHasPain: '',
   hingePainLevel: '0',
   hingeNotes: '',
   lungeLeftKneeAlignment: '',
@@ -387,7 +406,7 @@ export const initialFormData: FormData = {
   lungeRightKneeAlignment: '',
   lungeRightBalance: '',
   lungeRightTorso: '',
-  lungeHasPain: 'no',
+  lungeHasPain: '',
   lungePainLevel: '0',
   lungeTestNotes: '',
   shoulderMobilityReach: '',
@@ -431,6 +450,18 @@ export const initialFormData: FormData = {
   pushupMaxReps: '',
   squatsOneMinuteReps: '',
   pushupsOneMinuteReps: '',
+  pushupType: '',
+  sleepHours: '',
+  sleepRegularity: '',
+  stressFrequency: '',
+  stressCoping: '',
+  exerciseMinutesWeek: '',
+  strengthDaysWeek: '',
+  proteinMeals: '',
+  fruitVegPortions: '',
+  takeawaysWeek: '',
+  singleLegStandLeftReps: '',
+  singleLegStandRightReps: '',
   gripTestMethod: '',
   gripLeftKg: '',
   gripRightKg: '',

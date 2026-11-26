@@ -1,6 +1,6 @@
 /**
  * Age/sex reference bands for the studio cardio screen:
- * seated resting HR, peak HR on the standard 3-min walk (speed 5 / incline 10),
+ * seated resting HR, peak HR on the standard 4-min walk (5 km/h / incline 10),
  * and 1-minute heart-rate recovery drop.
  *
  * Resting HR: collapsed YMCA-style categories (lower is better).

@@ -126,8 +126,8 @@ const STATUS_PILL: Record<ScheduleStatus | 'no-data', { label: string; dot: stri
   'no-data': { label: 'No data', dot: 'bg-muted-foreground/40' },
 };
 
-const ClientStatusPill: React.FC<{ status?: ScheduleStatus }> = React.memo(({ status }) => {
-  const config = STATUS_PILL[status ?? 'no-data'];
+const ClientStatusPill: React.FC<{ status?: ScheduleStatus; scheduleState?: 'loading' | 'ready' | 'error' }> = React.memo(({ status, scheduleState }) => {
+  const config = scheduleState === 'loading' ? { label: 'Checking…', dot: 'bg-muted-foreground/40' } : scheduleState === 'error' ? { label: 'Status unavailable', dot: 'bg-muted-foreground/40' } : STATUS_PILL[status ?? 'no-data'];
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground-secondary">
       <span className={cn('h-1.5 w-1.5 rounded-full', config.dot)} aria-hidden />
@@ -335,7 +335,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
 
       {/* Desktop / Tablet table — edge-to-edge inside the outer workspace
           panel; outer panel provides the card surface + border. */}
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto min-[900px]:block">
         <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
           <thead className="bg-muted/40">
             <tr>
@@ -471,7 +471,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                       <div className="flex items-center gap-2.5">
                         {(() => {
                           const bs = pillarRadarScoresForClient(client);
-                          return bs ? (
+                          return bs && client.latestDate ? (
                             <MiniPillarRadar scores={bs} size={36} overallScore={client.latestScore} />
                           ) : null;
                         })()}
@@ -479,7 +479,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                       </div>
                     </td>
                     <td className="hidden px-3 py-3 sm:px-4 md:table-cell md:px-6">
-                      {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} />}
+                      {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} scheduleState={client.scheduleState} />}
                     </td>
                     <td className="hidden px-3 py-3 sm:px-4 lg:table-cell lg:px-6">
                       <TrendIndicator trend={client.scoreChange} />
@@ -505,7 +505,7 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
       </div>
 
       {/* Mobile card layout — inset from the outer panel edges */}
-      <div className="space-y-2 px-3 pb-3 sm:hidden">
+      <div className="space-y-2 px-3 pb-3 min-[900px]:hidden">
         {loadingData ? (
           <div className="border border-border bg-card p-6">
             <div className="flex flex-col items-center gap-3">
@@ -599,12 +599,12 @@ export const UnifiedClientTable: React.FC<UnifiedClientTableProps> = ({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {(() => {
                     const bs = pillarRadarScoresForClient(client);
-                    return bs ? (
+                    return bs && client.latestDate ? (
                       <MiniPillarRadar scores={bs} size={32} overallScore={client.latestScore} />
                     ) : null;
                   })()}
                   <AxisScorePill score={client.latestScore} />
-                  {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} />}
+                  {client.hasAssessmentDraft ? <span className="rounded-full bg-score-amber-muted px-3 py-1 text-xs font-medium text-score-amber-fg">{ASSESSMENT_DRAFT_COPY.IN_PROGRESS}</span> : <ClientStatusPill status={attentionMap?.get(client.name)} scheduleState={client.scheduleState} />}
                   <TrendIndicator trend={client.scoreChange} />
                   {client.remoteIntakePending && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">

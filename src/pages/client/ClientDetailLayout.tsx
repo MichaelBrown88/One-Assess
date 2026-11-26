@@ -1,3 +1,4 @@
+import { ClientTrashDialog } from '@/components/client/ClientTrashDialog';
 /**
  * Client detail layout: shared data, breadcrumb, tabs (Overview | Client Report | Timeline | Settings), Outlet, and dialogs.
  */
@@ -64,6 +65,7 @@ export default function ClientDetailLayout() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [trashClientOpen, setTrashClientOpen] = useState(false);
   const [deleteClientOpen, setDeleteClientOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -88,6 +90,10 @@ export default function ClientDetailLayout() {
     setDeleteSnapshotDialog,
     handleDeleteAssessment,
     handleDeleteSnapshot,
+    deletingSnapshot,
+    deleteSnapshotError,
+    handleTrashClient,
+    handleRestoreClient,
     handleTransferClient,
     handlePauseClient,
     handleUnpauseClient,
@@ -98,6 +104,9 @@ export default function ClientDetailLayout() {
 
   useResumeFromUrl(clientName, !loading && Boolean(user));
 
+  const isDeleted = profile?.status === 'deleted';
+  const deletingAssessment = clientData.snapshots.find(snapshot => snapshot.id === deleteSnapshotDialog?.snapshotId);
+  const deletingLatest = clientData.snapshots[0]?.id === deleteSnapshotDialog?.snapshotId;
   const isPaused = profile?.status === 'paused';
   const isArchived = profile?.status === 'archived';
 
@@ -273,18 +282,23 @@ export default function ClientDetailLayout() {
               {isArchived ? 'Reactivate client' : 'Archive client'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
+            <DropdownMenuItem onClick={() => setTrashClientOpen(true)} className="py-3 text-sm font-medium">
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isDeleted ? 'Restore from trash' : 'Move to trash'}
+            </DropdownMenuItem>
+            {isDeleted && <DropdownMenuItem
               onClick={() => { setDeleteConfirmName(''); setDeleteClientOpen(true); }}
               className="py-3 text-sm font-medium text-destructive focus:text-destructive focus:bg-destructive/10"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete permanently
-            </DropdownMenuItem>
+            </DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
         </div>
       </div>
 
+      <ClientTrashDialog open={trashClientOpen} onOpenChange={setTrashClientOpen} clientName={displayClientName} restore={isDeleted} onConfirm={isDeleted ? handleRestoreClient : handleTrashClient} />
       <Outlet context={clientData satisfies ClientDetailOutletContext} />
 
       <Dialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
@@ -304,17 +318,19 @@ export default function ClientDetailLayout() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteSnapshotDialog} onOpenChange={(open) => !open && setDeleteSnapshotDialog(null)}>
+      <Dialog open={!!deleteSnapshotDialog} onOpenChange={(open) => !open && !deletingSnapshot && setDeleteSnapshotDialog(null)}>
         <DialogContent className="max-w-[90vw] rounded-lg sm:max-w-[425px]">
           <DialogHeader className="text-left">
-            <DialogTitle className="text-xl font-bold tracking-tight">Remove snapshot</DialogTitle>
+            <DialogTitle className="text-xl font-bold tracking-tight">Delete assessment?</DialogTitle>
             <DialogDescription className="text-sm font-medium text-muted-foreground pt-2">
-              Remove this assessment snapshot from history? If it was the latest, current will be restored from the previous snapshot.
+              Delete the assessment from {deletingAssessment?.timestamp.toDate().toLocaleDateString()} for {displayClientName}? This cannot be undone. The client profile will stay.
+              {deletingLatest ? clientData.snapshots.length === 1 ? ' This is their only assessment. The current result and its report link will be removed.' : ' The previous assessment will become current. Share it again to create a new report link.' : ' The current report will stay unchanged.'}
             </DialogDescription>
           </DialogHeader>
+          {deleteSnapshotError && <p role="alert" className="text-sm text-destructive">{deleteSnapshotError}</p>}
           <DialogFooter className="flex-row gap-2 mt-6">
-            <Button variant="outline" onClick={() => setDeleteSnapshotDialog(null)} className="h-11 flex-1 rounded-lg font-bold">Cancel</Button>
-            <Button variant="destructive" onClick={() => void handleDeleteSnapshot()} className="h-11 flex-1 rounded-lg font-bold">Remove</Button>
+            <Button variant="outline" disabled={deletingSnapshot} onClick={() => setDeleteSnapshotDialog(null)} className="h-11 flex-1 rounded-lg font-bold">Cancel</Button>
+            <Button variant="destructive" disabled={deletingSnapshot} onClick={() => void handleDeleteSnapshot()} className="h-11 flex-1 rounded-lg font-bold">{deletingSnapshot ? 'Deleting…' : 'Delete assessment'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

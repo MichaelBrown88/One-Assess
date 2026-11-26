@@ -1,3 +1,4 @@
+import { numericIssue } from '@/lib/assessment/numericValidation';
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useFormContext, type FormData } from '@/contexts/FormContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -108,6 +109,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
 
   const currentStep = steps[activeFieldIdx];
   const isLastField = activeFieldIdx === steps.length - 1;
+  const invalidStep = currentStep?.some(field => Boolean(numericIssue(field.id, formData[field.id]))) ?? false;
 
   // Baseline sessions prefill name/email from the New Client modal — skip the
   // leading already-answered steps instead of re-asking. Runs once per section
@@ -146,6 +148,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
   );
 
   const handleNext = () => {
+    if (invalidStep) return;
     if (isLastField) {
       onComplete();
     } else {
@@ -161,6 +164,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
   const isAutoAdvanceStep =
     !!currentStep &&
     currentStep.length === 1 &&
+    currentStep[0].id !== 'postureInputMode' &&
     (currentStep[0].type === 'select' || currentStep[0].type === 'choice') &&
     !isLastField;
   const stepKeyRef = useRef('');
@@ -329,7 +333,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
             <div key={field.id} className="space-y-3">
               {/* Show per-field side badge only when NOT using a group-level side indicator */}
               {field.side && !sharedSide && (
-                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${field.side === 'left' ? 'text-score-green-fg' : 'text-primary'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${field.side === 'left' ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                   {field.side} Side
                 </span>
               )}
@@ -363,7 +367,7 @@ export const SingleFieldFlow: React.FC<SingleFieldFlowProps> = ({
             )}
             <Button
               onClick={handleNext}
-              disabled={postureMissingPhotos || (!hasValue && !isSkippableStep && currentStep.some(f => f.required))}
+              disabled={invalidStep || postureMissingPhotos || (!hasValue && !isSkippableStep && currentStep.some(f => f.required))}
               className={`h-12 px-8 rounded-lg font-bold transition-all ${
                 !postureMissingPhotos && (hasValue || isSkippableStep || !currentStep.some(f => f.required))
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'

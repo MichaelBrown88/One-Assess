@@ -1,3 +1,4 @@
+import { missingBaselineSections } from '@/lib/assessment/baselineReadiness';
 /**
  * Hook for managing assessment navigation state and logic
  * Extracted from MultiStepForm to improve performance and separation of concerns
@@ -33,6 +34,7 @@ interface UseAssessmentNavigationProps {
 }
 
 export function useAssessmentNavigation({ formData, orgSettings }: UseAssessmentNavigationProps) {
+  const [remoteIntakeReadyAtEntry] = useState(() => !missingBaselineSections(formData).some(section => ['basic-client-info', 'lifestyle-overview'].includes(section.id)));
   // Partial assessment mode state (read from PARTIAL_ASSESSMENT or EDIT_ASSESSMENT for edit flow)
   const [isPartialAssessment, setIsPartialAssessment] = useState(() => {
     try {
@@ -135,7 +137,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
     ) {
       const filteredIds = filterPhasesForStudioBaseline(
         planIds,
-        hasRemoteIntakeResumeSession(),
+        hasRemoteIntakeResumeSession() && remoteIntakeReadyAtEntry,
       );
       const allowed = new Set(filteredIds);
       phases = phases
@@ -213,7 +215,7 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
         };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null);
-  }, [formData, isPartialAssessment, partialCategory, orgSettings?.modules]);
+  }, [formData, isPartialAssessment, partialCategory, orgSettings?.modules, remoteIntakeReadyAtEntry]);
 
   const activePhaseIdx = resolveDraftPhaseIndex(visiblePhases.map((phase) => phase.id), position.id, position.index);
   const setActivePhaseIdx = useCallback((next: number | ((previous: number) => number)) => {
@@ -269,7 +271,8 @@ export function useAssessmentNavigation({ formData, orgSettings }: UseAssessment
       });
     }
 
-    return visibleFields.every(field => {
+    // Skippable fields (e.g. push-up type) never block completion.
+    return visibleFields.filter(f => !(f as { skippable?: boolean }).skippable).every(field => {
       const value = formData[field.id as keyof FormData];
       if (Array.isArray(value)) return value.length > 0;
       return value !== undefined && value !== null && value !== '';

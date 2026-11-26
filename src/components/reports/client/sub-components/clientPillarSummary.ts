@@ -17,6 +17,7 @@ const NUDGE_DETAIL = 50;
 function measuredDetails(category: ScoreCategory): ScoreDetail[] {
   return (category.details ?? []).filter((d) => {
     if (!PILLAR_DETAIL_COPY[d.id]) return false;
+    if (d.id === 'mobility' && String(d.value).includes('Inferred')) return false;
     if (!Number.isFinite(d.score) || d.score <= 0) return false;
     const value = String(d.value ?? '').trim();
     return value !== '' && value !== '-';
@@ -43,10 +44,11 @@ export function buildClientPillarSummary(
   const trend = improved ? PILLAR_SUMMARY_COPY.improved : declined ? PILLAR_SUMMARY_COPY.declined : '';
 
   const details = measuredDetails(category);
-  const best = [...details].sort((a, b) => b.score - a.score)[0];
+  const belowBodyFatReference = details.find(detail => detail.id === 'bf' && detail.notes === 'below-reference');
+  const best = [...details].filter(detail => detail !== belowBodyFatReference).sort((a, b) => b.score - a.score)[0];
   const weakest = [...details].sort((a, b) => a.score - b.score)[0];
   const strongLine = best && best.score >= STRONG_DETAIL ? PILLAR_DETAIL_COPY[best.id].strong : '';
-  const focusLine =
+  const focusLine = belowBodyFatReference ? 'Body fat is below this reference range. Focus on adequate fuel and review the reading with your coach before aiming to lose more fat.' :
     weakest && weakest.score < STRONG_DETAIL
       ? weakest.score < NUDGE_DETAIL
         ? PILLAR_DETAIL_COPY[weakest.id].focus

@@ -19,7 +19,7 @@ export const PHASE_TITLES = {
   P0: 'Basic Client Info',
   P1: 'Lifestyle Factors',
   P2: 'Body Composition',
-  P3: 'Metabolic Fitness',
+  P3: 'Fitness',
   P4: 'Movement Quality',
   P5: 'Functional Strength',
   P6: 'Goals & Planning',
@@ -27,7 +27,7 @@ export const PHASE_TITLES = {
 } as const;
 
 export const PHASE_SUMMARIES = {
-  P0: 'Collect basic client information and health screening.',
+  P0: 'Confirm client details before the assessment.',
   P1: 'Daily habits that impact training and recovery.',
   P2: 'Analyzer, tape measurements, and posture photos.',
   P3: 'Resting heart rate and cardio fitness assessment.',
@@ -64,6 +64,15 @@ export const ASSESSMENT_LABELS = {
     parqQuestionnaire: 'PAR-Q Questionnaire',
   },
   P1: {
+    sleepHours: 'How many hours do you usually sleep a night?',
+    sleepRegularity: 'Do you go to bed and get up at about the same times?',
+    stressFrequency: 'In the last month, how often have you felt stressed or overwhelmed?',
+    stressCoping: 'How well are you coping with it?',
+    exerciseMinutesWeek: 'Minutes of exercise a week (brisk walking or harder)',
+    strengthDaysWeek: 'Days a week you do strength training',
+    proteinMeals: 'How many of your meals include a good source of protein?',
+    fruitVegPortions: 'Portions of fruit and veg on a typical day',
+    takeawaysWeek: 'Takeaway, fast-food or ready meals a week',
     activityLevel: 'Activity Level',
     stepsPerDay: 'Average steps per day',
     sedentaryHours: 'Sedentary hours',
@@ -127,6 +136,7 @@ export const ASSESSMENT_LABELS = {
     ohsHipShift: 'Hip shift',
     ohsKneeAlignment: 'Knee alignment',
     ohsFeetPosition: 'Foot behaviour',
+    ohsHeelsLift: 'Heel contact',
     ohsHasPain: 'Pain or Discomfort?',
     hingeDepth: 'Depth',
     hingeBackRounding: 'Back rounding',
@@ -145,8 +155,11 @@ export const ASSESSMENT_LABELS = {
   },
   P5: {
     squatsOneMinuteReps: 'Squats in one minute',
+    singleLegStandLeftReps: 'Left leg (reps in 30 s)',
+    singleLegStandRightReps: 'Right leg (reps in 30 s)',
     pushupsOneMinuteReps: 'Pushups in one minute',
-    plankDurationSeconds: 'Plank duration (seconds)',
+    pushupType: 'Push-up type',
+    plankDurationSeconds: 'Plank duration (seconds, stop at 180)',
     gripTestMethod: 'Select grip test method',
     gripLeftKg: 'Left hand (kg)',
     gripRightKg: 'Right hand (kg)',
@@ -180,6 +193,9 @@ export const ASSESSMENT_TOOLTIPS = {
     parqQuestionnaire: 'Instructions:\n1. Answer each question carefully.\n2. Any "YES" answer flags the client for medical clearance — you can continue the assessment, but hold off on intense testing until cleared.',
   },
   P1: {
+    exerciseMinutesWeek: 'Anything that gets them breathing harder: brisk walking, cycling, classes, sport, gym cardio or weights.',
+    proteinMeals: 'Good sources: meat, fish, eggs, Greek yoghurt, tofu, beans and lentils, protein shakes.',
+    fruitVegPortions: 'A portion is roughly a handful. Juice counts once at most.',
     activityLevel: 'Instructions:\n1. Consider daily movement outside of the gym (job, chores).\n2. Sedentary = Desk job, minimal walking.\n3. Active = Standing job or 10k+ steps daily.',
     stepsPerDay: 'Typical daily steps over the last 1–2 weeks (watch/phone estimate is fine).',
     sedentaryHours: 'Approximate hours spent sitting or inactive on a typical day.',
@@ -227,8 +243,8 @@ export const ASSESSMENT_TOOLTIPS = {
   P3: {
     cardioTestSelected: 'Instructions:\n1. Choose the YMCA Step Test for a portable option.\n2. Choose the Treadmill Test for a more controlled environment.',
     cardioRestingHr: 'Instructions:\n1. Client should sit quietly for 5 minutes.\n2. Measure pulse for 60s or use a heart rate monitor.\n3. Record before starting the test.',
-    cardioPeakHr: 'Record the highest heart rate reached just after completing the test (at the 3-minute mark).\n\nStep Test: Record HR immediately after stepping down.\nTreadmill: Record HR right before stopping.',
-    cardioPost1MinHr: 'Instructions:\n1. Stop the test at exactly 3:00.\n2. Have client sit down immediately.\n3. Wait exactly 60 seconds.\n4. Record heart rate at the 1-minute mark.\n\nBoth tests use the same recovery measurement.',
+    cardioPeakHr: 'Record the heart rate at the end of the 4-minute incline walk (5 km/h, incline 10), just before the client stops.',
+    cardioPost1MinHr: 'Instructions:\n1. Stop the walk at exactly 4:00.\n2. Have the client sit down straight away.\n3. Wait exactly 60 seconds.\n4. Record the heart rate at the 1-minute mark.',
   },
   P4: {
     postureInputMode: 'Instructions:\n1. Choose "Photo Capture" to shoot the four views with this device (or upload photos) — analysis runs automatically.\n2. Choose "Manual" to record observations directly.',
@@ -261,8 +277,11 @@ export const ASSESSMENT_TOOLTIPS = {
   },
   P5: {
     squatsOneMinuteReps: 'Instructions:\n1. Set timer for 60 seconds.\n2. Count only reps with full range of motion (thighs parallel to floor).\n3. Stop immediately when time expires.',
-    pushupsOneMinuteReps: 'Instructions:\n1. Maintain a rigid plank position throughout.\n2. Chest must come within 2 inches of the floor.\n3. Arms must reach full lockout at the top.',
-    plankDurationSeconds: 'Instructions:\n1. Hold a forearm plank with a flat back and active core.\n2. Record the total time until form breaks or knees touch.',
+    singleLegStandLeftReps: 'Single-leg sit-to-stand, 30 seconds per leg:\n1. Box or bench at knee height, arms crossed on the chest.\n2. Stand on one foot, the other just off the floor.\n3. Stand up fully and sit back until they touch the box, as many times as they can in 30 seconds.\n4. No hands, and the other foot stays up. A rep with either does not count.\n5. Rest about 30 seconds, then the other leg. Start with the leg you think is weaker.\nCan\'t do one rep? Enter 0.',
+    singleLegStandRightReps: 'Same as the left leg. Count only full, controlled reps with no hands and the other foot off the floor. Enter 0 if they could not do one. Scoring uses a provisional coaching reference, not published population norms.',
+    pushupsOneMinuteReps: 'Instructions:\n1. Men: full push-ups on the toes. Women: push-ups on the knees. The scoring norms use these.\n2. Keep a rigid line from head to knees or heels.\n3. Chest comes within 5 cm of the floor, arms lock out at the top.',
+    pushupType: 'Tap the type the client did. Men on the toes and women on the knees are scored against published norms; other combinations are recorded but not scored.',
+    plankDurationSeconds: 'Instructions:\n1. Forearm plank: elbows under the shoulders, body in a straight line on forearms and toes.\n2. Start the clock once they are in position.\n3. Stop when form breaks and two cues in a row do not fix it, they drop a knee, or they stop.\n4. Stop at 3:00 (180 seconds) if they are still going.',
     gripTestMethod: 'Choose the test method based on your client\'s needs and available equipment.',
     gripLeftKg: 'Instructions:\n1. Squeeze the dynamometer with maximum effort.\n2. Keep arm at your side, not touching your body.\n3. Record the best of 3 attempts.',
     gripRightKg: 'Instructions:\n1. Squeeze the dynamometer with maximum effort.\n2. Keep arm at your side, not touching your body.\n3. Record the best of 3 attempts.',
@@ -323,6 +342,8 @@ export const ASSESSMENT_PLACEHOLDERS = {
   },
   P5: {
     squatsOneMinuteReps: 'e.g., 40',
+    singleLegStandLeftReps: 'e.g., 12',
+    singleLegStandRightReps: 'e.g., 12',
     pushupsOneMinuteReps: 'e.g., 25',
     plankDurationSeconds: 'e.g., 60',
     gripLeftKg: 'e.g., 24',
@@ -349,6 +370,7 @@ export const ASSESSMENT_OPTIONS = {
   recentActivity: [
     { value: 'currently-training', label: 'Currently Training' },
     { value: 'stopped-3-months', label: 'Stopped < 3 months ago' },
+    { value: 'stopped-3-to-6-months', label: 'Stopped 3–6 months ago' },
     { value: 'stopped-6-months', label: 'Stopped > 6 months ago' },
   ],
   primaryTrainingStyles: [
@@ -423,6 +445,61 @@ export const ASSESSMENT_OPTIONS = {
     { value: 'very-active', label: 'Very Active' },
     { value: 'extremely-active', label: 'Extremely Active' },
   ],
+  sleepHours: [
+    { value: 'under-5', label: 'Under 5 hours' },
+    { value: '5-6', label: '5 to 6 hours' },
+    { value: '6-7', label: '6 to 7 hours' },
+    { value: '7-9', label: '7 to 9 hours' },
+    { value: 'over-9', label: 'Over 9 hours' },
+  ],
+  sleepRegularity: [
+    { value: 'regular', label: 'Yes, most nights' },
+    { value: 'varies-1h', label: 'Varies by about an hour' },
+    { value: 'varies-more', label: 'Varies a lot' },
+  ],
+  stressFrequency: [
+    { value: 'rarely', label: 'Rarely' },
+    { value: 'sometimes', label: 'Sometimes' },
+    { value: 'often', label: 'Often' },
+    { value: 'always', label: 'Most of the time' },
+  ],
+  stressCoping: [
+    { value: 'well', label: 'Coping well' },
+    { value: 'mostly', label: 'Mostly coping' },
+    { value: 'struggling', label: 'Struggling' },
+    { value: 'not-coping', label: 'Not coping' },
+  ],
+  exerciseMinutesWeek: [
+    { value: '0', label: 'None' },
+    { value: 'under-60', label: 'Under 60 minutes' },
+    { value: '60-149', label: '60 to 149 minutes' },
+    { value: '150-299', label: '150 to 299 minutes' },
+    { value: '300-plus', label: '300 minutes or more' },
+  ],
+  strengthDaysWeek: [
+    { value: '0', label: 'None' },
+    { value: '1', label: '1 day' },
+    { value: '2', label: '2 days' },
+    { value: '3-plus', label: '3 or more days' },
+  ],
+  proteinMeals: [
+    { value: 'rarely', label: 'Rarely' },
+    { value: 'some', label: 'Some meals' },
+    { value: 'most', label: 'Most meals' },
+    { value: 'every', label: 'Every meal' },
+  ],
+  fruitVegPortions: [
+    { value: '0-1', label: '0 to 1' },
+    { value: '2-3', label: '2 to 3' },
+    { value: '4', label: '4' },
+    { value: '5-plus', label: '5 or more' },
+  ],
+  takeawaysWeek: [
+    { value: '0-1', label: '0 to 1' },
+    { value: '2-3', label: '2 to 3' },
+    { value: '4-6', label: '4 to 6' },
+    { value: '7-plus', label: '7 or more' },
+  ],
   sleepArchetype: [
     { value: 'excellent', label: 'My sleep is consistent – I get 7-9 hours with minimal disruptions' },
     { value: 'good', label: 'I get enough sleep but my schedule or quality varies' },
@@ -460,10 +537,10 @@ export const ASSESSMENT_OPTIONS = {
     { value: 'poor', label: 'I\'m not in control of my eating – mostly takeout/processed' },
   ],
   hydrationHabits: [
-    { value: 'excellent', label: 'I drink plenty of water throughout the day consistently' },
+    { value: 'excellent', label: 'I drink enough fluids consistently through the day' },
     { value: 'good', label: 'I try to stay hydrated but often forget' },
-    { value: 'fair', label: 'My water intake varies – sometimes good, sometimes poor' },
-    { value: 'poor', label: 'I rarely drink enough water' },
+    { value: 'fair', label: 'My fluid intake varies – sometimes good, sometimes poor' },
+    { value: 'poor', label: 'I rarely drink enough fluids' },
   ],
   alcoholFrequency: [
     { value: 'never', label: 'Rarely or never' },
@@ -516,6 +593,7 @@ export const ASSESSMENT_OPTIONS = {
     { value: 'valgus-knee', label: 'Knee valgus (knees cave inward)' },
     { value: 'varus-knee', label: 'Knee varus (knees bow outward)' },
   ],
+  ohsHeelsLift: [{ value: 'no', label: 'Heels stay down' }, { value: 'yes', label: 'Heels lift' }],
   ohsShoulderMobility: [
     { value: 'full-range', label: 'Full range' },
     { value: 'compensated', label: 'Compensated' },
@@ -593,6 +671,10 @@ export const ASSESSMENT_OPTIONS = {
     { value: 'poor', label: 'Poor' },
   ],
   // P5 Options
+  pushupType: [
+    { value: 'full', label: 'Full (toes)' },
+    { value: 'knees', label: 'Knees' },
+  ],
   gripTestMethod: [
     { value: 'deadhang', label: 'Dead Hang Test' },
     { value: 'pinch', label: 'Plate Pinch Test' },
@@ -609,12 +691,12 @@ export const SECTION_TITLES = {
     'lifestyle-overview': 'Lifestyle Factors',
   },
   P2: {
-    'inbody-results': 'InBody results',
+    'inbody-results': 'Analyzer results',
     'tape-measurements': 'Tape measurements',
     posture: 'Posture',
   },
   P3: {
-    'fitness-assessment': 'Metabolic Fitness',
+    'fitness-assessment': 'Fitness',
   },
   P4: {
     posture: 'Posture',
