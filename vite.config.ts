@@ -163,7 +163,7 @@ export default defineConfig(({ mode }) => ({
     setupFiles: './src/test/setup.ts',
     passWithNoTests: false,
     // functions/lib is compiled CJS output — its .test.js copies can't import vitest.
-    exclude: ['**/node_modules/**', '**/dist/**', 'functions/lib/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**', 'functions/lib/**'],
   },
   build: {
     rollupOptions: {
