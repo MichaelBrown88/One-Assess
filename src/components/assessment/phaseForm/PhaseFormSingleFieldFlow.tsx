@@ -70,8 +70,7 @@ export function PhaseFormSingleFieldFlow({
     if (currentIndex > 0) {
       const prevSection = allSections[currentIndex - 1];
       setExpandedSections({ [prevSection.id]: true });
-      const prevSectionFields = (prevSection.fields || []).length;
-      setActiveFieldIdx(Math.max(0, prevSectionFields - 1));
+      setActiveFieldIdx(0);
     } else if (activePhaseIdx > 0) {
       const prevPhaseIdx = visiblePhases.findIndex((_, i) => i === activePhaseIdx) - 1;
       if (prevPhaseIdx >= 0) {
@@ -81,8 +80,7 @@ export function PhaseFormSingleFieldFlow({
           const lastSection = prevPhaseSections[prevPhaseSections.length - 1];
           setActivePhaseIdx(prevPhaseIdx);
           setExpandedSections({ [lastSection.id]: true });
-          const lastSectionFields = (lastSection.fields || []).length;
-          setActiveFieldIdx(Math.max(0, lastSectionFields - 1));
+          setActiveFieldIdx(0);
         } else {
           setActivePhaseIdx(prevPhaseIdx);
         }

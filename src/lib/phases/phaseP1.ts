@@ -27,16 +27,24 @@ export const phaseP1: PhaseDefinition = {
       fields: [
         // Required fields — always shown, feed the lifestyle score
         { id: 'activityLevel' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.activityLevel, required: true, tooltip: ASSESSMENT_TOOLTIPS.P1.activityLevel, options: ASSESSMENT_OPTIONS.activityLevel },
-        { id: 'sleepArchetype' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.sleepArchetype, tooltip: ASSESSMENT_TOOLTIPS.P1.sleepArchetype, options: ASSESSMENT_OPTIONS.sleepArchetype },
-        { id: 'stressLevel' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.stressLevel, tooltip: ASSESSMENT_TOOLTIPS.P1.stressLevel, options: ASSESSMENT_OPTIONS.stressLevel },
-        { id: 'nutritionHabits' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.nutritionHabits, tooltip: ASSESSMENT_TOOLTIPS.P1.nutritionHabits, options: ASSESSMENT_OPTIONS.nutritionHabits },
-        { id: 'hydrationHabits' as keyof FormData, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.hydrationHabits, tooltip: ASSESSMENT_TOOLTIPS.P1.hydrationHabits, options: ASSESSMENT_OPTIONS.hydrationHabits },
+        // Habit questions scored against guidelines (lifestyleHabits.ts). The older
+        // sleep/stress/nutrition/hydration self-ratings are still read for past assessments.
+        { id: 'sleepHours' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.sleepHours, options: ASSESSMENT_OPTIONS.sleepHours },
+        { id: 'sleepRegularity' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.sleepRegularity, options: ASSESSMENT_OPTIONS.sleepRegularity },
+        { id: 'stressFrequency' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.stressFrequency, options: ASSESSMENT_OPTIONS.stressFrequency },
+        { id: 'stressCoping' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.stressCoping, options: ASSESSMENT_OPTIONS.stressCoping },
+        { id: 'exerciseMinutesWeek' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.exerciseMinutesWeek, tooltip: ASSESSMENT_TOOLTIPS.P1.exerciseMinutesWeek, options: ASSESSMENT_OPTIONS.exerciseMinutesWeek },
+        { id: 'strengthDaysWeek' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.strengthDaysWeek, options: ASSESSMENT_OPTIONS.strengthDaysWeek },
+        { id: 'proteinMeals' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.proteinMeals, tooltip: ASSESSMENT_TOOLTIPS.P1.proteinMeals, options: ASSESSMENT_OPTIONS.proteinMeals },
+        { id: 'fruitVegPortions' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.fruitVegPortions, tooltip: ASSESSMENT_TOOLTIPS.P1.fruitVegPortions, options: ASSESSMENT_OPTIONS.fruitVegPortions },
+        { id: 'takeawaysWeek' as keyof FormData, required: true, type: 'select' as FieldType, label: ASSESSMENT_LABELS.P1.takeawaysWeek, options: ASSESSMENT_OPTIONS.takeawaysWeek },
         // Optional fields — shown by default, coach can disable per org
         { id: 'stepsPerDay' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P1.stepsPerDay, placeholder: ASSESSMENT_PLACEHOLDERS.P1.stepsPerDay, tooltip: ASSESSMENT_TOOLTIPS.P1.stepsPerDay, orgConfigKey: 'stepsPerDay' },
         { id: 'caffeineCupsPerDay' as keyof FormData, type: 'number' as FieldType, label: ASSESSMENT_LABELS.P1.caffeineCupsPerDay, placeholder: ASSESSMENT_PLACEHOLDERS.P1.caffeineCupsPerDay, tooltip: ASSESSMENT_TOOLTIPS.P1.caffeineCupsPerDay, orgConfigKey: 'caffeine' },
         { id: 'lastCaffeineIntake' as keyof FormData, type: 'time' as FieldType, label: ASSESSMENT_LABELS.P1.lastCaffeineIntake, tooltip: ASSESSMENT_TOOLTIPS.P1.lastCaffeineIntake, orgConfigKey: 'caffeine', conditional: { showWhen: { field: 'caffeineCupsPerDay', exists: true, notValue: '0' } } },
         {
           id: 'clientGoals' as keyof FormData,
+          required: true,
           type: 'multiselect' as FieldType,
           label: ASSESSMENT_LABELS.P6.clientGoals,
           placeholder: ASSESSMENT_PLACEHOLDERS.P6.clientGoals,

@@ -39,7 +39,7 @@ describe('buildOverallResultsSummary', () => {
     const text = buildOverallResultsSummary(mixed73, null, sample);
     expect(text).toMatch(/men aged 26–35/i);
     expect(text).toMatch(/73/);
-    expect(text).toMatch(/above average/i);
+    expect(text).not.toMatch(/above average|percentile/i);
     expect(text).toMatch(/Strength is your best result today/);
     expect(text).toMatch(/body composition/i);
     expect(text).toMatch(/lifestyle/i);
@@ -65,7 +65,7 @@ describe('buildOverallResultsSummary', () => {
 
   it('still places the score when age or gender is missing', () => {
     const text = buildOverallResultsSummary(mixed73, null);
-    expect(text).toMatch(/Your overall score of 73 is above average\./);
+    expect(text).toMatch(/Your overall score is 73 out of 100\./);
     expect(text).not.toMatch(/men aged|women aged/);
   });
 

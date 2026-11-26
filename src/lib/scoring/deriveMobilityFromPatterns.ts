@@ -87,6 +87,7 @@ export function deriveMobilityFromPatterns(form: FormData): DerivedMobility {
   const ankleShared = worstOf(
     qualityFromOhsDepth(form.ohsSquatDepth),
     qualityFromFeet(form.ohsFeetPosition),
+    form.ohsHeelsLift === 'yes' ? 'fair' : '',
   );
 
   const ankleLeft = worstOf(

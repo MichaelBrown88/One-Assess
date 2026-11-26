@@ -14,6 +14,7 @@ export type PillarKey = ScoringPillarId;
 export interface RadarData {
   name: string;
   value: number;
+  assessed?: boolean;
   fullLabel: string;
   /** Legacy — pillar colour is derived from label / index in charts. */
   color: string;

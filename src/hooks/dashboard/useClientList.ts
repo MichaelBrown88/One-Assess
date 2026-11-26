@@ -28,18 +28,21 @@ export function useClientList(
 ) {
   // Fetch client schedules; bump version to trigger refetch after edits
   const [scheduleMap, setScheduleMap] = useState<ScheduleMap>(new Map());
+  const [scheduleState, setScheduleState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [scheduleVersion, setScheduleVersion] = useState(0);
 
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
+    setScheduleState('loading');
 
     const load = async () => {
       try {
         const { listClientSchedules } = await import('@/services/clientProfiles');
         const map = await listClientSchedules(organizationId, coachUid);
-        if (!cancelled) setScheduleMap(map);
+        if (!cancelled) { setScheduleMap(map); setScheduleState('ready'); }
       } catch (err) {
+        if (!cancelled) setScheduleState('error');
         logger.warn('[useClientList] Failed to load client schedules:', err);
       }
     };
@@ -83,7 +86,8 @@ export function useClientList(
         id: item.id,
         name: item.clientName,
         assessments: [item],
-        latestScore: item.overallScore || 0,
+        latestScore: item.assessmentCount === 0 ? 0 : item.overallScore || 0,
+        scheduleState,
         hasAssessmentDraft: item.hasAssessmentDraft,
         draftUpdatedAt: safeFirestoreTimestampToDate(item.draftUpdatedAt),
         latestDate: item.assessmentCount === 0 ? null : safeFirestoreTimestampToDate(item.assessedAt ?? item.updatedAt ?? item.createdAt),
@@ -116,7 +120,7 @@ export function useClientList(
       const dateB = b.latestDate?.getTime() || 0;
       return dateB - dateA;
     });
-  }, [items, scheduleMap]);
+  }, [items, scheduleMap, scheduleState]);
 
   const filteredClients = useMemo(() => {
     const term = search.trim().toLowerCase();

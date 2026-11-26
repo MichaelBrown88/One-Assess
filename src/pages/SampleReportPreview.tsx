@@ -1,3 +1,4 @@
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useSearchParams } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { initialFormData, type FormData } from '@/types/assessmentForm';
@@ -45,7 +46,7 @@ export default function SampleReportPreview() {
         noindex
       />
       <div className="border-b border-border bg-card px-4 py-3 text-center sm:px-6">
-        <p className="text-sm font-medium text-foreground">{CLIENT_REPORT_COPY.previewTitle}</p>
+        <div className="flex items-center justify-center gap-3"><p className="text-sm font-medium text-foreground">{CLIENT_REPORT_COPY.previewTitle}</p><ThemeToggle /></div>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {example === 'progress' ? 'Two synthetic assessments: 27 July and 16 November 2026. Demonstration only, not a real client’s history.' : example === 'female' ? CLIENT_REPORT_COPY.previewFemaleDetail : saved ? 'Saved client snapshot from this machine. Read-only local review.' : CLIENT_REPORT_COPY.previewDetail}
         </p>

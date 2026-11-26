@@ -1,80 +1,91 @@
 import type { FormData } from '@/contexts/FormContext';
-import { CONFIG } from '@/config';
-import { calculateBodyFatFromMeasurements } from '../utils/measurementConverters';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
-import { clamp } from './scoringUtils';
+import { clamp, meanOfMeasured, scoreFromPoints } from './scoringUtils';
+
+type Sex = 'male' | 'female';
+const asSex = (gender: string): Sex | null => {
+  const g = (gender || '').toLowerCase();
+  return g === 'male' || g === 'female' ? g : null;
+};
 
 /**
- * Score body composition based on analyzer data OR body measurements
- * Priority: Analyzer data (if available) > Body measurements (US Navy method)
+ * Healthy body-fat ranges by sex and age (Gallagher et al. 2000, Am J Clin Nutr
+ * 72:694, white adults, as reproduced in ACSM's Guidelines): [age below,
+ * healthy min, healthy max, overweight max]. Above "overweight max" is obese.
+ */
+const BODY_FAT_RANGES: Record<Sex, readonly (readonly [number, number, number, number])[]> = {
+  male: [[40, 8, 19, 24], [60, 11, 21, 27], [Infinity, 13, 24, 29]],
+  female: [[40, 21, 32, 38], [60, 23, 33, 39], [Infinity, 24, 35, 41]],
+};
+
+export function scoreBodyFatPct(bodyFat: number, age: number, gender: string): number | null {
+  const sex = asSex(gender);
+  if (!(bodyFat > 0) || !sex) return null;
+  const ranges = BODY_FAT_RANGES[sex];
+  const [, low, high, overweight] = ranges.find(([below]) => age < below) ?? ranges[0];
+  return Math.round(
+    scoreFromPoints(bodyFat, [
+      [low - 6, 50], // too lean is not "perfect"
+      [low, 90],
+      [(low + high) / 2, 100],
+      [high, 75], // top of the healthy range
+      [overweight + 1, 50], // obese threshold
+      [overweight + 11, 10],
+    ]),
+  );
+}
+
+/**
+ * Skeletal muscle as a share of body weight against a sex-specific reference
+ * (Janssen et al. 2000, J Appl Physiol 89:81: 38.4 ± 5.1 % men, 30.6 ± 5.5 %
+ * women). Mean = 75, +1 SD = 100, -1 SD = 50. A planning reference: analyser
+ * SMM is not identical to MRI-measured muscle.
+ */
+const SMM_REFERENCE: Record<Sex, { mean: number; sd: number }> = {
+  male: { mean: 0.384, sd: 0.051 },
+  female: { mean: 0.306, sd: 0.055 },
+};
+
+export function scoreMuscleRatio(smmKg: number, weightKg: number, gender: string): number | null {
+  const sex = asSex(gender);
+  if (!(smmKg > 0) || !(weightKg > 0) || !sex) return null;
+  const { mean, sd } = SMM_REFERENCE[sex];
+  return Math.round(clamp(75 + (25 * (smmKg / weightKg - mean)) / sd, 10, 100));
+}
+
+/** Waist-to-hip against WHO 2008 cut-offs (men 0.90, women 0.85). */
+export function scoreWaistHip(whr: number, gender: string): number | null {
+  const sex = asSex(gender);
+  if (!(whr > 0) || !sex) return null;
+  const cut = sex === 'male' ? 0.9 : 0.85;
+  return Math.round(scoreFromPoints(whr, [[cut - 0.05, 100], [cut, 70], [cut + 0.1, 40], [cut + 0.2, 10]]));
+}
+
+/** Analyser visceral fat level: 1–9 normal, 10+ excess. */
+export function scoreVisceralLevel(level: number): number | null {
+  if (!(level > 0)) return null;
+  return Math.round(scoreFromPoints(level, [[9, 100], [10, 80], [15, 40], [20, 10]]));
+}
+
+/**
+ * Score body composition from analyser data. Values that weren't measured stay
+ * unmeasured and are left out of the score, strengths and weaknesses.
  */
 export function scoreBodyComp(form: FormData, age: number, gender: string): ScoreCategory {
   const weight = safeParse(form.inbodyWeightKg);
   const height = safeParse(form.heightCm);
-  const genderLower = (gender || 'male').toLowerCase() as 'male' | 'female';
+  const sex = asSex(gender);
 
-  // Check if analyzer data exists
   const hasAnalyzerData = !!(form.inbodyBodyFatPct || form.skeletalMuscleMassKg || form.inbodyScore);
 
-  let bodyFat = safeParse(form.inbodyBodyFatPct);
-  let smm = safeParse(form.skeletalMuscleMassKg);
-  let whr = safeParse(form.waistHipRatio);
-  let visceral = safeParse(form.visceralFatLevel);
-
-  // If no analyzer data, calculate from body measurements
-  if (!hasAnalyzerData) {
-    const waistCm = safeParse(form.waistCm);
-    const neckCm = safeParse(form.neckCm);
-    const hipsCm = safeParse(form.hipsCm || form.hipCm);
-
-    // Calculate body fat % from measurements (US Navy method)
-    if (waistCm > 0 && neckCm > 0 && height > 0) {
-      bodyFat = calculateBodyFatFromMeasurements(waistCm, neckCm, height, genderLower, hipsCm > 0 ? hipsCm : undefined);
-    }
-
-    // Calculate WHR from measurements
-    if (waistCm > 0 && hipsCm > 0) {
-      whr = waistCm / hipsCm;
-    }
-
-    // Estimate visceral fat from waist measurement
-    if (waistCm > 0 && visceral === 0) {
-      if (genderLower === 'male') {
-        if (waistCm < 80) visceral = 5;
-        else if (waistCm < 90) visceral = 7;
-        else if (waistCm < 100) visceral = 10;
-        else visceral = 12;
-      } else {
-        if (waistCm < 70) visceral = 4;
-        else if (waistCm < 80) visceral = 6;
-        else if (waistCm < 90) visceral = 9;
-        else visceral = 11;
-      }
-    }
-
-    // Estimate skeletal muscle mass from measurements and body fat %
-    if (smm === 0 && weight > 0 && bodyFat > 0) {
-      const armLeft = safeParse(form.armLeftCm);
-      const armRight = safeParse(form.armRightCm);
-      const chest = safeParse(form.chestCm);
-      const thighLeft = safeParse(form.thighLeftCm);
-      const thighRight = safeParse(form.thighRightCm);
-
-      const avgArm = (armLeft + armRight) / 2;
-      const avgThigh = (thighLeft + thighRight) / 2;
-
-      if (avgArm > 0 && avgThigh > 0 && chest > 0) {
-        const leanBodyMass = weight * (1 - bodyFat / 100);
-        const baseMuscleFactor = 0.45;
-        const limbFactor = Math.min(1.2, 1 + ((avgArm - 30) / 100) + ((avgThigh - 50) / 200));
-        smm = leanBodyMass * baseMuscleFactor * limbFactor;
-      } else if (weight > 0 && bodyFat > 0) {
-        const leanBodyMass = weight * (1 - bodyFat / 100);
-        smm = leanBodyMass * 0.45;
-      }
-    }
-  }
+  // Scoring uses analyser values only. Tape is progress-only (product rule in
+  // AGENTS.md) and nothing is estimated from it: no tape body fat, visceral fat,
+  // muscle or waist-to-hip feeds the score.
+  const bodyFat = safeParse(form.inbodyBodyFatPct);
+  const smm = safeParse(form.skeletalMuscleMassKg);
+  const whr = safeParse(form.waistHipRatio);
+  const visceral = safeParse(form.visceralFatLevel);
 
   const bfm = safeParse(form.bodyFatMassKg || (weight > 0 && bodyFat > 0 ? ((weight * bodyFat) / 100).toFixed(1) : '0'));
   const bmr = safeParse(form.bmrKcal);
@@ -82,56 +93,55 @@ export function scoreBodyComp(form: FormData, age: number, gender: string): Scor
   const bmi = safeParse(form.inbodyBmi || (weight > 0 && height > 0 ? (weight / ((height / 100) ** 2)).toFixed(1) : '0'));
   const tbw = safeParse(form.totalBodyWaterL);
 
-  // Standardized scoring
-  const bfScore = bodyFat > 0 ? clamp(100 - (bodyFat - CONFIG.SCORING.THRESHOLDS.BF_HEALTHY_MIN) * 3) : 0;
-  const smmScore = smm > 0 ? clamp((smm / (weight || 1)) * CONFIG.SCORING.THRESHOLDS.SMM_RATIO_SCALE) : 0;
-  const visceralScore = visceral > 0 ? clamp(100 - (visceral - CONFIG.SCORING.THRESHOLDS.VISCERAL_RISK_START) * 10) : 0;
-  const whrScore = whr > 0 ? clamp(100 - Math.max(0, (whr - CONFIG.SCORING.THRESHOLDS.WHR_RISK_START) * 150)) : 0;
+  const bfScore = scoreBodyFatPct(bodyFat, age, gender);
+  const smmScore = scoreMuscleRatio(smm, weight, gender);
+  const visceralScore = scoreVisceralLevel(visceral);
+  const whrScore = scoreWaistHip(whr, gender);
 
-  // Format values for display
-  const bodyFatDisplay = hasAnalyzerData ? (form.inbodyBodyFatPct || '-') : (bodyFat > 0 ? bodyFat.toFixed(1) : '-');
-  const smmDisplay = hasAnalyzerData ? (form.skeletalMuscleMassKg || '-') : (smm > 0 ? smm.toFixed(1) : '-');
-  const visceralDisplay = hasAnalyzerData ? (form.visceralFatLevel || '-') : (visceral > 0 ? visceral.toFixed(0) : '-');
-  const whrDisplay = hasAnalyzerData ? (form.waistHipRatio || '-') : (whr > 0 ? whr.toFixed(2) : '-');
+  const bodyFatDisplay = bodyFat > 0 ? form.inbodyBodyFatPct : '-';
+  const smmDisplay = smm > 0 ? form.skeletalMuscleMassKg : '-';
+  const visceralDisplay = visceral > 0 ? form.visceralFatLevel : '-';
+  const whrDisplay = whr > 0 ? form.waistHipRatio : '-';
 
+  const belowBodyFatReference = sex && bodyFat > 0 && bodyFat < (BODY_FAT_RANGES[sex].find(([below]) => age < below)?.[1] ?? 0);
   const details: ScoreDetail[] = [
-    { id: 'bf', label: 'Body Fat %', value: bodyFatDisplay, unit: '%', score: Math.round(bfScore) },
-    { id: 'smm', label: 'Skeletal Muscle Mass', value: smmDisplay, unit: 'kg', score: Math.round(smmScore) },
-    { id: 'visceral', label: 'Visceral Fat Level', value: visceralDisplay, score: Math.round(visceralScore) },
-    { id: 'bfm', label: 'Body Fat Mass', value: isNaN(bfm) ? '-' : bfm.toFixed(1), unit: 'kg', score: Math.round(bfScore) },
-    { id: 'whr', label: 'Waist-to-Hip Ratio', value: whrDisplay, score: Math.round(whrScore) },
+    { id: 'bf', label: 'Body Fat %', value: bodyFatDisplay, unit: '%', score: bfScore ?? 0, ...(belowBodyFatReference ? { notes: 'below-reference' } : {}) },
+    { id: 'smm', label: 'Skeletal Muscle Mass', value: smmDisplay, unit: 'kg', score: smmScore ?? 0 },
+    { id: 'visceral', label: 'Visceral Fat Level', value: visceralDisplay, score: visceralScore ?? 0 },
+    { id: 'bfm', label: 'Body Fat Mass', value: bfm > 0 ? bfm.toFixed(1) : '-', unit: 'kg', score: bfScore ?? 0 },
+    { id: 'whr', label: 'Waist-to-Hip Ratio', value: whrDisplay, score: whrScore ?? 0 },
     ...(bmi ? [{ id: 'bmi', label: 'BMI', value: bmi, score: 100 }] as ScoreDetail[] : []),
     ...(tbw ? [{ id: 'tbw', label: 'Total Body Water', value: tbw, unit: 'L', score: 100 }] as ScoreDetail[] : []),
     ...(bmr ? [{ id: 'bmr', label: 'BMR', value: bmr, unit: 'kcal', score: 100 }] as ScoreDetail[] : []),
     ...(inbodyScore ? [{ id: 'inbodyScore', label: 'Body Comp Score', value: inbodyScore, score: clamp(inbodyScore) }] as ScoreDetail[] : []),
   ];
 
-  const subScores = [bfScore, smmScore, visceralScore, whrScore].filter(s => s > 0);
-  const score = subScores.length > 0
-    ? Math.round(subScores.reduce((a, b) => a + b, 0) / subScores.length)
-    : 0;
-  const assessed = subScores.length > 0 || hasAnalyzerData;
+  const mean = meanOfMeasured([bfScore, smmScore, visceralScore, whrScore]);
+  const score = mean === null ? 0 : Math.round(mean);
+  const assessed = mean !== null || hasAnalyzerData;
 
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
-  if (bfScore >= 75) strengths.push('Excellent body fat management');
-  else if (bfScore >= 60) strengths.push('Body fat within a healthy functional range');
+  if (bfScore !== null && bfScore >= 75) strengths.push('Excellent body fat management');
+  else if (bfScore !== null && bfScore >= 60) strengths.push('Body fat within a healthy functional range');
 
-  if (smmScore >= 70) strengths.push('Strong skeletal muscle foundation');
-  else if (smmScore >= 55) strengths.push('Functional muscle mass for your frame');
+  if (smmScore !== null && smmScore >= 70) strengths.push('Strong skeletal muscle foundation');
+  else if (smmScore !== null && smmScore >= 55) strengths.push('Functional muscle mass for your frame');
 
   const items = [
     { label: 'Body Fat %', score: bfScore },
     { label: 'Muscle Mass', score: smmScore },
     { label: 'Visceral Fat', score: visceralScore },
-    { label: 'Waist-to-Hip Ratio', score: whrScore }
-  ].sort((a, b) => a.score - b.score);
+    { label: 'Waist-to-Hip Ratio', score: whrScore },
+  ]
+    .filter((i): i is { label: string; score: number } => i.score !== null)
+    .sort((a, b) => a.score - b.score);
 
-  items.slice(0, 2).forEach(item => {
+  items.slice(0, 2).forEach((item) => {
     if (item.score < 60) {
       weaknesses.push(`${item.label} identified as a priority area`);
-    } else {
+    } else if (item.score < 75) {
       weaknesses.push(`Optimization of ${item.label} for better performance`);
     }
   });

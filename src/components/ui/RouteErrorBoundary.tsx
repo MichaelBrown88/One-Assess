@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { logger } from '@/lib/utils/logger';
 import { ROUTES } from '@/constants/routes';
 import { UI_COMMAND_MENU } from '@/constants/ui';
+import { APP_LOAD_RECOVERY_COPY } from '@/constants/errorRecovery';
+import { isChunkLoadError, reloadApp } from '@/lib/routing/chunkLoadRecovery';
 
 export interface RouteErrorBoundaryProps {
   children: React.ReactNode;
@@ -23,6 +25,7 @@ function RouteErrorFallback({
   homeTo,
 }: FallbackProps & { title: string; body: string; homeTo: string }) {
   const navigate = useNavigate();
+  const chunkError = isChunkLoadError(error);
 
   React.useEffect(() => {
     logger.error('Route error boundary:', error.message || String(error));
@@ -35,8 +38,8 @@ function RouteErrorFallback({
           <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">{title}</h2>
-          <p className="text-sm text-foreground-secondary">{body}</p>
+          <h2 className="text-xl font-bold text-foreground">{chunkError ? APP_LOAD_RECOVERY_COPY.TITLE : title}</h2>
+          <p className="text-sm text-foreground-secondary">{chunkError ? APP_LOAD_RECOVERY_COPY.BODY : body}</p>
           {import.meta.env.DEV && (
             <div className="w-full rounded-xl border border-border bg-muted/50 p-3 text-left">
               <p className="text-xs font-mono text-destructive break-words">{error.message}</p>
@@ -52,8 +55,8 @@ function RouteErrorFallback({
               <Home className="w-4 h-4 mr-2" />
               Go to {UI_COMMAND_MENU.HOME}
             </Button>
-            <Button type="button" variant="default" onClick={resetErrorBoundary} className="flex-1">
-              Try Again
+            <Button type="button" variant="default" onClick={chunkError ? reloadApp : resetErrorBoundary} className="flex-1">
+              {chunkError ? APP_LOAD_RECOVERY_COPY.ACTION : 'Try Again'}
             </Button>
           </div>
         </div>

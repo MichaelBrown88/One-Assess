@@ -69,7 +69,18 @@ function useEnrichedPostureResults(
   );
 }
 
-export function PostureFilmstrip({ posture, embedded = false }: PostureFilmstripProps) {
+export function PostureFilmstrip(props: PostureFilmstripProps) {
+  if (props.posture.manualSummary) return (
+    <section id="posture-scan" className="space-y-3">
+      <h2 className="text-base font-semibold text-foreground">{CLIENT_REPORT_COPY.v2PostureHeading}</h2>
+      <p className="text-xs text-muted-foreground">Coach observations</p>
+      <ul className="space-y-3">{props.posture.manualSummary.map(line => <li key={line} className="text-sm leading-relaxed text-foreground-secondary">{line}</li>)}</ul>
+    </section>
+  );
+  return <PhotoPostureFilmstrip {...props} />;
+}
+
+function PhotoPostureFilmstrip({ posture, embedded = false }: PostureFilmstripProps) {
   const [expandedView, setExpandedView] = useState<PostureFindingViewId | null>(null);
   const results = useEnrichedPostureResults(posture);
   const hasAnalysis = Object.keys(posture.postureResults).length > 0;

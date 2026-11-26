@@ -1,7 +1,9 @@
+import { classifyRestingHrBand } from '@/lib/cardio/cardioReference';
 import type { FormData } from '@/contexts/FormContext';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { clamp, lookupNormativeScore } from './scoringUtils';
+import { estimateVo2maxFromWalk, scoreVo2maxFriend } from '@/lib/cardio/fitnessEstimate';
 
 export function scoreCardio(form: FormData, age: number, gender: string): ScoreCategory {
   const test = (form.cardioTestSelected || '').toLowerCase();
@@ -16,7 +18,7 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
 
   // Calculate Heart Rate Recovery (HRR)
   const hrr = hasPeakHr && hasHr60 && peakHr > 0 && hr60 > 0 ? peakHr - hr60 : 0;
-  const hasHrr = hrr > 0;
+  const hasHrr = hasPeakHr && hasHr60 && peakHr > 0 && hr60 > 0;
 
   const hrrScore = hasHrr
     ? clamp(
@@ -38,27 +40,27 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
     ? lookupNormativeScore('Recovery HR', gender, age, hr60)
     : hasHrr ? hrrScore : 0;
 
-  // VO2max estimate
-  const mhr = age > 0 ? 208 - 0.7 * age : 0;
-  const vo2max = hasHr60 && hr60 > 0 && mhr > 0 ? 15.3 * (mhr / hr60) : 0;
+  // Fitness estimate from the standard walk (ACSM walking cost + %HRR, scored
+  // against FRIEND percentiles). Falls back to resting HR + recovery when the
+  // walk can't be extrapolated (too easy, or heart rates missing).
+  const walkEstimate = form.cardioProtocolVersion === 'incline-walk-4min-v1' && hasRhr && hasPeakHr
+    ? estimateVo2maxFromWalk({ age, restingHr: rhr, workHr: peakHr })
+    : { status: 'missing' as const };
+  const vo2max = walkEstimate.status === 'ok' ? walkEstimate.vo2max : 0;
+  const vo2Score = vo2max > 0 ? scoreVo2maxFriend(vo2max, age, gender) : null;
 
   // Resting HR score
-  const rhrScore = hasRhr
-    ? (rhr > 0 && rhr < 55 ? 100
-      : rhr <= 64 ? 85
-      : rhr <= 74 ? 70
-      : rhr <= 84 ? 50
-      : rhr >= 85 ? 30
-      : 0)
-    : 0;
+  const rhrBand = classifyRestingHrBand(rhr, gender === 'female' ? 'female' : 'male', age);
+  const rhrScore = hasRhr && rhrBand ? ({ excellent: 100, good: 85, average: 65, poor: 35 }[rhrBand] ?? 0) : 0;
 
   const cardioSubScores = [
     hasRhr ? rhrScore : 0,
     hasHrr ? hrrScore : hasHr60 ? recoveryScore : 0,
   ].filter(s => s > 0);
-  const fitnessScore = cardioSubScores.length > 0
+  const fallbackScore = cardioSubScores.length > 0
     ? clamp(cardioSubScores.reduce((a, b) => a + b, 0) / cardioSubScores.length)
     : 0;
+  const fitnessScore = vo2Score ?? fallbackScore;
 
   const cardioClass =
     fitnessScore >= 90 ? 'Excellent'
@@ -73,13 +75,22 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
   ];
 
   if (hasHrr) {
-    details.push({ id: 'hrr', label: 'HR Recovery (HRR)', value: Math.round(hrr) || '-', unit: 'bpm', score: Math.round(hrrScore) });
+    details.push({ id: 'hrr', label: 'HR Recovery (HRR)', value: Math.round(hrr), unit: 'bpm', score: Math.round(hrrScore) });
   } else if (hasHr60) {
     details.push({ id: 'hr60', label: 'Recovery', value: hr60 || '-', unit: 'bpm', score: Math.round(recoveryScore) });
   }
 
   details.push(
-    { id: 'vo2', label: 'VO₂max Est.', value: vo2max ? vo2max.toFixed(1) : '-', unit: 'ml/kg/min', score: Math.round(hasHrr ? hrrScore : recoveryScore) },
+    {
+      id: 'vo2',
+      label: 'VO₂max Est. (walk)',
+      value: vo2max ? vo2max.toFixed(1) : '-',
+      unit: 'ml/kg/min',
+      score: Math.round(vo2Score ?? 0),
+      ...(walkEstimate.status === 'too-easy'
+        ? { notes: 'Walk was too easy to estimate fitness reliably (under 40% of heart-rate reserve); scored from resting HR and recovery instead.' }
+        : {}),
+    },
     { id: 'cardioClass', label: 'Fitness Level', value: cardioClass, score: Math.round(fitnessScore) }
   );
 
@@ -94,9 +105,9 @@ export function scoreCardio(form: FormData, age: number, gender: string): ScoreC
   if (hasHrr && hrr > 30) strengths.push('Excellent heart rate recovery (>30bpm drop)');
 
   const items = [
-    { label: 'Resting Heart Rate', score: rhrScore },
-    { label: hasHrr ? 'Heart Rate Recovery (HRR)' : 'Heart Rate Recovery', score: hasHrr ? hrrScore : recoveryScore }
-  ].sort((a, b) => a.score - b.score);
+    { label: 'Resting Heart Rate', score: rhrScore, measured: hasRhr },
+    { label: hasHrr ? 'Heart Rate Recovery (HRR)' : 'Heart Rate Recovery', score: hasHrr ? hrrScore : recoveryScore, measured: hasHrr || hasHr60 }
+  ].filter(item => item.measured).sort((a, b) => a.score - b.score);
 
   items.forEach((item) => {
     if (item.score < 60) {

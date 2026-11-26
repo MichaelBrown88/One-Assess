@@ -1,7 +1,9 @@
+import { Input } from '@/components/ui/input';
+import { numericIssue } from '@/lib/assessment/numericValidation';
 import { useMemo, useState } from 'react';
 import { useFormContext, type FormData } from '@/contexts/FormContext';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ASSESSMENT_OPTIONS } from '@/constants/assessment';
 
 export type MovementPatternSectionId = 'overhead-squat' | 'hinge-assessment' | 'lunge-assessment';
@@ -30,10 +32,12 @@ const OHS_BENIGN: PartialForm = {
   ohsHipShift: 'none',
   ohsKneeAlignment: 'stable',
   ohsFeetPosition: 'stable',
+  ohsHeelsLift: 'no',
   ohsHasPain: 'no',
 };
 
 const OHS_CHIPS: IssueChip[] = [
+  { id: 'heels', label: 'Heels lift', patch: { ohsHeelsLift: 'yes' } },
   { id: 'depth', label: 'Limited squat depth', patch: { ohsSquatDepth: 'quarter-depth' } },
   { id: 'knees', label: 'Knees cave inward', patch: { ohsKneeAlignment: 'valgus' } },
   { id: 'lean', label: 'Leans forward', patch: { ohsTorsoLean: 'moderate-lean' } },
@@ -154,26 +158,25 @@ export function MovementPatternCapture({
     () => selectedIssues.size === 0 && isMarkedGoodInFormData(formData, benign, painField),
   );
 
-  const canContinue = markedGood || selectedIssues.size > 0;
+  const observationComplete = markedGood || selectedIssues.size > 0;
+  const canContinue = !numericIssue('kneeToWallLeftCm', formData.kneeToWallLeftCm) && !numericIssue('kneeToWallRightCm', formData.kneeToWallRightCm) && observationComplete && (formData[painField] === 'yes' || formData[painField] === 'no');
 
+  const persistObservation = (selected: Set<string>, observed: boolean) => {
+    const patch = observed ? mergePatches(benign, chips, selected)
+      : Object.fromEntries(Object.keys(benign).map(key => [key, '']));
+    updateFormData({ ...patch, [painField]: formData[painField] } as PartialForm);
+  };
   const toggleIssue = (id: string) => {
     setMarkedGood(false);
-    setSelectedIssues((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        // Deselect any chip in the same exclusive group (e.g. shifts left vs right)
-        const group = chips.find((c) => c.id === id)?.exclusiveGroup;
-        if (group) {
-          for (const c of chips) {
-            if (c.exclusiveGroup === group) next.delete(c.id);
-          }
-        }
-        next.add(id);
-      }
-      return next;
-    });
+    const next = new Set(selectedIssues);
+    if (next.has(id)) next.delete(id);
+    else {
+      const group = chips.find(c => c.id === id)?.exclusiveGroup;
+      if (group) for (const chip of chips) if (chip.exclusiveGroup === group) next.delete(chip.id);
+      next.add(id);
+    }
+    setSelectedIssues(next);
+    persistObservation(next, next.size > 0);
   };
 
   /** Never overwrite an explicit pain answer with the benign default. */
@@ -188,11 +191,12 @@ export function MovementPatternCapture({
   const handleLooksGood = () => {
     setMarkedGood(true);
     setSelectedIssues(new Set());
-    updateFormData(withPainPreserved({ ...benign }));
-    onComplete();
+    persistObservation(new Set(), true);
+    // Selecting the observation never advances or invents a pain answer.
   };
 
   const handleContinue = () => {
+    if (!canContinue) return;
     const patch = mergePatches(benign, chips, selectedIssues);
     updateFormData(withPainPreserved(patch));
     onComplete();
@@ -213,10 +217,24 @@ export function MovementPatternCapture({
           Watch the client move once, then tap what you saw — or mark it as looking good.
         </p>
 
+        {sectionId === 'overhead-squat' && (selectedIssues.has('heels') || (selectedIssues.has('depth') && selectedIssues.has('lean'))) && (
+          <div className="mt-6 space-y-3">
+            <p className="text-sm font-medium">Optional ankle check: knee to wall</p>
+            <p className="text-sm text-muted-foreground">Keep the heel down and move the knee toward the wall over the toes. Record the furthest comfortable toe-to-wall distance. A reach below 10 cm is a coaching prompt to review ankle movement, not a diagnosis.</p>
+            <div className="grid grid-cols-2 gap-4">{(['Left', 'Right'] as const).map(side => {
+              const id = side === 'Left' ? 'kneeToWallLeftCm' : 'kneeToWallRightCm';
+              const issue = numericIssue(id, formData[id]);
+              return <label key={id} className="space-y-2 text-sm">{side} (cm)<Input type="number" min="0" max="30" step="0.1" value={formData[id] ?? ''} onChange={event => updateFormData({ [id]: event.target.value })} aria-invalid={!!issue} />{issue && <span role="alert" className="text-destructive">{issue}</span>}</label>;
+            })}</div>
+          </div>
+        )}
+
         <div className="mt-8">
           <Button
             type="button"
-            className="h-12 w-full rounded-2xl text-base font-semibold"
+            variant={markedGood ? 'default' : 'outline'}
+            aria-pressed={markedGood}
+            className="h-12 w-full rounded-lg text-base font-semibold"
             onClick={handleLooksGood}
           >
             Looks good
@@ -235,13 +253,14 @@ export function MovementPatternCapture({
                   key={chip.id}
                   type="button"
                   onClick={() => toggleIssue(chip.id)}
-                  className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                  aria-pressed={active}
+                  className={`min-h-11 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
                     active
-                      ? 'border-primary bg-primary/10 text-foreground'
+                      ? 'border-foreground bg-foreground text-background'
                       : 'border-border bg-muted/40 text-foreground-secondary hover:bg-muted'
                   }`}
                 >
-                  {chip.label}
+                  {active && <Check className="mr-1 inline h-4 w-4" aria-hidden />} {chip.label}
                 </button>
               );
             })}
@@ -258,9 +277,10 @@ export function MovementPatternCapture({
                 key={opt.value}
                 type="button"
                 onClick={() => setPain(opt.value)}
-                className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                aria-pressed={formData[painField] === opt.value}
+                className={`min-h-11 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
                   formData[painField] === opt.value
-                    ? 'border-primary bg-primary/10 text-foreground'
+                    ? 'border-foreground bg-foreground text-background'
                     : 'border-border bg-muted/40 text-foreground-secondary hover:bg-muted'
                 }`}
               >

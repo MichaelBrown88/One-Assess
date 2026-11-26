@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { logger } from '@/lib/utils/logger';
 import { ROUTES } from '@/constants/routes';
 import { UI_COMMAND_MENU } from '@/constants/ui';
+import { APP_LOAD_RECOVERY_COPY } from '@/constants/errorRecovery';
+import { isChunkLoadError, reloadApp } from '@/lib/routing/chunkLoadRecovery';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -15,15 +17,6 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-}
-
-function isChunkLoadError(error: Error | null): boolean {
-  if (!error) return false;
-  return (
-    error.message.includes('Failed to fetch dynamically imported module') ||
-    error.message.includes('dynamically imported module') ||
-    error.message.includes('Importing a module script failed')
-  );
 }
 
 /**
@@ -48,10 +41,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleRetry = () => {
     if (isChunkLoadError(this.state.error)) {
-      // Rewritten app routes may still have the previous HTML in the browser cache.
-      const latest = new URL(window.location.href);
-      latest.searchParams.set('appUpdate', String(Date.now()));
-      window.location.replace(latest.toString());
+      reloadApp();
     } else {
       this.setState({ hasError: false, error: null });
     }
@@ -93,11 +83,11 @@ export function ErrorFallback({ error, onRetry, onGoHome }: ErrorFallbackProps) 
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          {chunkError ? 'App update required' : 'Something went wrong'}
+          {chunkError ? APP_LOAD_RECOVERY_COPY.TITLE : 'Something went wrong'}
         </h1>
         <p className="text-muted-foreground mb-6">
           {chunkError
-            ? 'A new version of the app is available. Please reload the page to get the latest update.'
+            ? APP_LOAD_RECOVERY_COPY.BODY
             : "We encountered an unexpected error. This has been logged and we'll look into it."}
         </p>
 
@@ -111,7 +101,7 @@ export function ErrorFallback({ error, onRetry, onGoHome }: ErrorFallbackProps) 
           {onRetry && (
             <Button type="button" onClick={onRetry} variant="outline" className="gap-2">
               <RefreshCw className="h-4 w-4" />
-              {chunkError ? 'Reload Page' : 'Try Again'}
+              {chunkError ? APP_LOAD_RECOVERY_COPY.ACTION : 'Try Again'}
             </Button>
           )}
           {onGoHome && !chunkError && (

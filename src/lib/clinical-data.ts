@@ -88,7 +88,8 @@ export interface NormativeBenchmark {
 }
 
 export const NORMATIVE_SCORING_DB: NormativeBenchmark[] = [
-  // Push-up (Standard for Men, Modified for Women)
+  // Push-up (ACSM): men = full push-ups on the toes, women = modified (knees).
+  // strengthScoring only uses a row when the recorded push-up type matches.
   { testId: '1', testName: 'Push-up', gender: 'male', ageBracket: '20-29', thresholds: { poor: 16, average: 22, excellent: 47 }, fitnessAgeStandard: 22, unit: 'Repetitions' },
   { testId: '2', testName: 'Push-up', gender: 'male', ageBracket: '30-39', thresholds: { poor: 11, average: 17, excellent: 39 }, fitnessAgeStandard: 22, unit: 'Repetitions' },
   { testId: '3', testName: 'Push-up', gender: 'male', ageBracket: '40-49', thresholds: { poor: 9, average: 13, excellent: 30 }, fitnessAgeStandard: 22, unit: 'Repetitions' },
@@ -100,18 +101,8 @@ export const NORMATIVE_SCORING_DB: NormativeBenchmark[] = [
   { testId: '9', testName: 'Push-up', gender: 'female', ageBracket: '50-59', thresholds: { poor: 1, average: 7, excellent: 21 }, fitnessAgeStandard: 15, unit: 'Repetitions' },
   { testId: '10', testName: 'Push-up', gender: 'female', ageBracket: '60-69', thresholds: { poor: 1, average: 5, excellent: 15 }, fitnessAgeStandard: 15, unit: 'Repetitions' },
   
-  // Plank Hold
-  { testId: '11', testName: 'Plank Hold', gender: 'male', ageBracket: '20-29', thresholds: { poor: 49, average: 103, excellent: 180 }, fitnessAgeStandard: 103, unit: 'Seconds' },
-  { testId: '12', testName: 'Plank Hold', gender: 'male', ageBracket: '30-39', thresholds: { poor: 45, average: 95, excellent: 165 }, fitnessAgeStandard: 103, unit: 'Seconds' },
-  { testId: '13', testName: 'Plank Hold', gender: 'male', ageBracket: '40-49', thresholds: { poor: 35, average: 75, excellent: 140 }, fitnessAgeStandard: 103, unit: 'Seconds' },
-  { testId: '14', testName: 'Plank Hold', gender: 'male', ageBracket: '50-59', thresholds: { poor: 35, average: 60, excellent: 110 }, fitnessAgeStandard: 103, unit: 'Seconds' },
-  { testId: '15', testName: 'Plank Hold', gender: 'male', ageBracket: '60+', thresholds: { poor: 20, average: 25, excellent: 60 }, fitnessAgeStandard: 103, unit: 'Seconds' },
-  { testId: '16', testName: 'Plank Hold', gender: 'female', ageBracket: '20-29', thresholds: { poor: 34, average: 70, excellent: 142 }, fitnessAgeStandard: 70, unit: 'Seconds' },
-  { testId: '17', testName: 'Plank Hold', gender: 'female', ageBracket: '30-39', thresholds: { poor: 30, average: 60, excellent: 120 }, fitnessAgeStandard: 70, unit: 'Seconds' },
-  { testId: '18', testName: 'Plank Hold', gender: 'female', ageBracket: '40-49', thresholds: { poor: 25, average: 50, excellent: 100 }, fitnessAgeStandard: 70, unit: 'Seconds' },
-  { testId: '19', testName: 'Plank Hold', gender: 'female', ageBracket: '50-59', thresholds: { poor: 20, average: 40, excellent: 85 }, fitnessAgeStandard: 70, unit: 'Seconds' },
-  { testId: '20', testName: 'Plank Hold', gender: 'female', ageBracket: '60+', thresholds: { poor: 15, average: 20, excellent: 50 }, fitnessAgeStandard: 70, unit: 'Seconds' },
-  
+  // Plank is scored in strengthScoring.scorePlankStrand (Strand 2014).
+
   // Recovery HR (Step Test)
   { testId: '21', testName: 'Recovery HR', gender: 'male', ageBracket: '18-25', thresholds: { poor: 118, average: 101, excellent: 70 }, fitnessAgeStandard: 101, unit: 'BPM' },
   { testId: '22', testName: 'Recovery HR', gender: 'male', ageBracket: '26-35', thresholds: { poor: 119, average: 101, excellent: 73 }, fitnessAgeStandard: 101, unit: 'BPM' },

@@ -163,8 +163,8 @@ export function RemoteIntakeWizard({ source }: { source: IntakeSource }) {
         prefill,
         gender: basicInfo.gender,
         includePosture: source.includePosture,
-      }),
-    [allowedKeys, prefill, basicInfo.gender, source.includePosture],
+      }).filter(screen => screen.id !== 'lastCaffeineIntake' || Number(lifestyle.caffeineCupsPerDay) > 0),
+    [allowedKeys, prefill, basicInfo.gender, source.includePosture, lifestyle.caffeineCupsPerDay],
   );
 
   const currentScreen = screens[screenIndex];

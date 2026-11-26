@@ -27,7 +27,7 @@ export default function ClientHistory() {
   if (snapshots.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
-        No assessment history yet. Complete an assessment to see past snapshots here.
+        No saved assessments. Start an assessment from this client’s profile.
       </p>
     );
   }
@@ -61,7 +61,7 @@ export default function ClientHistory() {
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {viewTarget && (
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-foreground-secondary" asChild>
+                <Button variant="ghost" size="sm" className="min-h-11 px-3 text-xs text-foreground-secondary" asChild>
                   <Link to={viewTarget}>
                     <ExternalLink className="h-3.5 w-3.5 mr-1" />
                     View
@@ -71,7 +71,7 @@ export default function ClientHistory() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs text-foreground-secondary"
+                className="min-h-11 px-3 text-xs text-foreground-secondary"
                 onClick={() => handleEditSnapshot(snapshot)}
               >
                 <Pencil className="h-3.5 w-3.5 mr-1" />
@@ -80,11 +80,11 @@ export default function ClientHistory() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="min-h-11 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={() => setDeleteSnapshotDialog({ snapshotId: snapshot.id ?? '' })}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Delete
+                Delete assessment
               </Button>
             </div>
           </li>

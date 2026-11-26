@@ -1,3 +1,5 @@
+import { missingBaselineSections } from './assessment/baselineReadiness';
+import { numericIssues } from './assessment/numericValidation';
 /**
  * Assessment completeness rules.
  * Single source of truth for whether an assessment is complete enough to update the live report.
@@ -33,26 +35,26 @@ function getPillarScore(
   categoryId: string,
   age: number,
   gender: string
-): number {
+): boolean {
   switch (categoryId) {
     case 'bodyComp':
-      return scoreBodyComp(form, age, gender).score;
+      return scoreBodyComp(form, age, gender).assessed;
     case 'cardio':
-      return scoreCardio(form, age, gender).score;
+      return scoreCardio(form, age, gender).assessed;
     case 'strength':
-      return scoreStrength(form, age, gender).score;
+      return scoreStrength(form, age, gender).assessed;
     case 'movementQuality':
-      return scoreMovementQuality(form, age, gender).score;
+      return scoreMovementQuality(form, age, gender).assessed;
     case 'lifestyle':
-      return scoreLifestyle(form, age, gender).score;
+      return scoreLifestyle(form, age, gender).assessed;
     default:
-      return 0;
+      return false;
   }
 }
 
 /**
  * Returns true if the assessment has enough data to finalize (update live report).
- * - full: at least one pillar has data (score > 0) and client name is set.
+ * - full: all baseline sections have captured data, including measured zeros.
  * - partial: the given category has data and client name is set.
  */
 export function isAssessmentComplete(
@@ -60,7 +62,7 @@ export function isAssessmentComplete(
   mode: AssessmentMode,
   partialCategory?: PartialCategory
 ): boolean {
-  if (!hasClientName(formData)) return false;
+  if (!hasClientName(formData) || numericIssues(formData).length > 0) return false;
 
   const age = calculateAge(formData.dateOfBirth);
   const gender = (formData.gender || 'any').toLowerCase();
@@ -68,16 +70,11 @@ export function isAssessmentComplete(
   if (mode === 'partial' && partialCategory) {
     const categoryId = SCORE_CATEGORY_IDS[partialCategory];
     const score = getPillarScore(formData, categoryId, age, gender);
-    return score > 0;
+    return score;
   }
 
   if (mode === 'full') {
-    const ids: PartialCategory[] = ['bodycomp', 'posture', 'fitness', 'strength', 'lifestyle'];
-    const hasAnyPillar = ids.some((cat) => {
-      const id = SCORE_CATEGORY_IDS[cat];
-      return getPillarScore(formData, id, age, gender) > 0;
-    });
-    return hasAnyPillar;
+    return missingBaselineSections(formData).length === 0;
   }
 
   return false;

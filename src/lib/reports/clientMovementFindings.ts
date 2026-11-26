@@ -114,6 +114,7 @@ const MOVEMENT_OHS_FIELDS: MovementFieldSpec[] = [
   { field: 'ohsKneeAlignment', optionKey: 'ohsKneeAlignment' },
   { field: 'ohsHipShift', optionKey: 'ohsHipShift' },
   { field: 'ohsFeetPosition', optionKey: 'ohsFeetPosition' },
+  { field: 'ohsHeelsLift', optionKey: 'ohsHeelsLift' },
 ];
 
 const MOVEMENT_HINGE_FIELDS: MovementFieldSpec[] = [

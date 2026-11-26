@@ -3,6 +3,29 @@ import { MOVEMENT_LOGIC_DB } from '../clinical-data';
 import { POSTURE_STANDARD } from '@/lib/utils/postureAlignment';
 import type { ScoreCategory, ScoreDetail } from './types';
 import { resolveMobilityForScoring } from './deriveMobilityFromPatterns';
+import { meanOfMeasured } from './scoringUtils';
+
+/**
+ * Score for every movement-pattern option value. Every option offered in
+ * ASSESSMENT_OPTIONS must appear here (tested): an unknown value used to score
+ * 0 and be silently dropped, hiding the fault.
+ */
+export const MOVEMENT_PATTERN_SCORES: Record<string, number> = {
+  'excellent': 100, 'good': 85, 'fair': 60, 'poor': 40,
+  'full-depth': 100, 'parallel': 80, 'quarter-depth': 50, 'no-depth': 30,
+  'full-range': 100, 'compensated': 60, 'limited': 30,
+  'upright': 100, 'moderate-lean': 60, 'excessive-lean': 30,
+  'none': 100, 'minor': 80, 'moderate': 50, 'severe': 25,
+  'stable': 100, 'tracks-straight': 100, 'neutral': 100,
+  'valgus': 40, 'varus': 40, 'pronation': 50, 'supination': 50,
+  'caves-inward': 40, 'bows-outward': 40,
+  'anterior-tilt': 50, 'posterior-tilt': 50,
+  'left': 60, 'right': 60,
+  'shifts-left': 60, 'shifts-right': 60,
+};
+
+/** Side-view pelvic reading (in the app's estimated degrees) treated as marked. Provisional. */
+export const PELVIC_SIDE_MARKED_DEG = 20;
 
 export function scoreMovementQuality(form: FormData, age: number, gender: string): ScoreCategory {
   // 1. MOBILITY SCORING (explicit legacy fields or inferred from movement patterns)
@@ -25,7 +48,9 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
     ankleMob = mapMobility(mobility.ankleLegacy);
   }
 
-  const mobilityScores = [hipMob, shoulderMob, ankleMob].filter(s => s > 0);
+  // Mobility inferred from the squat chips re-uses the same squat, so it only
+  // counts when measured directly (owner decision, 19 Nov 2026).
+  const mobilityScores = mobility.inferred ? [] : [hipMob, shoulderMob, ankleMob].filter(s => s > 0);
   const mobilityScore = mobilityScores.length > 0
     ? Math.round(mobilityScores.reduce((a, b) => a + b, 0) / mobilityScores.length)
     : 0;
@@ -79,8 +104,10 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (tilt < 10) tiltScore = 50;
       else tiltScore = 25;
     }
-    // Each area only counts when it has at least one finding; missing findings are not "perfect".
-    if (headData || tiltData) head = Math.round((fhpScore + tiltScore) / 2);
+    // Each area only counts when it has at least one finding, and within an area
+    // only the findings present are averaged — a missing finding is not "perfect".
+    const headMean = meanOfMeasured([headData ? fhpScore : null, tiltData ? tiltScore : null]);
+    if (headMean !== null) head = Math.round(headMean);
 
     // Shoulders (industry standard: Normal when height difference <1 cm)
     const shoulderData = ai.front?.shoulder_alignment;
@@ -115,20 +142,25 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
       else if (deg < 20) scoliosisScore = 50;
       else scoliosisScore = 25;
     }
-    if (kyphosisData || lordosisData || spineData) {
-      back = Math.round((kyphosisScore + lordosisScore + scoliosisScore) / 3);
-    }
+    const backMean = meanOfMeasured([
+      kyphosisData ? kyphosisScore : null,
+      lordosisData ? lordosisScore : null,
+      spineData ? scoliosisScore : null,
+    ]);
+    if (backMean !== null) back = Math.round(backMean);
 
     // Hips/Pelvis
     const pelvicSideData = ai['side-right']?.pelvic_tilt || ai['side-left']?.pelvic_tilt;
     const pelvicFrontData = ai.front?.pelvic_tilt || ai.back?.pelvic_tilt;
     let pelvicScore = 100;
+    // Side view: the camera sees hip joints, not the pelvic bones, and most
+    // healthy people stand with some anterior tilt. So this is a coach
+    // observation that only lowers the score when the reading is marked
+    // (owner decision 19 Nov; band to be calibrated on studio captures).
     if (pelvicSideData && pelvicSideData.status !== 'Neutral') {
       const tilt = Math.abs(pelvicSideData.anterior_tilt_degrees ?? 0);
-      if (tilt < 5) pelvicScore = 100;
-      else if (tilt < 10) pelvicScore = 75;
-      else if (tilt < 15) pelvicScore = 50;
-      else pelvicScore = 25;
+      if (tilt >= PELVIC_SIDE_MARKED_DEG + 10) pelvicScore = 25;
+      else if (tilt >= PELVIC_SIDE_MARKED_DEG) pelvicScore = 50;
     }
     if (pelvicFrontData && pelvicFrontData.status !== 'Neutral') {
       const lateralTilt = Math.abs(pelvicFrontData.lateral_tilt_degrees ?? 0);
@@ -172,32 +204,25 @@ export function scoreMovementQuality(form: FormData, age: number, gender: string
     : 0;
 
   // 3. MOVEMENT PATTERN SCORING
-  const scoreMap: Record<string, number> = {
-    'excellent': 100, 'good': 85, 'fair': 60, 'poor': 40,
-    'full-depth': 100, 'parallel': 80, 'quarter-depth': 50, 'no-depth': 30,
-    'full-range': 100, 'compensated': 60, 'limited': 30,
-    'upright': 100, 'moderate-lean': 60, 'excessive-lean': 30,
-    'none': 100, 'minor': 80, 'moderate': 50, 'severe': 25,
-    'stable': 100, 'tracks-straight': 100, 'neutral': 100,
-    'valgus': 40, 'varus': 40, 'pronation': 50, 'supination': 50,
-    'caves-inward': 40, 'bows-outward': 40,
-    'anterior-tilt': 50, 'posterior-tilt': 50,
-    'left': 60, 'right': 60
-  };
+  const getScore = (v: string | undefined) => (v ? (MOVEMENT_PATTERN_SCORES[v.toLowerCase()] ?? 0) : 0);
 
-  const getScore = (v: string | undefined) => (v ? (scoreMap[v.toLowerCase()] ?? 0) : 0);
+  // Each pattern scores as its worst observed fault (owner decision, 19 Nov 2026).
+  // Averaging let the 'fine' checks dilute a real fault: a quarter-depth squat
+  // with forward lean was only 2 bad checks out of 6.
+  const worstFault = (scores: number[]) => (scores.length > 0 ? Math.min(...scores) : 0);
 
   const ohsFields = [form.ohsShoulderMobility, form.ohsTorsoLean, form.ohsSquatDepth, form.ohsHipShift, form.ohsKneeAlignment, form.ohsFeetPosition];
   const ohsScores = ohsFields.map(getScore).filter(s => s > 0);
-  const ohsScore = ohsScores.length > 0 ? ohsScores.reduce((a, b) => a + b, 0) / ohsScores.length : 0;
+  if (form.ohsHeelsLift === 'yes') ohsScores.push(60);
+  const ohsScore = worstFault(ohsScores);
 
   const hingeFields = [form.hingeDepth, form.hingeBackRounding];
   const hingeScores = hingeFields.map(getScore).filter(s => s > 0);
-  const hingeScore = hingeScores.length > 0 ? hingeScores.reduce((a, b) => a + b, 0) / hingeScores.length : 0;
+  const hingeScore = worstFault(hingeScores);
 
   const lungeFields = [form.lungeLeftBalance, form.lungeRightBalance, form.lungeLeftKneeAlignment, form.lungeRightKneeAlignment, form.lungeLeftTorso, form.lungeRightTorso];
   const lungeScores = lungeFields.map(getScore).filter(s => s > 0);
-  const lungeScore = lungeScores.length > 0 ? lungeScores.reduce((a, b) => a + b, 0) / lungeScores.length : 0;
+  const lungeScore = worstFault(lungeScores);
 
   const mvmntScores = [ohsScore, hingeScore, lungeScore].filter(s => s > 0);
   const movementScore = mvmntScores.length > 0

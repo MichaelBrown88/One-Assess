@@ -45,6 +45,11 @@ export const PILLAR_DETAIL_COPY: Record<string, PillarDetailCopy> = {
     nudge: "Squats were your weakest test. Stronger legs make stairs and getting up easier, and they're your biggest calorie-burning muscles.",
     focus: 'Leg strength is low. Your legs are your biggest calorie-burning muscles, and stronger legs keep you moving well for life.',
   },
+  singleLeg: {
+    strong: 'Strong legs in the single-leg test.',
+    nudge: "The single-leg test was your weakest. Stronger legs make stairs and getting up easier, and they're your biggest calorie-burning muscles.",
+    focus: 'Leg strength is low. Your legs are your biggest calorie-burning muscles, and stronger legs keep you moving well for life.',
+  },
   plank: {
     strong: 'A solid core in the plank hold.',
     nudge: 'Your plank was your weakest test. A stronger core protects your lower back and lets you lift heavier safely.',

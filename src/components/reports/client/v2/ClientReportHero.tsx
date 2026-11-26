@@ -84,6 +84,7 @@ export function ClientReportHero({
             <p className={HERO_CHART_CAPTION}>{CLIENT_REPORT_COPY.v2AxisScoreLabel}</p>
             <div className="mt-auto flex w-full flex-col items-center md:pb-10">
               <ScoreRing score={overall} size={HERO_SCORE_SIZE} />
+              {radarData.some(area => area.assessed === false) && <p className="mt-2 text-xs text-muted-foreground">Based on {radarData.filter(area => area.assessed !== false).length} of 5 areas</p>}
               {scoreDiff !== null && scoreDiff !== 0 ? (
                 <span
                   className={cn(

@@ -216,7 +216,7 @@ export function ClientTableBulkActions({
           className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
         >
           <Trash2 className="h-3.5 w-3.5 shrink-0" />
-          Delete
+          Move to trash
         </button>
         <div className="h-4 w-px bg-background/25 hidden sm:block" aria-hidden />
         <button
@@ -277,7 +277,7 @@ export function ClientTableBulkActions({
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
-              Delete {selectedGroups.length} client{selectedGroups.length !== 1 ? 's' : ''}?
+              Move {selectedGroups.length} client{selectedGroups.length !== 1 ? 's' : ''} to trash?
             </AlertDialogTitle>
             <AlertDialogDescription>
               Deleted clients are moved to trash and can be restored within 30 days. After that, all data including assessments, history, and reports will be permanently removed.

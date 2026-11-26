@@ -10,6 +10,8 @@ function hasPositiveNumber(value: unknown): boolean {
   return Number.isFinite(n) && n > 0;
 }
 
+function hasMeasuredNumber(value: unknown): boolean { return hasText(value) && Number.isFinite(Number(value)) && Number(value) >= 0; }
+
 /**
  * True when the saved assessment has at least one captured signal the AXIS
  * report can render. Uses current and legacy field names so older sessions
@@ -17,6 +19,7 @@ function hasPositiveNumber(value: unknown): boolean {
  */
 export function clientReportHasCapturedData(formData: FormData | undefined): boolean {
   if (!formData) return false;
+  if ([formData.postureHeadOverall, formData.postureShouldersOverall, formData.postureBackOverall, formData.postureHipsOverall, formData.postureKneesOverall].some(value => Array.isArray(value) && value.length > 0)) return true;
 
   if (
     hasPositiveNumber(formData.inbodyWeightKg) ||
@@ -38,14 +41,16 @@ export function clientReportHasCapturedData(formData: FormData | undefined): boo
   }
 
   if (
-    hasPositiveNumber(formData.pushupsOneMinuteReps) ||
-    hasPositiveNumber(formData.pushupMaxReps) ||
-    hasPositiveNumber(formData.squatsOneMinuteReps) ||
-    hasPositiveNumber(formData.plankDurationSeconds) ||
-    hasPositiveNumber(formData.gripLeftKg) ||
-    hasPositiveNumber(formData.gripRightKg) ||
-    hasPositiveNumber(formData.gripDeadhangSeconds) ||
-    hasPositiveNumber(formData.gripPlatePinchSeconds)
+    hasMeasuredNumber(formData.pushupsOneMinuteReps) ||
+    hasMeasuredNumber(formData.pushupMaxReps) ||
+    hasMeasuredNumber(formData.squatsOneMinuteReps) ||
+    hasMeasuredNumber(formData.singleLegStandLeftReps) ||
+    hasMeasuredNumber(formData.singleLegStandRightReps) ||
+    hasMeasuredNumber(formData.plankDurationSeconds) ||
+    hasMeasuredNumber(formData.gripLeftKg) ||
+    hasMeasuredNumber(formData.gripRightKg) ||
+    hasMeasuredNumber(formData.gripDeadhangSeconds) ||
+    hasMeasuredNumber(formData.gripPlatePinchSeconds)
   ) {
     return true;
   }
@@ -72,6 +77,15 @@ export function clientReportHasCapturedData(formData: FormData | undefined): boo
 
   if (
     hasText(formData.sleepArchetype) ||
+    hasText(formData.sleepHours) ||
+    hasText(formData.sleepRegularity) ||
+    hasText(formData.stressFrequency) ||
+    hasText(formData.stressCoping) ||
+    hasText(formData.exerciseMinutesWeek) ||
+    hasText(formData.strengthDaysWeek) ||
+    hasText(formData.proteinMeals) ||
+    hasText(formData.fruitVegPortions) ||
+    hasText(formData.takeawaysWeek) ||
     hasText(formData.sleepQuality) ||
     hasText(formData.sleepDuration) ||
     hasText(formData.stressLevel) ||

@@ -65,7 +65,7 @@ export function selectImprovementAreas(
 
 /**
  * Three-beat AXIS hero summary, the same shape every session:
- * 1. where the overall score sits vs age/sex norms
+ * 1. overall coaching score and context for individual age/sex checks
  * 2. best finding today
  * 3. two or three areas to improve
  *

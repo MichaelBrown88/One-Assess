@@ -1,3 +1,5 @@
+import { PILLAR_SCORE_ORDER } from './radarData';
+import { manualPostureSummary } from './manualPosture';
 import { validAssessmentComparison, withMeasuredChanges } from './assessmentComparison';
 import type { ReactNode } from 'react';
 import type { FormData } from '@/contexts/FormContext';
@@ -64,6 +66,14 @@ import {
   CLIENT_PLAN_WEEKS,
 } from '@/constants/clientReport';
 
+import { assessSideImbalance, type SideImbalance } from '@/lib/scoring/sideImbalance';
+import { readLowerBody } from '@/lib/scoring/lowerBody';
+
+export interface ClientSideBalance {
+  kind: 'grip' | 'legs';
+  imbalance: SideImbalance;
+}
+
 export type ClientPillarContentMode = 'progression' | 'lifestyle-factors' | 'movement-findings';
 
 export interface ClientReportMetricChip {
@@ -86,11 +96,14 @@ export interface ClientReportPillarModel {
   progressionRows: ClientReportProgressionRow[];
   contentMode: ClientPillarContentMode;
   movementFindings: ClientMovementFindingsModel | null;
+  /** Strength only: material left/right gaps (grip, legs). Empty otherwise. */
+  sideBalances: ClientSideBalance[];
   goalTieIn: string | null;
   pillarRole: PillarRole;
 }
 
 export interface ClientReportPostureModel {
+  manualSummary?: string[];
   findings: PostureFindingRecord[];
   postureResults: Partial<Record<PostureFindingViewId, PostureAnalysisResult>>;
   images: Record<string, string>;
@@ -210,7 +223,9 @@ export function buildClientReportModel(input: BuildClientReportModelInput): Clie
       smartLine: `${row.name}: ${CLIENT_PLAN_WEEKS}-week progress guide`,
     })));
 
-  const radarData = buildRadarDataFromScores(pillarScoresFromCategories(scores.categories));
+  const radarData = buildRadarDataFromScores(pillarScoresFromCategories(scores.categories)).map((entry, index) => ({
+    ...entry, assessed: Boolean(scores.categories.find(category => category.id === PILLAR_SCORE_ORDER[index])?.assessed),
+  }));
   const previousRadarData = previousScores
     ? buildRadarDataFromScores(pillarScoresFromCategories(previousScores.categories))
     : undefined;
@@ -433,9 +448,22 @@ function buildPillarModel(
     progressionRows,
     contentMode,
     movementFindings,
+    sideBalances: sectionId === 'strength' ? materialSideBalances(formData) : [],
     goalTieIn: buildPillarGoalTieIn(scoringId, pillarRole, goalCtx),
     pillarRole,
   };
+}
+
+function materialSideBalances(formData: FormData | undefined): ClientSideBalance[] {
+  if (!formData) return [];
+  const out: ClientSideBalance[] = [];
+  const grip = assessSideImbalance(formData.gripLeftKg, formData.gripRightKg);
+  if (grip?.material) out.push({ kind: 'grip', imbalance: grip });
+  if (readLowerBody(formData)?.protocol === 'single-leg-sts-30sec') {
+    const legs = assessSideImbalance(formData.singleLegStandLeftReps, formData.singleLegStandRightReps);
+    if (legs?.material) out.push({ kind: 'legs', imbalance: legs });
+  }
+  return out;
 }
 
 function buildPillarGoalTieIn(
@@ -535,7 +563,10 @@ function buildPostureModel(formData?: FormData): ClientReportPostureModel | null
       : {};
   const hasImages = Object.keys(images).length > 0;
   const hasAnalysis = Object.keys(results).length > 0;
-  if (!hasImages && !hasAnalysis) return null;
+  if (!hasImages && !hasAnalysis) {
+    const manualSummary = manualPostureSummary(formData);
+    return manualSummary ? { manualSummary, findings: [], postureResults: {}, images: {}, headline: 'Coach observations', summaryLines: manualSummary, focusBullets: [] } : null;
+  }
 
   const findings = hasAnalysis ? aggregatePostureFindings(results) : [];
   const notable = findings.filter(isReportablePostureFinding);

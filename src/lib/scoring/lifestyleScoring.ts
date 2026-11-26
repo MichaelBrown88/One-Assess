@@ -2,6 +2,7 @@ import type { FormData } from '@/contexts/FormContext';
 import { LIFESTYLE_FEEDBACK_DB } from '../clinical-data';
 import { safeParse } from '../utils/numbers';
 import type { ScoreCategory, ScoreDetail } from './types';
+import { habitFactorLabel, habitFactorScores, hasHabitAnswers } from './lifestyleHabits';
 
 /** Parse an 'HH:MM' time string into an hour number, or null when absent/invalid. */
 function parseCaffeineHour(value: string | undefined): number | null {
@@ -27,7 +28,10 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
 
   // Alcohol is optional (often skipped in regions where it is not asked).
   // Never include it in the lifestyle average — empty, skipped, or answered.
-  const hasLifestyleData = !!(sleepArchetype || sleepQ || sleepC || stress || hydration || nutrition || steps > 0 || sedentary > 0 || activityLevel);
+  // New habit questions first; older self-ratings are the fallback for past assessments.
+  const habits = habitFactorScores(form);
+  const hasHabits = (['sleep', 'stress', 'activity', 'nutrition'] as const).some((f) => hasHabitAnswers(form, f));
+  const hasLifestyleData = hasHabits || !!(sleepArchetype || sleepQ || sleepC || stress || hydration || nutrition || steps > 0 || sedentary > 0 || activityLevel);
 
   if (!hasLifestyleData) {
     return {
@@ -61,6 +65,8 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
     else if (sleepC === 'very-inconsistent') sleepScore = Math.max(0, sleepScore - 20);
   }
 
+  if (habits.sleep !== null) sleepScore = habits.sleep;
+
   // Caffeine timing penalty: caffeine's ~5-6h half-life means afternoon/evening
   // servings cut into sleep depth even when self-reported sleep feels fine.
   let lateCaffeine: 'afternoon' | 'evening' | null = null;
@@ -82,19 +88,23 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   else if (stress === 'high') stressScore = 30;
   else if (stress === 'very-high') stressScore = 30; // Legacy value
 
+  if (habits.stress !== null) stressScore = habits.stress;
+
   // Hydration score
   let hydrationScore = 0;
   if (hydration === 'excellent') hydrationScore = 100;
-  else if (hydration === 'good') hydrationScore = 85;
+  else if (hydration === 'good') hydrationScore = 65;
   else if (hydration === 'fair') hydrationScore = 60;
   else if (hydration === 'poor') hydrationScore = 40;
 
   // Nutrition score
   let nutritionScore = 0;
   if (nutrition === 'excellent') nutritionScore = 100;
-  else if (nutrition === 'good') nutritionScore = 85;
+  else if (nutrition === 'good') nutritionScore = 65;
   else if (nutrition === 'fair') nutritionScore = 60;
   else if (nutrition === 'poor') nutritionScore = 40;
+
+  if (habits.nutrition !== null) nutritionScore = habits.nutrition;
 
   // Activity score: steps are the objective signal; the self-rated activity
   // level fills in when steps are missing. Sedentary hours are legacy data.
@@ -112,19 +122,23 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
     else if (activityLevel === 'lightly-active') activityScore = 50;
     else if (activityLevel === 'sedentary') activityScore = 30;
   }
+  if (hasHabitAnswers(form, 'activity') && habits.activity !== null) activityScore = habits.activity;
   if (sedentary >= 10) activityScore = Math.max(30, activityScore - 20);
   else if (sedentary >= 8) activityScore = Math.max(40, activityScore - 15);
 
   // Fetch Advice Blocks
   const lifestyleAdvice: string[] = [];
 
-  if (sleepScore < 70) {
+  // Advice only for habits that were actually asked (a score of 0 = not answered).
+  if (sleepScore > 0 && sleepScore < 70) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Sleep' && a.riskLevel === 'High Risk')?.adviceBlock || '');
   } else if (sleepScore >= 85) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Sleep' && a.riskLevel === 'Optimal')?.adviceBlock || '');
   }
 
-  if (stressScore < 50) {
+  if (stressScore === 0) {
+    // not asked
+  } else if (stressScore < 50) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'High Risk')?.adviceBlock || '');
   } else if (stressScore < 75) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'Moderate Risk')?.adviceBlock || '');
@@ -132,7 +146,9 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Stress' && a.riskLevel === 'Low Risk')?.adviceBlock || '');
   }
 
-  if (steps < 5000) {
+  if (steps <= 0) {
+    // steps not recorded
+  } else if (steps < 5000) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Steps' && a.riskLevel === 'Sedentary')?.adviceBlock || '');
   } else if (steps < 10000) {
     lifestyleAdvice.push(LIFESTYLE_FEEDBACK_DB.find(a => a.category === 'Steps' && a.riskLevel === 'Active')?.adviceBlock || '');
@@ -141,14 +157,16 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   }
 
   const details: ScoreDetail[] = [
-    { id: 'sleep', label: 'Sleep Quality', value: lateCaffeine ? `${sleepQ || sleepArchetype || '-'} (late caffeine)` : (sleepQ || '-'), score: Math.round(sleepScore) },
-    { id: 'stress', label: 'Stress Management', value: stress || '-', score: Math.round(stressScore) },
+    { id: 'sleep', label: 'Sleep Quality', value: (() => { const v = hasHabitAnswers(form, 'sleep') ? habitFactorLabel(form, 'sleep') : (sleepQ || sleepArchetype || '-'); return lateCaffeine ? `${v} (late caffeine)` : v; })(), score: Math.round(sleepScore) },
+    { id: 'stress', label: 'Stress Management', value: hasHabitAnswers(form, 'stress') ? habitFactorLabel(form, 'stress') : (stress || '-'), score: Math.round(stressScore) },
     { id: 'hydration', label: 'Hydration', value: hydration || '-', score: Math.round(hydrationScore) },
-    { id: 'nutrition', label: 'Nutrition', value: nutrition || '-', score: Math.round(nutritionScore) },
-    { id: 'activity', label: 'Daily Activity', value: steps > 0 ? `${Math.round(steps)} steps` : '-', score: Math.round(activityScore) },
+    { id: 'nutrition', label: 'Nutrition', value: hasHabitAnswers(form, 'nutrition') ? habitFactorLabel(form, 'nutrition') : (nutrition || '-'), score: Math.round(nutritionScore) },
+    { id: 'activity', label: 'Daily Activity', value: hasHabitAnswers(form, 'activity') ? habitFactorLabel(form, 'activity') : (steps > 0 ? `${Math.round(steps)} steps` : '-'), score: Math.round(activityScore) },
   ];
 
-  const scoresWithData = [sleepScore, stressScore, hydrationScore, nutritionScore, activityScore].filter(s => s > 0);
+  const measured = [habits.sleep !== null || !!(sleepArchetype || sleepQ || sleepC), habits.stress !== null || !!stress,
+    !!hydration, habits.nutrition !== null || !!nutrition, habits.activity !== null || !!(form.stepsPerDay || activityLevel || sedentary)];
+  const scoresWithData = [sleepScore, stressScore, hydrationScore, nutritionScore, activityScore].filter((_, index) => measured[index]);
   const overallScore = scoresWithData.length > 0
     ? Math.round(scoresWithData.reduce((a, b) => a + b, 0) / scoresWithData.length)
     : 0;
@@ -156,18 +174,19 @@ export function scoreLifestyle(form: FormData, age: number, gender: string): Sco
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
-  if (sleepScore >= 75) strengths.push('Good sleep habits');
-  else weaknesses.push('Sleep quality needs improvement');
+  // Only answered habits become strengths or weaknesses.
+  const habit = (score: number, strong: string, weak: string, answered: boolean) => {
+    if (!answered) return;
+    if (score >= 75) strengths.push(strong);
+    else weaknesses.push(weak);
+  };
+  habit(sleepScore, 'Good sleep habits', 'Sleep quality needs improvement', measured[0]);
   if (lateCaffeine === 'evening') weaknesses.push('Evening caffeine is likely cutting into sleep depth');
   else if (lateCaffeine === 'afternoon') weaknesses.push('Afternoon caffeine may be affecting sleep quality');
-  if (stressScore >= 75) strengths.push('Well-managed stress');
-  else weaknesses.push('Stress management needed');
-  if (hydrationScore >= 75) strengths.push('Good hydration');
-  else weaknesses.push('Hydration needs attention');
-  if (nutritionScore >= 75) strengths.push('Good nutrition habits');
-  else weaknesses.push('Nutrition needs improvement');
-  if (activityScore >= 75) strengths.push('Active lifestyle');
-  else weaknesses.push('Daily activity needs increase');
+  habit(stressScore, 'Well-managed stress', 'Stress management needed', measured[1]);
+  habit(hydrationScore, 'Good hydration', 'Hydration needs attention', measured[2]);
+  habit(nutritionScore, 'Good nutrition habits', 'Nutrition needs improvement', measured[3]);
+  habit(activityScore, 'Active lifestyle', 'Daily activity needs increase', measured[4]);
 
   return {
     id: 'lifestyle',

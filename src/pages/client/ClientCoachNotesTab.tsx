@@ -1,3 +1,4 @@
+import { buildProgrammingBrief } from '@/lib/coachNotes/programmingBrief';
 /**
  * Coach Notes tab — coach-only diagnostic + prescriptive surface.
  *
@@ -91,6 +92,7 @@ export default function ClientCoachNotesTab() {
     useOutletContext<ClientDetailOutletContext>();
   const slug = clientName ?? '';
 
+  const programmingBrief = currentAssessment?.formData ? buildProgrammingBrief(currentAssessment.formData) : [];
   const [notes, setNotes] = useState<CoachNotesDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
@@ -167,10 +169,12 @@ export default function ClientCoachNotesTab() {
     );
   }
 
+  const brief = (programmingBrief.length > 0 && <section className="rounded-lg border bg-card p-5"><h2 className="font-semibold">Starting programme choices</h2><p className="mt-1 text-sm text-muted-foreground">Coach guidance from the latest observations. Adapt to comfort, ability and the client’s goals.</p><ul className="mt-3 space-y-2 text-sm">{programmingBrief.map(note => <li key={note}>{note}</li>)}</ul></section>);
+
   // No notes yet — offer first-generation CTA.
   if (!notes) {
     return (
-      <EmptyState
+      <div className="space-y-5">{brief}<EmptyState
         title="No coach notes yet"
         body="Coach notes are auto-generated from the latest assessment + the intervention library. Each finding carries a prescription, expected timeline, and reassessment cadence — coach-only, never seen by the client."
         cta={
@@ -188,7 +192,7 @@ export default function ClientCoachNotesTab() {
             </Button>
           ) : null
         }
-      />
+      /></div>
     );
   }
 
@@ -196,6 +200,8 @@ export default function ClientCoachNotesTab() {
 
   return (
     <div className="space-y-5">
+
+      {brief}
       <CoachNotesHero
         clientName={displayClientName || slug}
         stats={stats}

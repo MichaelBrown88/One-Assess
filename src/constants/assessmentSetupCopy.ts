@@ -25,13 +25,13 @@ export const ASSESSMENT_SETUP_COPY = {
 
   REVIEW_TITLE: 'Ready to generate the report?',
   REVIEW_SUBTITLE:
-    'We\'ll save your progress and generate the report. You can keep editing afterward if something is missing.',
+    'Check the assessment before saving the report.',
   REVIEW_CLIENT: 'Client',
   REVIEW_PROGRESS: 'Completion',
   REVIEW_COMPLETE_YES: 'Ready to generate the report',
-  REVIEW_COMPLETE_NO: 'Still collecting — you can save and continue later',
+  REVIEW_COMPLETE_NO: 'Finish the sections below, or save and continue later',
   REVIEW_MISSING_HINT:
-    'Complete at least one scored section before generating a report.',
+    'Select a section below to finish it.',
   GENERATE_REPORT: 'Generate report',
   KEEP_EDITING: 'Keep editing',
   SAVE_AND_EXIT: 'Save and exit',

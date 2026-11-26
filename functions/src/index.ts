@@ -1,3 +1,4 @@
+import { handleCoachDeletion } from './coachDeletion';
 import './init-env';
 import { randomUUID } from 'node:crypto';
 import * as admin from 'firebase-admin';
@@ -1682,3 +1683,6 @@ export const publicApiV1 = onRequest({ cors: false, maxInstances: 10 }, async (r
     res.status(500).json({ error: { code: 'internal', message: 'Something went wrong. Retry with the same Idempotency-Key.' } });
   }
 });
+
+/** Assigned-coach deletion; session rules remain unchanged. */
+export const deleteCoachClientData = onCall({ enforceAppCheck: true, timeoutSeconds: 540 }, handleCoachDeletion);

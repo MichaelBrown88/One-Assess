@@ -242,6 +242,8 @@ export function calculateBodyFatFromDurninWomersley(
  * Estimate body fat % from body measurements (tape measure)
  * Uses US Navy method or similar circumference-based formulas
  */
+const CM_PER_INCH = 2.54;
+
 export function calculateBodyFatFromMeasurements(
   waistCm: number,
   neckCm: number,
@@ -250,8 +252,8 @@ export function calculateBodyFatFromMeasurements(
   hipCm?: number // For women
 ): number {
   if (gender === 'male') {
-    // US Navy method for men: %BF = 86.010 × log10(waist - neck) - 70.041 × log10(height) + 36.76
-    const bodyFatPct = 86.010 * Math.log10(waistCm - neckCm) - 70.041 * Math.log10(heightCm) + 36.76;
+    // US Navy method for men (Hodgdon & Beckett 1984). The constants expect INCHES.
+    const bodyFatPct = 86.010 * Math.log10((waistCm - neckCm) / CM_PER_INCH) - 70.041 * Math.log10(heightCm / CM_PER_INCH) + 36.76;
     return Math.max(5, Math.min(40, bodyFatPct));
   } else {
     // US Navy method for women: %BF = 163.205 × log10(waist + hip - neck) - 97.684 × log10(height) - 78.387
@@ -259,7 +261,7 @@ export function calculateBodyFatFromMeasurements(
       logger.warn('[CONVERT] Hip measurement required for women');
       return 0;
     }
-    const bodyFatPct = 163.205 * Math.log10(waistCm + hipCm - neckCm) - 97.684 * Math.log10(heightCm) - 78.387;
+    const bodyFatPct = 163.205 * Math.log10((waistCm + hipCm - neckCm) / CM_PER_INCH) - 97.684 * Math.log10(heightCm / CM_PER_INCH) - 78.387;
     return Math.max(10, Math.min(45, bodyFatPct));
   }
 }

@@ -24,6 +24,7 @@ export type ClientGroup = {
   hasAssessmentDraft?: boolean;
   draftUpdatedAt?: Date | null;
   latestScore: number;
+  scheduleState?: 'loading' | 'ready' | 'error';
   latestDate: Date | null;
   scoreChange?: number;
   /** UID of the coach who owns this client (from latest assessment) */

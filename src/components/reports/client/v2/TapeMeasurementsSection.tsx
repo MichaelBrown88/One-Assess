@@ -37,7 +37,7 @@ export function TapeMeasurementsSection({ formData, comparison }: TapeMeasuremen
             </span>
           </span>
           <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
-            {CLIENT_REPORT_COPY.v2TapeHint}
+            {[formData?.waistCm && `Waist ${formData.waistCm} cm`, formData?.hipsCm && `Hips ${formData.hipsCm} cm`].filter(Boolean).join(' · ') || CLIENT_REPORT_COPY.v2TapeHint}
           </span>
         </span>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border-medium bg-card px-3 py-1 text-[12px] font-medium text-foreground">

@@ -35,7 +35,7 @@ describe('mergeIntakeIntoDraft', () => {
   it('opens on the first physical step when the client answered intake', () => {
     const out = mergeIntakeIntoDraft(null, intake({
       provider: 'intake-link',
-      formData: { fullName: 'Test Client', dateOfBirth: '1990-01-01', gender: 'male', trainingHistory: 'beginner', recentActivity: 'currently-training', activityLevel: 'sedentary', parq1: 'no', parq2: 'yes' },
+      formData: { fullName: 'Test Client', dateOfBirth: '1990-01-01', gender: 'male', trainingHistory: 'beginner', recentActivity: 'currently-training', activityLevel: 'sedentary', clientGoals: ['build-muscle'], sleepArchetype: 'good', stressLevel: 'low', nutritionHabits: 'good', hydrationHabits: 'good', parq1: 'no', parq2: 'yes' },
     }), NOW);
     expect(out.activePhaseId).toBe('P3');
     expect(out.formData.parqSource).toBe('client');
@@ -73,6 +73,8 @@ describe('firstIncompletePhase', () => {
   it('walks P0, P1, then the first physical step', () => {
     expect(firstIncompletePhase({ ...complete, dateOfBirth: '' })).toBe('P0');
     expect(firstIncompletePhase(complete)).toBe('P1');
-    expect(firstIncompletePhase({ ...complete, activityLevel: 'sedentary' })).toBe('P3');
+    expect(firstIncompletePhase({ ...complete, activityLevel: 'sedentary' })).toBe('P1');
+    expect(firstIncompletePhase({ ...complete, activityLevel: 'sedentary', clientGoals: ['build-muscle'] })).toBe('P1');
+    expect(firstIncompletePhase({ ...complete, activityLevel: 'sedentary', clientGoals: ['build-muscle'], sleepHours: '7-9', sleepRegularity: 'regular', stressFrequency: 'sometimes', stressCoping: 'mostly', exerciseMinutesWeek: '150-299', strengthDaysWeek: '2', proteinMeals: 'most', fruitVegPortions: '4', takeawaysWeek: '0-1' })).toBe('P3');
   });
 });

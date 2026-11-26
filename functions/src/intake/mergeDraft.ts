@@ -24,7 +24,7 @@ export const STUDIO_BASELINE_PLAN = {
 /** Mirrors the required fields of src/lib/phases/phaseP0.ts and phaseP1.ts. */
 export const REQUIRED_BY_PHASE: ReadonlyArray<{ id: string; fields: readonly string[] }> = [
   { id: 'P0', fields: ['fullName', 'dateOfBirth', 'gender', 'trainingHistory', 'recentActivity'] },
-  { id: 'P1', fields: ['activityLevel'] },
+  { id: 'P1', fields: ['activityLevel', 'clientGoals'] },
 ];
 /** First physical step of the studio order (STUDIO_PHYSICAL_PHASE_ORDER). */
 const FIRST_PHYSICAL_PHASE = 'P3';
@@ -56,7 +56,11 @@ export function isBlank(value: unknown): boolean {
 
 export function firstIncompletePhase(formData: Record<string, unknown>): string {
   const phase = REQUIRED_BY_PHASE.find(({ fields }) => fields.some((field) => isBlank(formData[field])));
-  return phase?.id ?? FIRST_PHYSICAL_PHASE;
+  if (phase) return phase.id;
+  const answered = (fields: string[]) => fields.every(field => !isBlank(formData[field]));
+  const habits = ['sleepHours', 'sleepRegularity', 'stressFrequency', 'stressCoping', 'exerciseMinutesWeek', 'strengthDaysWeek', 'proteinMeals', 'fruitVegPortions', 'takeawaysWeek'];
+  const legacy = ['sleepArchetype', 'stressLevel', 'nutritionHabits', 'hydrationHabits'];
+  return answered(habits) || answered(legacy) ? FIRST_PHYSICAL_PHASE : 'P1';
 }
 
 function importPathFor(existing: DraftLike, provider: string): string {

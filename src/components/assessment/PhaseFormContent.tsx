@@ -1,4 +1,7 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { missingBaselineSections } from '@/lib/assessment/baselineReadiness';
+import { numericIssues } from '@/lib/assessment/numericValidation';
+import { Progress } from '@/components/ui/progress';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormContext } from '@/contexts/FormContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,6 +77,7 @@ export const PhaseFormContent = ({
     }
   }, []);
 
+  const scrollRef = useRef<HTMLElement>(null);
   const flow = useAssessmentFlow({ formData, orgSettings: orgSettings ?? undefined });
   const {
     activePhaseIdx,
@@ -98,6 +102,13 @@ export const PhaseFormContent = ({
     maxUnlockedPhaseIdx,
     toggleSection: flowToggleSection,
   } = flow;
+
+  const expandedSection = Object.keys(expandedSections).find(id => expandedSections[id]) ?? '';
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.({ top: 0, behavior: 'instant' });
+  }, [activePhase.id, expandedSection, activeFieldIdx]);
+  const missingSections = isPartialAssessment ? [] : missingBaselineSections(formData);
+  const validationIssues = numericIssues(formData);
 
   useAssessmentDraftOrchestration({
     user,
@@ -290,7 +301,7 @@ export const PhaseFormContent = ({
   }, [activePhase, activePhaseIdx, totalPhases, visiblePhases, setActivePhaseIdx]);
 
   const handleViewResults = () => {
-    if (activePhaseIdx === totalPhases - 1) return;
+    if (activePhaseIdx === totalPhases - 1 || !isCompleteForReport) return;
     void handleSaveToDashboard();
     setIsReviewMode(false);
     setActivePhaseIdx(totalPhases - 1);
@@ -372,7 +383,7 @@ export const PhaseFormContent = ({
         progressValue={progressValue}
         visiblePhases={visiblePhases}
         activePhaseIdx={activePhaseIdx}
-        setActivePhaseIdx={setActivePhaseIdx}
+        setActivePhaseIdx={(idx) => { if (visiblePhases[idx]?.id === 'P7') openPreResultsReview(); else setActivePhaseIdx(idx); }}
         isPhaseCompleted={isPhaseCompleted}
         maxUnlockedPhaseIdx={maxUnlockedPhaseIdx}
         expandedSections={expandedSections}
@@ -387,6 +398,7 @@ export const PhaseFormContent = ({
 
   const main = (
     <main
+      ref={scrollRef}
       className={`flex-1 overflow-y-auto bg-muted/50 p-6 pb-24 lg:p-10 lg:pb-10 ${isPartialAssessment ? 'w-full' : ''}`}
     >
       <div className={`mx-auto space-y-8 ${activePhase?.id === 'P7' ? 'max-w-none' : 'max-w-3xl'}`}>
@@ -413,6 +425,13 @@ export const PhaseFormContent = ({
           coachGuidanceOn={coachGuidanceOn}
         />
 
+        {!isResultsPhase && !isPartialAssessment && (
+          <div className="space-y-2" aria-label="Assessment progress">
+            <p className="text-sm text-muted-foreground">Step {activePhaseIdx + 1} of {totalPhases}: {activePhase.title}</p>
+            <Progress value={((activePhaseIdx + 1) / totalPhases) * 100} aria-label="Position in assessment" />
+            <p className="text-xs text-muted-foreground">{visiblePhases.map(phase => phase.title).join(' · ')}</p>
+          </div>
+        )}
         <IntakePrefillBanner />
         {!isResultsPhase ? (
           <ConsultationNotesPanel
@@ -435,7 +454,7 @@ export const PhaseFormContent = ({
             activeFieldIdx={activeFieldIdx}
             setActiveFieldIdx={setActiveFieldIdx}
             setExpandedSections={setExpandedSections}
-            setActivePhaseIdx={setActivePhaseIdx}
+            setActivePhaseIdx={(next) => { const idx = typeof next === 'function' ? next(activePhaseIdx) : next; if (visiblePhases[idx]?.id === 'P7') openPreResultsReview(); else setActivePhaseIdx(idx); }}
             isPartialAssessment={isPartialAssessment}
             onShowCamera={(mode) => setShowCamera(mode)}
             onShowPostureCompanion={() => setShowPostureCompanion(true)}
@@ -443,7 +462,7 @@ export const PhaseFormContent = ({
           />
 
           <PhaseFormViewResultsCta
-            visible={activePhaseIdx >= 1 && activePhaseIdx < totalPhases - 1}
+            visible={activePhaseIdx === totalPhases - 2 && expandedSection === activePhase.sections?.at(-1)?.id}
             buttonText={submitButtonHint}
             onClick={openPreResultsReview}
           />
@@ -460,6 +479,8 @@ export const PhaseFormContent = ({
                 Try again
               </button>
             </div>
+          ) : activePhase?.id === 'P7' && !isCompleteForReport && !isEditMode ? (
+            <div className="space-y-3"><p>Complete the missing sections before generating the report.</p><button type="button" className="underline" onClick={openPreResultsReview}>Review missing sections</button></div>
           ) : activePhase?.id === 'P7' ? (
             <PhaseFormResultsPanel
               formData={formData}
@@ -496,6 +517,9 @@ export const PhaseFormContent = ({
         isCompleteForReport={isCompleteForReport}
         primaryActionLabel={submitButtonDisabled ? submitButtonHint : submitButtonLabel}
         primaryDisabled={submitButtonDisabled}
+        missingSections={missingSections}
+        validationIssues={validationIssues}
+        onGoToSection={(id) => { setReviewCheckpointOpen(false); flowToggleSection(id); }}
         onGenerate={handleViewResults}
         onKeepEditing={() => setReviewCheckpointOpen(false)}
         onSaveAndExit={handleSaveAndExit}

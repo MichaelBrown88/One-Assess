@@ -1,0 +1,59 @@
+OFS to One Assess: recovery and verification plan
+26 November 2026
+
+Scope
+Resume the existing OFS consultation -> prefilled One Assess assessment flow.
+Keep the separate Claude scoring/protocol branch out of this work. Preserve
+existing plans and uncommitted user files.
+
+Recovered state
+- One Assess local develop starts at cdb2741 (23 November). The intake API,
+  reusable intake link, API-key controls, notes and resume hook are present.
+- One Assess origin/main is 7f79808 (25 November). It additionally contains
+  cleanup/CI, saved-assessment editing, first-load deep-link fixes and the
+  service-worker matcher fix. origin/develop has not caught up.
+- OFS origin/main contains PR #111 (b88306c8), the current intake integration,
+  and PR #112, collecting DOB at booking and carrying it into the intake.
+  Its local main checkout is older. The older feat/one-assess-handoff branch
+  is superseded by PR #111; do not merge that old implementation.
+- Current transport: POST https://one-assess.com/api/v1/assessment-intakes,
+  server-only bearer API key, contact external ID and idempotency key.
+  The merged OFS caller uses provider "One Fitness"; the old branch used "OFS".
+- OFS PR #111 records ONE_ASSESS_API_KEY as configured for production only.
+  That is a historical note, not a fresh verification of configuration.
+- The live One Assess service worker fetched on 26 November contains neither
+  the broken SAME_ORIGIN_IMAGE binding nor the old NetworkFirst strategy.
+- Baseline local checks: intake/resume suite 95/95, app typecheck and Functions
+  build pass. These checks initially cover cdb2741, not the newer remote head.
+
+Execution
+1. Fast-forward local One Assess develop to the already-merged origin/main.
+   Preserve untracked notes and the isolated Claude worktree. Do not push or
+   deploy unrelated changes merely to synchronise the checkout.
+2. Verify current intake API, payload mappings, coach assignment, login return
+   path, draft resume and error handling. Run relevant tests on the recovered
+   current code; inspect browser state where an authenticated session exists.
+3. Exercise the current flow with synthetic data or an existing explicit test
+   record. Never start or overwrite a real client's assessment as a test.
+   Confirm known answers, first incomplete step, retry without duplicates,
+   saved coach answers and signed-out/login return.
+4. Fix only demonstrated integration failures. Add regression coverage for
+   any fix, then run app typecheck, relevant tests and Functions build as needed.
+5. If app fixes are needed, deploy the required preview and return its channel
+   URL. Function/rule changes need the coupled Firebase deployment. No AXIS
+   report maths/layout changes are in scope.
+
+Items to investigate, not yet diagnosed as current failures
+- Browser-level handoff and login return have not yet been exercised here.
+- Legacy provider "OFS" versus current "One Fitness" may affect external-ID
+  matching for contacts sent by the old branch. Check without rewriting data.
+- App DOB is now skippable; server first-incomplete-phase still checks it.
+- Later merged saved-session editing differs from the older append-only note
+  in AGENTS.md. Leave that already-merged behavior outside this integration fix.
+
+Separate recovered work (parked)
+Claude branch claude/amazing-lamport-3d26a8 at c06a977 contains scoring, strength,
+fitness, lifestyle and posture work plus its original approved foolproof plan.
+Remote lifestyle questions, server whitelist/API parity, posture calibration,
+mobility follow-ups, coach brief and report/flow improvements remain in that
+plan. Do not duplicate or execute those tasks as part of this integration work.

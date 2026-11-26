@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { UnifiedClientTable } from '@/components/dashboard/sub-components/UnifiedClientTable';
@@ -40,13 +42,14 @@ export default function DashboardClients() {
     <div className="mx-auto flex w-full min-h-0 flex-1 flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <WorkspaceBreadcrumb current="Clients" />
 
-      <header className="space-y-1.5">
+      <header className="flex flex-wrap items-center justify-between gap-4"><div className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-[1.85rem]">Clients</h1>
         <p className="text-sm text-muted-foreground">
           {total === 0
             ? 'No clients yet — create one from the New assessment button to get started.'
             : `${total} client${total === 1 ? '' : 's'} on your roster${attentionCount > 0 ? ` · ${attentionCount} need${attentionCount === 1 ? 's' : ''} attention` : ''}.`}
         </p>
+        </div><Button className="rounded-full" onClick={ctx.onNewClient}><Plus className="mr-2 h-4 w-4" />New assessment</Button>
       </header>
 
       <NewIntakesPanel organizationId={effectiveOrgId || profile?.organizationId} />

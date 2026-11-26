@@ -538,32 +538,6 @@ export function useAssessmentSave({
         }
       }
 
-      // Write health data consent record on first assessment for this client (non-blocking, idempotent)
-      // This creates an auditable record that the coach collected health data on the client's behalf.
-      if (profile?.organizationId && assessmentId && clientName) {
-        try {
-          const { doc: fsDoc, setDoc: fsSetDoc, serverTimestamp: fsSvr } = await import('firebase/firestore');
-          const { getDb: fsDb } = await import('@/services/firebase');
-          const { resolveClientId: rcId } = await import('@/services/clientProfiles');
-          const cId = (await rcId(profile.organizationId, clientName)) ?? assessmentId;
-          // Use a deterministic doc ID so this write is idempotent on retry
-          const consentDocId = `health_data_v1`;
-          const consentPath = `organizations/${profile.organizationId}/clients/${cId}/consents/${consentDocId}`;
-          const consentRef = fsDoc(fsDb(), consentPath);
-          await fsSetDoc(consentRef, {
-            type: 'health_data_processing_explicit',
-            version: 2,
-            grantedByCoachUid: user.uid,
-            grantedAt: fsSvr(),
-            firstAssessmentId: assessmentId,
-            note: 'Coach attests explicit consent was obtained from client at point of assessment. Client was informed their posture photos and health data are stored securely for fitness coaching purposes only and are not used for medical assessment.',
-          }, { merge: true });
-          logger.debug('[Assessment] Health data consent record written');
-        } catch (consentErr) {
-          logger.warn('[Assessment] Failed to write consent record (non-fatal):', consentErr);
-        }
-      }
-
       // Post-save notifications (non-blocking)
       if (profile?.organizationId && assessmentId && shareToken) {
         // Score drop alert — notify coach if overall score fell by 5+ points

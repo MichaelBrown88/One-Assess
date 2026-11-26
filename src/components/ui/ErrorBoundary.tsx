@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { logger } from '@/lib/utils/logger';
 import { ROUTES } from '@/constants/routes';
 import { UI_COMMAND_MENU } from '@/constants/ui';
+import { APP_LOAD_RECOVERY_COPY } from '@/constants/errorRecovery';
+import { isChunkLoadError, reloadApp } from '@/lib/routing/chunkLoadRecovery';
 
 interface ErrorFallbackProps {
   error: Error;
@@ -14,6 +16,7 @@ interface ErrorFallbackProps {
 
 function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
   const navigate = useNavigate();
+  const chunkError = isChunkLoadError(error);
 
   React.useEffect(() => {
     logger.error('Error boundary caught error:', error.message || String(error));
@@ -26,9 +29,9 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
           <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
             <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Something went wrong</h2>
+          <h2 className="text-xl font-bold text-foreground">{chunkError ? APP_LOAD_RECOVERY_COPY.TITLE : 'Something went wrong'}</h2>
           <p className="text-sm text-foreground-secondary">
-            We encountered an unexpected error. Please try again or return to the dashboard.
+            {chunkError ? APP_LOAD_RECOVERY_COPY.BODY : 'We encountered an unexpected error. Please try again or return to the dashboard.'}
           </p>
           {import.meta.env.DEV && (
             <div className="w-full rounded-xl border border-border bg-muted/50 p-3 text-left">
@@ -45,8 +48,8 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
               <Home className="w-4 h-4 mr-2" />
               Go to {UI_COMMAND_MENU.HOME}
             </Button>
-            <Button type="button" variant="default" onClick={resetErrorBoundary} className="flex-1">
-              Try Again
+            <Button type="button" variant="default" onClick={chunkError ? reloadApp : resetErrorBoundary} className="flex-1">
+              {chunkError ? APP_LOAD_RECOVERY_COPY.ACTION : 'Try Again'}
             </Button>
           </div>
         </div>

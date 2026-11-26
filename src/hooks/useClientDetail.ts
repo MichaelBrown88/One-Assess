@@ -107,6 +107,10 @@ export interface UseClientDetailResult {
   handleDeleteAssessment: (id: string) => Promise<void>;
   handleEditSnapshot: (snapshot: AssessmentSnapshot) => void;
   handleDeleteSnapshot: () => Promise<void>;
+  deletingSnapshot: boolean;
+  deleteSnapshotError: string | null;
+  handleTrashClient: () => Promise<void>;
+  handleRestoreClient: () => Promise<void>;
   handleTransferClient: (toCoachUid: string) => Promise<void>;
   handlePauseClient: (reason?: string) => Promise<void>;
   handleUnpauseClient: (mode: 'resume' | 'reset') => Promise<void>;
@@ -140,6 +144,8 @@ export function useClientDetail(): UseClientDetailResult {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<ClientProfile>>({});
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
+  const [deletingSnapshot, setDeletingSnapshot] = useState(false);
+  const [deleteSnapshotError, setDeleteSnapshotError] = useState<string | null>(null);
   const [deleteSnapshotDialog, setDeleteSnapshotDialog] = useState<{ snapshotId: string } | null>(null);
   const [incompleteDraft, setIncompleteDraft] = useState<{
     formData: FormData;
@@ -402,16 +408,18 @@ export function useClientDetail(): UseClientDetailResult {
   }, [assessments, clientName, navigate]);
 
   const handleDeleteSnapshot = useCallback(async () => {
-    if (!user || !readOrgId || !deleteSnapshotDialog) return;
+    if (!user || !readOrgId || !deleteSnapshotDialog || deletingSnapshot) return;
+    setDeletingSnapshot(true);
+    setDeleteSnapshotError(null);
     try {
       const result = await deleteSnapshot(
         user.uid,
-        clientName,
+        profile?.clientId || clientName,
         deleteSnapshotDialog.snapshotId,
         readOrgId,
       );
       if (result.success) {
-        toast({ title: 'Snapshot removed', description: result.message });
+        toast({ title: 'Assessment deleted', description: result.message });
         setDeleteSnapshotDialog(null);
         const [nextSnapshots, assessmentData, current] = await Promise.all([
           getSnapshots(user.uid, clientName, 100, readOrgId),
@@ -431,16 +439,18 @@ export function useClientDetail(): UseClientDetailResult {
           setCurrentAssessment(null);
         }
       } else {
+        setDeleteSnapshotError(result.message);
         toast({ title: UI_TOASTS.ERROR.GENERIC, description: result.message, variant: 'destructive' });
       }
     } catch (err) {
+      setDeleteSnapshotError(err instanceof Error ? err.message : 'Could not delete this assessment. Please try again.');
       toast({
         title: UI_TOASTS.ERROR.GENERIC,
         description: err instanceof Error ? err.message : 'Failed to delete snapshot',
         variant: 'destructive',
       });
-    }
-  }, [user, clientName, readOrgId, deleteSnapshotDialog, toast, userProfile]);
+    } finally { setDeletingSnapshot(false); }
+  }, [deletingSnapshot, profile?.clientId, user, clientName, readOrgId, deleteSnapshotDialog, toast, userProfile]);
 
   // Navigate back
   const navigateBack = useCallback(() => {
@@ -782,6 +792,21 @@ export function useClientDetail(): UseClientDetailResult {
     }
   }, [readOrgId, clientName, userProfile, toast]);
 
+  const handleTrashClient = useCallback(async () => {
+    if (!readOrgId || !user || !profile) throw new Error('Client details are still loading.');
+    const { deleteClientPermanently } = await import('@/services/clientProfiles');
+    await deleteClientPermanently({ organizationId: readOrgId, clientSlug: profile.clientId || generateClientSlug(clientName), clientName: profile.clientName || clientName, deletedBy: user.uid });
+    toast({ title: 'Client moved to trash', description: 'Restore them from the Trash filter in Clients within 30 days.' });
+    navigate(ROUTES.DASHBOARD_CLIENTS);
+  }, [readOrgId, user, profile, clientName, toast, navigate]);
+
+  const handleRestoreClient = useCallback(async () => {
+    if (!readOrgId || !profile) throw new Error('Client details are still loading.');
+    const { restoreClient } = await import('@/services/clientProfiles');
+    await restoreClient({ organizationId: readOrgId, clientSlug: profile.clientId || generateClientSlug(clientName), profile: userProfile });
+    toast({ title: 'Client restored' });
+  }, [readOrgId, profile, clientName, userProfile, toast]);
+
   const handleDeleteClientPermanently = useCallback(async () => {
     const orgId = readOrgId;
     if (!orgId || !clientName) {
@@ -840,6 +865,10 @@ export function useClientDetail(): UseClientDetailResult {
     handleDeleteAssessment,
     handleEditSnapshot,
     handleDeleteSnapshot,
+    deletingSnapshot,
+    deleteSnapshotError,
+    handleTrashClient,
+    handleRestoreClient,
     handleTransferClient,
     handlePauseClient,
     handleUnpauseClient,

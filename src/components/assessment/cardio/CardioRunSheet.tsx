@@ -1,3 +1,4 @@
+import { numericIssue } from '@/lib/assessment/numericValidation';
 import { useEffect, useState } from 'react';
 import { useFormContext, type FormData } from '@/contexts/FormContext';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,8 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
 
   const commit = (patch: Partial<FormData>) => updateFormData(patch);
   const isNum = (v: string) => v.trim() !== '' && !Number.isNaN(Number(v));
-  const canComplete = isNum(restingHr) && isNum(peakHr) && isNum(recoveryHr);
+  const canComplete = isNum(restingHr) && isNum(peakHr) && isNum(recoveryHr) &&
+    !numericIssue('cardioRestingHr', restingHr) && !numericIssue('cardioPeakHr', peakHr) && !numericIssue('cardioPost1MinHr', recoveryHr);
   const age = formData.dateOfBirth ? calculateAge(formData.dateOfBirth) : 0;
   const gender = (formData.gender || 'male').toLowerCase() === 'female' ? 'female' : 'male';
   const hrBandProps = {
@@ -49,6 +51,7 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
   const handleComplete = () => {
     if (!canComplete) return;
     updateFormData({
+      cardioProtocolVersion: 'incline-walk-4min-v1',
       cardioRestingHr: restingHr.trim(),
       cardioPeakHr: peakHr.trim(),
       cardioPost1MinHr: recoveryHr.trim(),
@@ -61,7 +64,7 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="bg-background rounded-3xl border border-primary/5 p-8 shadow-xl shadow-primary/10 lg:p-10">
         <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">{COPY.KICKER}</p>
-        <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{sectionTitle}</h2>
+        <h2 className="sr-only">{sectionTitle}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{COPY.INTRO}</p>
 
         <div className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3">
@@ -71,7 +74,7 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
 
         <div className="mt-8 space-y-8">
           <section className="space-y-2">
-            <p className="text-sm font-bold text-foreground">{COPY.RESTING_LABEL}</p>
+            <label htmlFor="cardioRestingHr" className="text-sm font-bold text-foreground">{COPY.RESTING_LABEL}</label>
             <p className="text-xs text-muted-foreground">{COPY.RESTING_HINT}</p>
             <CardioHrField
               id="cardioRestingHr"
@@ -84,7 +87,7 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-bold text-foreground">{COPY.PEAK_LABEL}</p>
+            <label htmlFor="cardioPeakHr" className="text-sm font-bold text-foreground">{COPY.PEAK_LABEL}</label>
             <p className="text-xs text-muted-foreground">{COPY.PEAK_HINT}</p>
             <CardioHrField
               id="cardioPeakHr"
@@ -97,7 +100,7 @@ export function CardioRunSheet({ sectionTitle, onComplete, onBack }: CardioRunSh
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-bold text-foreground">{COPY.RECOVERY_LABEL}</p>
+            <label htmlFor="cardioPost1MinHr" className="text-sm font-bold text-foreground">{COPY.RECOVERY_LABEL}</label>
             <p className="text-xs text-muted-foreground">{COPY.RECOVERY_HINT}</p>
             <CardioHrField
               id="cardioPost1MinHr"

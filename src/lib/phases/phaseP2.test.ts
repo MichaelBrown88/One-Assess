@@ -17,7 +17,9 @@ describe('phaseP2 InBody → tape → posture', () => {
     const ids = inbody.fields.map((f) => f.id);
     expect(ids).toContain('inbodyWeightKg');
     expect(ids).toContain('skeletalMuscleMassKg');
-    expect(ids).toContain('segmentalArmLeftKg');
+    expect(ids).not.toContain('segmentalArmLeftKg');
+    expect(ids).not.toContain('bmrKcal');
+    expect(ids).not.toContain('bodyFatMassKg');
     expect(inbody.fields.every((f) => !f.conditional)).toBe(true);
   });
 
