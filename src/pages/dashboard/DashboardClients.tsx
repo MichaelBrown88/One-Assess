@@ -99,6 +99,14 @@ export default function DashboardClients() {
           onBulkComplete={ctx.refreshSchedules}
           attentionMap={attentionMap}
         />
+        {ctx.hasMore && (
+          <div className="flex flex-col items-center gap-2 border-t border-border px-4 py-4">
+            <p className="text-sm text-muted-foreground">More clients are available. Load them to include older profiles in this list and search.</p>
+            <Button variant="outline" className="rounded-full" disabled={ctx.loadingMore} onClick={() => void ctx.loadMoreAssessments()}>
+              {ctx.loadingMore ? 'Loading clients…' : 'Load more clients'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
