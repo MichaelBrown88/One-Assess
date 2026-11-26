@@ -17,6 +17,7 @@ export type IntakeRequest = {
   intake: StandardIntake;
   clientName: string;
   coachEmail?: string;
+  externalAssessmentId?: string;
 };
 
 export type ParseResult = { ok: true; value: IntakeRequest } | { ok: false; code: string; message: string };
@@ -35,6 +36,10 @@ export function parseIntakeRequest(raw: unknown, now: Date = new Date()): ParseR
       return fail('invalid_external_client_id', 'externalClientId must be 1–100 of A–Z a–z 0–9 . _ : -');
     }
     externalClientId = raw.externalClientId;
+  }
+  const externalAssessmentId = raw.externalAssessmentId;
+  if (externalAssessmentId !== undefined && (typeof externalAssessmentId !== 'string' || !EXTERNAL_ID_PATTERN.test(externalAssessmentId) || !externalClientId)) {
+    return fail('invalid_external_assessment_id', 'externalAssessmentId requires a valid externalClientId and 1–100 identifier characters.');
   }
   let sourceUrl: string | undefined;
   if (raw.sourceUrl !== undefined) {
@@ -70,6 +75,7 @@ export function parseIntakeRequest(raw: unknown, now: Date = new Date()): ParseR
     ok: true,
     value: {
       clientName,
+      ...(typeof externalAssessmentId === 'string' ? { externalAssessmentId } : {}),
       ...(coachEmail ? { coachEmail } : {}),
       intake: {
         provider,

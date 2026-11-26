@@ -20,6 +20,7 @@ import { maybeSendFirstAssessmentCelebrationEmail } from './transactionalEmails'
 
 export type WebhookEvent =
   | 'assessment.completed'
+  | 'assessment.status_changed'
   | 'client.score_changed'
   | 'client.phase_completed';
 
@@ -49,21 +50,11 @@ async function deliver(
   body: string,
 ): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10s timeout
-
     const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-OneAssess-Signature': signature,
-        'X-OneAssess-Event': 'webhook',
-      },
-      body,
-      signal: controller.signal,
+      method: 'POST', redirect: 'manual',
+      headers: { 'Content-Type': 'application/json', 'X-OneAssess-Signature': signature, 'X-OneAssess-Event': 'webhook' },
+      body, signal: AbortSignal.timeout(10_000),
     });
-
-    clearTimeout(timeoutId);
     return res.ok;
   } catch {
     return false;
@@ -81,6 +72,7 @@ export async function fanOutWebhookEvent(
   orgId: string,
   event: WebhookEvent,
   data: Record<string, unknown>,
+  requireSuccess = false,
 ): Promise<void> {
   const db = admin.firestore();
 
@@ -119,11 +111,13 @@ export async function fanOutWebhookEvent(
       });
 
       if (!ok) {
-        logger.warn(`[Webhook] Delivery failed to ${url} for event ${event}`);
+        logger.warn('[Webhook] Delivery failed', { event });
+        if (requireSuccess) throw new Error('Webhook delivery failed');
       }
     });
 
-  await Promise.allSettled(deliveries);
+  const results = await Promise.allSettled(deliveries);
+  if (requireSuccess && results.some(r => r.status === 'rejected')) throw new Error('Webhook delivery needs retry');
 }
 
 /**

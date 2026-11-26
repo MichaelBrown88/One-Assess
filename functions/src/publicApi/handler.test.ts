@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { handlePublicApi, RATE_LIMIT_PER_MINUTE, type ApiRequest, type ApiStore, type StoredResponse } from './handler';
+import { intakeBindingId, type AssessmentStatus } from './assessmentStatus';
 import { generateApiKey } from './keys';
 import type { ClientDoc } from '../intake/clientWrite';
 import type { DraftLike } from '../intake/mergeDraft';
@@ -19,6 +20,7 @@ function memory(seed: { clients?: Record<string, ClientDoc>; external?: Record<s
     writes: 0,
   };
   const store: ApiStore = {
+    getAssessmentStatus: async () => null,
     getKey: async (id) => (id === key.keyId ? { orgId: ORG, secretHash: key.secretHash, createdBy: 'admin-uid', ...(seed.revoked ? { revokedAt: 1 } : {}) } : null),
     touchKey: async () => undefined,
     allow: async (bucket, max) => { state.counts[bucket] = (state.counts[bucket] ?? 0) + 1; return state.counts[bucket] <= max; },
@@ -151,5 +153,33 @@ describe('POST /api/v1/assessment-intakes', () => {
     for (let i = 0; i < RATE_LIMIT_PER_MINUTE; i += 1) await call(m, request(m.key.plaintext));
     const res = await call(m, request(m.key.plaintext));
     expect(res).toMatchObject({ status: 429, headers: { 'Retry-After': '60' } });
+  });
+});
+
+
+describe('POST /api/v1/assessment-status', () => {
+  const query = { provider: 'One Fitness', externalAssessmentId: 'visit-1', externalClientId: 'contact-1', coachEmail: 'coach@example.test' };
+  it('requires a valid key and exact assigned-coach/contact binding', async () => {
+    const m = memory();
+    const result = { ...query, clientSlug: 'test-client', coachUid: 'coach-uid', status: 'in_progress', sessionId: null, reportUrl: null, completedAt: null, revision: 1 } satisfies AssessmentStatus;
+    m.store.getAssessmentStatus = async (org, id) => {
+      expect(org).toBe(ORG); expect(id).toBe(intakeBindingId(query.provider, query.externalAssessmentId)); return result;
+    };
+    expect((await call(m, request('wrong', query, { path: '/api/v1/assessment-status' }))).status).toBe(401);
+    expect((await call(m, request(m.key.plaintext, query, { path: '/api/v1/assessment-status' }))).body).toEqual(result);
+    expect((await call(m, request(m.key.plaintext, { ...query, externalClientId: 'other' }, { path: '/api/v1/assessment-status' }))).status).toBe(403);
+    m.store.getAssessmentStatus = async () => ({ ...result, coachUid: 'other-coach' });
+    expect((await call(m, request(m.key.plaintext, query, { path: '/api/v1/assessment-status' }))).status).toBe(403);
+    expect(m.state.writes).toBe(0);
+  });
+  it('never creates an assessment when checking an unlinked consultation', async () => {
+    const m = memory();
+    expect((await call(m, request(m.key.plaintext, query, { path: '/api/v1/assessment-status' }))).body).toEqual({ status: 'not_linked' });
+    expect(m.state.writes).toBe(0);
+  });
+  it('carries a server-generated binding through the draft and does not trust imported metadata', async () => {
+    const m = memory();
+    await call(m, request(m.key.plaintext, body({ ...query, fields: { version: 1, integrationIntakeId: 'forged' } })));
+    expect(m.state.drafts['test-client']).toMatchObject({ formData: { integrationIntakeId: intakeBindingId(query.provider, query.externalAssessmentId) } });
   });
 });

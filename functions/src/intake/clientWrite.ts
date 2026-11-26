@@ -7,7 +7,7 @@ import { mergeIntakeIntoDraft, type DraftLike, type MergedDraft, type StandardIn
 export type ClientDoc = Record<string, unknown>;
 export type OrgDoc = Record<string, unknown>;
 
-export type IntakeConflict = 'client_inactive' | 'client_mismatch' | 'client_cap_reached' | 'name_taken';
+export type IntakeConflict = 'client_inactive' | 'client_mismatch' | 'client_cap_reached' | 'name_taken' | 'assessment_in_progress';
 export type IntakeWrite =
   | { kind: 'conflict'; reason: IntakeConflict }
   | { kind: 'write'; newClient?: ClientDoc; draft: MergedDraft };

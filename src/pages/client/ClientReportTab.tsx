@@ -42,7 +42,7 @@ export default function ClientReportTab() {
     loading,
     error,
     assessmentDate,
-  } = useAssessmentLogic(assessmentId, clientName);
+  } = useAssessmentLogic(searchParams.get('session') || assessmentId, clientName, searchParams.get('session') || undefined);
 
   const scoreDelta =
     scores && previousScores ? scores.overall - previousScores.overall : undefined;

@@ -6,6 +6,8 @@
  * - apiIdempotency/{keyId}:{key} = { requestHash, status, body, expiresAt } (server-only; TTL on expiresAt)
  */
 import { createHash } from 'crypto';
+import { intakeBindingId, sameBinding, type IntakeBinding } from './assessmentStatus';
+import { refreshAssessmentStatus } from './assessmentStatusStore';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { assertRateLimit } from '../rateLimit';
 import { intakeRefs, readIntakeTargets, writeIntakeResult } from '../intake/firestoreWrite';
@@ -21,6 +23,7 @@ export function externalClientDocId(provider: string, externalClientId: string):
 
 export function firestoreApiStore(db: Firestore): ApiStore {
   return {
+    getAssessmentStatus: (orgId, bindingId, host) => refreshAssessmentStatus(db, orgId, bindingId, host),
     async getKey(keyId) {
       const data = (await db.doc(`apiKeys/${keyId}`).get()).data() as ApiKeyRecord | undefined;
       return data?.orgId && data.secretHash ? data : null;
@@ -73,12 +76,16 @@ export function firestoreApiStore(db: Firestore): ApiStore {
       return snap.docs.map((doc) => ({ clientSlug: doc.id, status: doc.get('status') as string | undefined }));
     },
 
-    async applyIntake(orgId, slug, externalLink, build) {
+    async applyIntake(orgId, slug, externalLink, build, binding) {
       const refs = intakeRefs(db, orgId, slug);
       return db.runTransaction(async (tx) => {
         const targets = await readIntakeTargets(tx, refs);
+        const bindingRef = binding ? db.doc(`organizations/${orgId}/assessmentIntakes/${intakeBindingId(binding.provider, binding.externalAssessmentId)}`) : null;
+        const existing = bindingRef ? await tx.get(bindingRef) : null;
+        if (binding && existing?.exists && !sameBinding(existing.data() as IntakeBinding, binding)) return { kind: 'conflict', reason: 'client_mismatch' };
         const out = build(targets.client, targets.draft, targets.org);
         if (out.kind === 'conflict') return out;
+        if (bindingRef && !existing?.exists) tx.create(bindingRef, { ...binding, createdAt: FieldValue.serverTimestamp() });
         const { created } = writeIntakeResult(tx, refs, orgId, out, targets.draft !== null);
         if (externalLink) {
           tx.set(db.doc(`organizations/${orgId}/externalClients/${externalClientDocId(externalLink.provider, externalLink.externalClientId)}`), {

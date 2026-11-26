@@ -495,17 +495,17 @@ export async function getCoachAssessment(
     }
   }
 
-  // 2. Try the client's snapshots collection if assessmentId might be a snapshot ID
-  if (clientName && validOrgId) {
-    const { getSnapshots } = await import('./assessmentHistory');
-    const snapshots = await getSnapshots(coachUid, clientName, 50, validOrgId);
-    const snapshot = snapshots.find(s => s.id === assessmentId);
-    if (snapshot) {
-      return {
-        formData: snapshot.formData,
-        overallScore: snapshot.overallScore,
-        goals: Array.isArray(snapshot.formData.clientGoals) ? snapshot.formData.clientGoals : [],
-        createdAt: assessmentDate(snapshot.formData.assessedAt, firestoreDate(snapshot.timestamp)),
+  // A specific saved report is a direct read, so old links do not depend on a history page limit.
+  if (clientName && validOrgId && /^[A-Za-z0-9._:-]{1,150}$/.test(assessmentId)) {
+    const snapshotDoc = await getDoc(doc(getDb(), ORGANIZATION.clients.sessions.doc(validOrgId, generateClientSlug(clientName), assessmentId)));
+    if (snapshotDoc.exists()) {
+      const snapshot = snapshotDoc.data();
+      const formData = snapshot.formData as FormData | undefined;
+      if (formData) return {
+        formData,
+        overallScore: extractOverallScore(snapshot),
+        goals: Array.isArray(formData.clientGoals) ? formData.clientGoals : [],
+        createdAt: assessmentDate(formData.assessedAt, firestoreDate(snapshot.timestamp)),
       };
     }
   }

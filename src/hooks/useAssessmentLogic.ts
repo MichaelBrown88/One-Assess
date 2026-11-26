@@ -33,7 +33,7 @@ export interface AssessmentLogicState {
  * @param clientNameOverride - When provided, bypasses the assessmentId Firestore doc lookup and
  *                             fetches directly from current/state via the 'latest' path.
  */
-export function useAssessmentLogic(assessmentId: string | undefined, clientNameOverride?: string): AssessmentLogicState {
+export function useAssessmentLogic(assessmentId: string | undefined, clientNameOverride?: string, snapshotId?: string): AssessmentLogicState {
   const { user, profile } = useAuth();
   
   const [state, setState] = useState<AssessmentLogicState>({
@@ -69,7 +69,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
         // When present, we use 'latest' so getCoachAssessment reads current/state directly.
         const params = new URLSearchParams(window.location.search);
         const clientNameQuery = clientNameOverride || params.get('clientName') || undefined;
-        const resolvedAssessmentId = clientNameOverride ? 'latest' : assessmentId!;
+        const resolvedAssessmentId = snapshotId ?? (clientNameOverride ? 'latest' : assessmentId!);
         
         const data = await getCoachAssessment(user.uid, resolvedAssessmentId, clientNameQuery, profile?.organizationId, profile);
         if (!data) {
@@ -97,7 +97,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
           })
         );
         
-        if ((!hasPostureImages && !hasPostureStorage) || !hasPostureAnalysis) {
+        if (!snapshotId && ((!hasPostureImages && !hasPostureStorage) || !hasPostureAnalysis)) {
           const clientNameForLookup = clientNameQuery || fd.fullName;
           if (clientNameForLookup) {
             try {
@@ -231,7 +231,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
         // When using the 'latest' lookup path, assessmentId may be undefined.
         // Fall back to the resolved slug so publishPublicReport always has a stable key.
         const publishId = assessmentId ?? resolvedAssessmentId;
-        if (!publishId || publishId === 'latest') {
+        if (snapshotId || !publishId || publishId === 'latest') {
             // Skip publish — no stable ID to key the public report on
         } else {
             const publishKey = `${user.uid}__${publishId}`;
@@ -259,7 +259,7 @@ export function useAssessmentLogic(assessmentId: string | undefined, clientNameO
     })();
 
     return () => { isMounted = false; };
-  }, [user, assessmentId, clientNameOverride, profile]);
+  }, [user, assessmentId, clientNameOverride, profile, snapshotId]);
 
   return state;
 }

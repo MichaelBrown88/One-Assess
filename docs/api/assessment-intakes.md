@@ -189,3 +189,25 @@ Errors look like `{ "error": { "code": "client_mismatch", "message": "…" } }`.
 If your system can only send a link (email, WhatsApp, QR code), use the organisation's
 **client intake link** instead: the client answers on their phone and it lands in the coach's
 New intakes list.
+
+## Consultation completion
+
+Callers can include `externalAssessmentId` alongside `externalClientId` to bind
+this intake to one consultation. The server adds an opaque binding to the draft;
+it persists into the saved full-assessment session. Drafts and older reports do
+not count as completion. The binding is organisation-, client- and coach-scoped.
+
+`POST /api/v1/assessment-status` uses the same bearer key and a JSON body containing
+`provider`, `externalAssessmentId`, `externalClientId` and `coachEmail`. It returns
+`not_linked`, or a status of `not_started`, `in_progress`, `completed` or
+`unavailable`, plus a monotonic `revision`. Only completed records include
+`sessionId`, `completedAt` and `reportUrl`. Report URLs require a signed-in coach
+and point to the specific saved session. No scores or health answers are returned.
+
+Server-registered webhooks can subscribe to `assessment.status_changed`. Existing
+HMAC-SHA256 signatures cover the raw JSON body. The event data is the same status
+projection, with `organizationId` in the envelope. Delivery retries on failure;
+receivers must verify the signature, organisation, contact/coach/consultation
+binding and apply only a newer revision. Status queries provide reconciliation if
+a notification is delayed. Deleted sessions or inactive clients remove completion
+and the report URL. Clients cannot read or write integration binding documents.

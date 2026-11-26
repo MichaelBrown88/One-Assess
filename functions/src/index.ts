@@ -35,7 +35,8 @@ import { handleBackfillSnapshotPosture } from './backfillSnapshotPosture';
 import { handleFetchSnapshotImageBytes } from './fetchSnapshotImageBytes';
 import { handleConvertClientUploadHeic } from './convertClientUploadHeic';
 import { handleGeneratePublicReportSocialShareArtifacts } from './generatePublicReportSocialShareArtifacts';
-import { handleAssessmentCompletedTrigger } from './webhooks';
+import { handleAssessmentCompletedTrigger, fanOutWebhookEvent } from './webhooks';
+import { refreshClientAssessmentStatuses } from './publicApi/assessmentStatusStore';
 import { handleSendCoachInvite } from './invites';
 import { handleAcceptCoachInvite } from './acceptCoachInvite';
 import {
@@ -1686,3 +1687,26 @@ export const publicApiV1 = onRequest({ cors: false, maxInstances: 10 }, async (r
 
 /** Assigned-coach deletion; session rules remain unchanged. */
 export const deleteCoachClientData = onCall({ enforceAppCheck: true, timeoutSeconds: 540 }, handleCoachDeletion);
+
+/** Server-owned CRM status mirrors saved sessions, including edits and deletions. */
+export const syncIntegrationAssessmentSource = onDocumentWritten({
+  document: 'organizations/{orgId}/clients/{clientSlug}/{collectionId}/{documentId}', retry: true,
+}, async event => {
+  if (!['sessions', 'assessmentDrafts'].includes(event.params.collectionId)) return;
+  await refreshClientAssessmentStatuses(admin.firestore(), event.params.orgId, event.params.clientSlug, PUBLIC_SITE_URL);
+});
+export const syncIntegrationAssessmentClient = onDocumentWritten({
+  document: 'organizations/{orgId}/clients/{clientSlug}', retry: true,
+}, async event => {
+  await refreshClientAssessmentStatuses(admin.firestore(), event.params.orgId, event.params.clientSlug, PUBLIC_SITE_URL);
+});
+export const deliverIntegrationAssessmentStatus = onDocumentWritten({
+  document: 'organizations/{orgId}/assessmentIntakes/{bindingId}', retry: true,
+}, async event => {
+  const after = event.data?.after.get('result');
+  if (!after || event.data?.before.get('result')?.revision === after.revision) return;
+  // Read the newest revision on retries. Receivers also ignore older revisions.
+  const latest = await event.data!.after.ref.get();
+  const result = latest.get('result') as Record<string, unknown> | undefined;
+  if (result) await fanOutWebhookEvent(event.params.orgId, 'assessment.status_changed', result, true);
+});
